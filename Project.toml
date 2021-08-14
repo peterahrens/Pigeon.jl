@@ -3,6 +3,10 @@ uuid = "5feeeddc-254b-4aab-a0bc-ed990ddc1d92"
 authors = ["Peter Ahrens"]
 version = "0.1.0"
 
+[deps]
+Lerche = "d42ef402-04e6-4356-9f73-091573ea58dc"
+SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+
 [compat]
 julia = "1.1"
 

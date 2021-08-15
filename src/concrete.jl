@@ -130,8 +130,6 @@ struct Operator <: ConcreteExpression
 end
 
 SymbolicUtils.istree(ex::Operator) = false
-Base.nameof(ex::Operator) = typeof(ex)
-Base.isbinaryoperator(::Type{Operator}) = false
 
 show_expression(io, ex::Operator) = print(io, ex.name)
 
@@ -144,8 +142,8 @@ end
 (f::Operator)(args...) = Call(f, args...)
 
 SymbolicUtils.istree(ex::Call) = true
-SymbolicUtils.operation(ex::Call) = ex.f
-SymbolicUtils.arguments(ex::Call) = [ex.args...]
+SymbolicUtils.operation(ex::Call) = Call
+SymbolicUtils.arguments(ex::Call) = [ex.f, ex.args...]
 
 function show_expression(io, ex::Call)
     show_expression(io, ex.f)
@@ -163,8 +161,6 @@ struct Tensor <: ConcreteExpression
 end
 
 SymbolicUtils.istree(ex::Tensor) = false
-Base.nameof(ex::Tensor) = typeof(ex)
-Base.isbinaryoperator(::Type{Tensor}) = false
 
 show_expression(io, ex::Tensor) = print(io, ex.name)
 
@@ -177,8 +173,8 @@ end
 (tns::Tensor)(idxs...) = Access(tns, idxs...)
 
 SymbolicUtils.istree(ex::Access) = true
-SymbolicUtils.operation(ex::Access) = ex.tns
-SymbolicUtils.arguments(ex::Access) = [ex.idxs...]
+SymbolicUtils.operation(ex::Access) = Access
+SymbolicUtils.arguments(ex::Access) = [ex.tns, ex.idxs...]
 
 function show_expression(io, ex::Access)
     show_expression(io, ex.tns)

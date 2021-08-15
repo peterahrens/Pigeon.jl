@@ -72,7 +72,7 @@ struct TreeToConcrete <: Lerche.Transformer end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
 Lerche.@rule forall(t::TreeToConcrete, args) = :(Forall($(args...)))
-Lerche.@inline_rule index(t::TreeToConcrete, name) = Index(name)
+Lerche.@inline_rule index(t::TreeToConcrete, name) = :(Index($name))
 Lerche.@terminal PLUS(t::TreeToConcrete, _) = :+
 Lerche.@terminal MINUS(t::TreeToConcrete, _) = :-
 Lerche.@terminal TIMES(t::TreeToConcrete, _) = :*
@@ -85,9 +85,9 @@ Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$name))
 Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$name))
 Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$name...))
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
-Lerche.@inline_rule operator(t::TreeToConcrete, name) = Operator(name)
+Lerche.@inline_rule operator(t::TreeToConcrete, name) = :(Operator($name))
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))
-Lerche.@inline_rule tensor(t::TreeToConcrete, name) = Tensor(name)
+Lerche.@inline_rule tensor(t::TreeToConcrete, name) = :(Tensor($name))
 Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(Call($f, $(args...)))
 Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
 Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))

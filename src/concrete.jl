@@ -23,30 +23,36 @@ function postorder(f, node::ConcreteNode)
         f(node)
     end
 end
+
+Base.isless(a::ConcreteNode, b::ConcreteNode) = hash(a) < hash(b)
+Base.hash(a::ConcreteNode, h::UInt) = hash((operation(a), arguments(a)...), h)
+
 function postorder(f, node::SymbolicUtils.Term)
     f(term(operation(node), map(child->postorder(f, child), arguments(node))...))
 end
 Base.map(f, node::ConcreteNode) = postorder(f, node)
 
-termify(node::SymbolicUtils.Term) = node
-function termify(node::ConcreteNode)
-    if istree(node)
-        return term(operation(node), map(termify, arguments(node))...)
-    else
-        return node
-    end
-end
+#termify(node::SymbolicUtils.Term) = node
+#function termify(node::ConcreteNode)
+#    if istree(node)
+#        return term(operation(node), map(termify, arguments(node))...)
+#    else
+#        return node
+#    end
+#end
+#
+#determify(node) = node
+#determify(node::SymbolicUtils.Term) = operation(node)(map(determify, arguments(node))...)
 
-determify(node) = node
-determify(node::SymbolicUtils.Term) = operation(node)(map(determify, arguments(node))...)
-
-struct Body
+struct Body <: ConcreteStatement
     stmt
 end
 
 SymbolicUtils.istree(stmt::Body) = true
 SymbolicUtils.operation(stmt::Body) = Body
 SymbolicUtils.arguments(stmt::Body) = [stmt.stmt]
+
+show_statement(io, stmt::Body, level) = show_statement(io, stmt.stmt, level)
 
 struct Forall <: ConcreteStatement
 	idxs
@@ -66,7 +72,11 @@ SymbolicUtils.arguments(stmt::Forall) = [stmt.idxs..., stmt.body]
 
 function show_statement(io, stmt::Forall, level)
     print(io, tab^level * "∀ ")
-    show_expression(io, stmt.idx)
+    show_expression(io, stmt.idxs[1])
+    for idx in stmt.idxs[2:end]
+        print(io,", ")
+        show_expression(io, idx)
+    end
     print(io," \n")
     show_statement(io, stmt.body, level + 1)
 end
@@ -76,6 +86,7 @@ struct Workspace <: ConcreteExpression
 end
 
 SymbolicUtils.istree(ex::Workspace) = false
+Base.hash(ex::Workspace, h::UInt) = hash((Workspace, ex.n), h)
 
 function show_expression(io, ex::Workspace)
     print(io, "{")
@@ -88,6 +99,7 @@ struct Name <: ConcreteExpression
 end
 
 SymbolicUtils.istree(ex::Name) = false
+Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, ex::Name) = print(io, ex.name)
 
@@ -96,6 +108,7 @@ struct Literal <: ConcreteExpression
 end
 
 SymbolicUtils.istree(ex::Literal) = false
+Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, ex::Literal) = print(io, ex.val)
 
@@ -108,6 +121,16 @@ SymbolicUtils.operation(ex::Index) = Index
 SymbolicUtils.arguments(ex::Index) = [ex.name]
 
 show_expression(io, ex::Index) = show_expression(io, ex.name)
+
+struct Quantified <: ConcreteExpression
+    idx 
+end
+
+SymbolicUtils.istree(ex::Quantified) = true
+SymbolicUtils.operation(ex::Quantified) = Quantified
+SymbolicUtils.arguments(ex::Quantified) = [ex.idx]
+
+show_expression(io, ex::Quantified) = show_expression(io, ex.idx)
 
 struct Where <: ConcreteStatement
 	cons

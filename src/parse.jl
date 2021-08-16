@@ -50,7 +50,7 @@ _OPEN_BRACKET: /\\[\\s*/
 _CLOSE_BRACKET: /\\]\\s*/
 _FORALL: /##forall#\\s*/
 
-LITERAL: /\\-?[0-9]+\\.[0-9]+\\s*/
+LITERAL: /\\-?[0-9]+\\.?[0-9]*\\s*/
 NAME: /[_A-Za-z][_A-Za-z0-9]*\\s*/
 INTERPOLATE: /##interpolate#[0-9_]*\\s*/
 
@@ -68,7 +68,9 @@ const index_statement_parser = Lerche.Lark(
     parser="lalr",lexer="contextual"
 )
 
-struct TreeToConcrete <: Lerche.Transformer end
+struct TreeToConcrete <: Lerche.Transformer
+    bindings
+end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
 Lerche.@rule forall(t::TreeToConcrete, args) = :(Forall($(args[1:end-1]...), Body($(args[end]))))
@@ -79,7 +81,7 @@ Lerche.@terminal TIMES(t::TreeToConcrete, _) = Literal(*)
 Lerche.@terminal SLASH(t::TreeToConcrete, _) = Literal(/)
 Lerche.@terminal CARET(t::TreeToConcrete, _) = Literal(^)
 Lerche.@terminal NAME(t::TreeToConcrete, name) = Name(Symbol(strip(String(name), [' ',])))
-Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = Symbol(strip(String(name), [' ',]))
+Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = t.bindings[Symbol(strip(String(name), [' ',]))]
 Lerche.@terminal LITERAL(t::TreeToConcrete, num) = Literal(parse(Int, strip(String(num), [' ',])))
 Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
 Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
@@ -99,17 +101,17 @@ Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call(Oper
 function preparse_index(s)
 	s′ = []
 	pos = 1
-	thunk = Expr(:block)
+    bindings = Dict()
 	while (m = findnext("\$", s, pos)) !== nothing
         push!(s′, s[pos:first(m) - 1])
         pos = first(m) + 1
         (ex, pos′) = Meta.parse(s, pos, greedy=false)
         sym = gensym(:interpolate)
-        push!(thunk.args, :($sym = esc($ex)))
+        bindings[sym] = esc(ex)
         push!(s′, "$(string(sym))")
         pos = pos′
 	end
-    if pos < lastindex(s)
+    if pos <= lastindex(s)
         push!(s′, s[pos:end])
     end
     s = join(s′, " ")
@@ -117,21 +119,19 @@ function preparse_index(s)
     s = replace(s, r"∀|(\bfor\b)|(\bforall\b)"=>"##forall#")
     s = replace(s, r"(\bwhere\b)"=>"##where#")
     s = String(strip(s, [' ',]))
-    (s, thunk)
+    (s, bindings)
 end
 
 function parse_index_expression(s)
-    (s, thunk) = preparse_index(s)
+    (s, bindings) = preparse_index(s)
     t = Lerche.parse(index_expression_parser,s) 
-    push!(thunk.args, Lerche.transform(TreeToConcrete(),t))
-    return thunk
+    return Lerche.transform(TreeToConcrete(bindings),t)
 end
 
 function parse_index_statement(s)
-    (s, thunk) = preparse_index(s)
+    (s, bindings) = preparse_index(s)
     t = Lerche.parse(index_statement_parser,s) 
-    push!(thunk.args, Lerche.transform(TreeToConcrete(),t))
-    return thunk
+    return Lerche.transform(TreeToConcrete(bindings),t)
 end
 
 macro is_str(s)

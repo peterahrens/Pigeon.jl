@@ -10,8 +10,8 @@ export @xrule, @xarule, @xacrule
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
 export Forall, Assign, Where
-export Access, Call, Literal
-export Index, Workspace, Tensor, Operator
+export Access, Call, Literal, Index, Workspace, Name
+export Tensor, Operator, Body
 export postorder, determify, termify
 
 include("concrete.jl")

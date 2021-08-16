@@ -8,14 +8,14 @@ where: _statement _WHERE _producer
 _producer: _hole | forall | assign | _OPEN_PAREN _statement _CLOSE_PAREN
 
 forall: _FORALL (index | _holes) (_COMMA (index | _holes))* _statement
-index: SYMBOL
+index: NAME
 
 assign: (access | _hole) [(operator | _holes)] _EQUALS _expression
 
-operator: SYMBOL | PLUS | MINUS | TIMES | SLASH | CARET
+operator: NAME | PLUS | MINUS | TIMES | SLASH | CARET
 
 access: (tensor | _hole) _OPEN_BRACKET [(index | _holes) ((_COMMA index) | (_COMMA _holes))*] _CLOSE_BRACKET
-tensor: SYMBOL
+tensor: NAME
 
 _expression: add | subtract | negate | _term
 add: _expression PLUS _term
@@ -29,9 +29,9 @@ exponentiate: _base CARET _factor
 _base: _hole | LITERAL | _OPEN_PAREN _expression _CLOSE_PAREN | call | access
 call: (operator | _hole) _OPEN_PAREN (_expression | segment | splat) (_COMMA (_expression | segment | splat))* _CLOSE_PAREN
 
-slot: _APPROX SYMBOL
-segment: _APPROX _APPROX SYMBOL
-splat: _APPROX _APPROX SYMBOL _ELLIPSIS
+slot: _APPROX NAME
+segment: _APPROX _APPROX NAME
+splat: _APPROX _APPROX NAME _ELLIPSIS
 
 PLUS: /\\+\\s*/
 MINUS: /\\-\\s*/
@@ -51,7 +51,7 @@ _CLOSE_BRACKET: /\\]\\s*/
 _FORALL: /##forall#\\s*/
 
 LITERAL: /\\-?[0-9]+\\.[0-9]+\\s*/
-SYMBOL: /[_A-Za-z][_A-Za-z0-9]*\\s*/
+NAME: /[_A-Za-z][_A-Za-z0-9]*\\s*/
 INTERPOLATE: /##interpolate#[0-9_]*\\s*/
 
 %import common.SIGNED_NUMBER
@@ -71,30 +71,30 @@ const index_statement_parser = Lerche.Lark(
 struct TreeToConcrete <: Lerche.Transformer end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
-Lerche.@rule forall(t::TreeToConcrete, args) = :(Forall($(args...)))
+Lerche.@rule forall(t::TreeToConcrete, args) = :(Forall($(args[1:end-1]...), Body($(args[end]))))
 Lerche.@inline_rule index(t::TreeToConcrete, name) = :(Index($name))
-Lerche.@terminal PLUS(t::TreeToConcrete, _) = :+
-Lerche.@terminal MINUS(t::TreeToConcrete, _) = :-
-Lerche.@terminal TIMES(t::TreeToConcrete, _) = :*
-Lerche.@terminal SLASH(t::TreeToConcrete, _) = :/
-Lerche.@terminal CARET(t::TreeToConcrete, _) = :^
-Lerche.@terminal SYMBOL(t::TreeToConcrete, name) = Symbol(strip(String(name), [' ',]))
+Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
+Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)
+Lerche.@terminal TIMES(t::TreeToConcrete, _) = Literal(*)
+Lerche.@terminal SLASH(t::TreeToConcrete, _) = Literal(/)
+Lerche.@terminal CARET(t::TreeToConcrete, _) = Literal(^)
+Lerche.@terminal NAME(t::TreeToConcrete, name) = Name(Symbol(strip(String(name), [' ',])))
 Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = Symbol(strip(String(name), [' ',]))
-Lerche.@terminal LITERAL(t::TreeToConcrete, num) = parse(Int, strip(String(num), [' ',]))
-Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$name))
-Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$name))
-Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$name...))
+Lerche.@terminal LITERAL(t::TreeToConcrete, num) = Literal(parse(Int, strip(String(num), [' ',])))
+Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
+Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
+Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$(name.name)...))
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
 Lerche.@inline_rule operator(t::TreeToConcrete, name) = :(Operator($name))
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))
 Lerche.@inline_rule tensor(t::TreeToConcrete, name) = :(Tensor($name))
 Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(Call($f, $(args...)))
-Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
-Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
-Lerche.@inline_rule negate(t::TreeToConcrete, f, arg) = :(Call(Operator($f), $arg))
-Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
-Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
-Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($f), $arg1, $arg2))
+Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(+))), $arg1, $arg2))
+Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(-))), $arg1, $arg2))
+Lerche.@inline_rule negate(t::TreeToConcrete, f, arg) = :(Call(Operator($(Literal(-))), $arg))
+Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(*))), $arg1, $arg2))
+Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(/))), $arg1, $arg2))
+Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(^))), $arg1, $arg2))
 
 function preparse_index(s)
 	s′ = []

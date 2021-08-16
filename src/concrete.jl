@@ -107,7 +107,7 @@ SymbolicUtils.istree(ex::Index) = true
 SymbolicUtils.operation(ex::Index) = Index
 SymbolicUtils.arguments(ex::Index) = [ex.name]
 
-show_expression(io, ex::Index) = print(io, ex.name)
+show_expression(io, ex::Index) = show_expression(io, ex.name)
 
 struct Where <: ConcreteStatement
 	cons
@@ -164,7 +164,7 @@ SymbolicUtils.istree(ex::Operator) = true
 SymbolicUtils.operation(ex::Operator) = Operator
 SymbolicUtils.arguments(ex::Operator) = [ex.val]
 
-show_expression(io, ex::Operator) = print(io, ex.val)
+show_expression(io, ex::Operator) = show_expression(io, ex.val)
 
 struct Call <: ConcreteExpression
     op
@@ -202,7 +202,7 @@ SymbolicUtils.istree(ex::Tensor) = true
 SymbolicUtils.operation(ex::Tensor) = Tensor
 SymbolicUtils.arguments(ex::Tensor) = [ex.name]
 
-show_expression(io, ex::Tensor) = print(io, ex.name)
+show_expression(io, ex::Tensor) = show_expression(io, ex.name)
 
 struct Access <: ConcreteExpression
     tns

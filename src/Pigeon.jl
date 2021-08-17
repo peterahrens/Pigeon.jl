@@ -9,10 +9,10 @@ export @is_str, @ie_str
 export @xrule, @xarule, @xacrule
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
-export Forall, Assign, Where
+export Forall, Assign, Where, Pass
 export Access, Call, Literal, Index, Workspace, Name, Quantified
 export Tensor, Operator, Body
-export postorder, determify, termify
+export postorder, value
 
 include("concrete.jl")
 include("parse.jl")

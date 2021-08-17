@@ -52,7 +52,11 @@ SymbolicUtils.istree(stmt::Body) = true
 SymbolicUtils.operation(stmt::Body) = Body
 SymbolicUtils.arguments(stmt::Body) = [stmt.stmt]
 
-show_statement(io, stmt::Body, level) = show_statement(io, stmt.stmt, level)
+struct Pass <: ConcreteStatement end
+
+SymbolicUtils.istree(stmt::Pass) = false
+
+show_statement(io, stmt::Pass, level) = print(io, tab^level * "()")
 
 struct Forall <: ConcreteStatement
 	idxs
@@ -106,6 +110,8 @@ show_expression(io, ex::Name) = print(io, ex.name)
 struct Literal <: ConcreteExpression
     val
 end
+
+value(ex::Literal) = ex.val
 
 SymbolicUtils.istree(ex::Literal) = false
 Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)

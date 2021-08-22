@@ -60,23 +60,23 @@ SymbolicUtils.istree(stmt::Pass) = false
 
 show_statement(io, stmt::Pass, level) = print(io, tab^level * "()")
 
-struct Forall <: ConcreteStatement
+struct Loop <: ConcreteStatement
 	idxs
 	body
 
-    Forall(args...) = new(args[1:end-1], args[end])
-    #function Forall(args...)
+    Loop(args...) = new(args[1:end-1], args[end])
+    #function Loop(args...)
     #    i = findfirst(arg->(arg isa Body), args)
     #    @assert i !== nothing && findnext(arg->(arg isa Body), args, i + 1) === nothing
     #    new([args[j] for j in eachindex(args) if i != j], args[i])
     #end
 end
 
-SymbolicUtils.istree(stmt::Forall) = true
-SymbolicUtils.operation(stmt::Forall) = Forall
-SymbolicUtils.arguments(stmt::Forall) = [stmt.idxs..., stmt.body]
+SymbolicUtils.istree(stmt::Loop) = true
+SymbolicUtils.operation(stmt::Loop) = Loop
+SymbolicUtils.arguments(stmt::Loop) = [stmt.idxs..., stmt.body]
 
-function show_statement(io, stmt::Forall, level)
+function show_statement(io, stmt::Loop, level)
     print(io, tab^level * "∀ ")
     show_expression(io, stmt.idxs[1])
     for idx in stmt.idxs[2:end]

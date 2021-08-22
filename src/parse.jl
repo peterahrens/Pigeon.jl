@@ -5,9 +5,9 @@ _holes: INTERPOLATE | slot | segment | splat
 
 _statement: where | _producer
 where: _statement _WHERE _producer
-_producer: _hole | forall | assign | _OPEN_PAREN _statement _CLOSE_PAREN
+_producer: _hole | loop | assign | _OPEN_PAREN _statement _CLOSE_PAREN
 
-forall: _FORALL (index | _holes) (_COMMA (index | _holes))* _statement
+loop: _LOOP (index | _holes) (_COMMA (index | _holes))* _statement
 index: NAME
 
 assign: (access | _hole) [(operator | _holes)] _EQUALS _expression
@@ -48,7 +48,7 @@ _OPEN_PAREN: /\\(\\s*/
 _CLOSE_PAREN: /\\)\\s*/
 _OPEN_BRACKET: /\\[\\s*/
 _CLOSE_BRACKET: /\\]\\s*/
-_FORALL: /##forall#\\s*/
+_LOOP: /##loop#\\s*/
 
 LITERAL: /\\-?[0-9]+\\.?[0-9]*\\s*/
 NAME: /[_A-Za-z][_A-Za-z0-9]*\\s*/
@@ -73,7 +73,7 @@ struct TreeToConcrete <: Lerche.Transformer
 end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
-Lerche.@rule forall(t::TreeToConcrete, args) = :(Forall($(args[1:end-1]...), Body($(args[end]))))
+Lerche.@rule loop(t::TreeToConcrete, args) = :(Loop($(args[1:end-1]...), Body($(args[end]))))
 Lerche.@inline_rule index(t::TreeToConcrete, name) = :(Index($name))
 Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
 Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)
@@ -116,7 +116,7 @@ function preparse_index(s)
     end
     s = join(s′, " ")
     s = replace(s, r"\n"=>" ")
-    s = replace(s, r"∀|(\bfor\b)|(\bforall\b)"=>"##forall#")
+    s = replace(s, r"∀|(\bfor\b)|(\bloop\b)"=>"##loop#")
     s = replace(s, r"(\bwhere\b)"=>"##where#")
     s = String(strip(s, [' ',]))
     (s, bindings)

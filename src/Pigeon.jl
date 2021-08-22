@@ -9,7 +9,7 @@ export @is_str, @ie_str
 export @xrule, @xarule, @xacrule
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
-export Forall, Assign, Where, Pass
+export Loop, Assign, Where, Pass
 export Access, Call, Literal, Index, Workspace, Name, Quantified
 export Tensor, Operator, Body
 export postorder, value

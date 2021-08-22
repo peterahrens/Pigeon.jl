@@ -21,12 +21,14 @@ function Base.show(io::IO, ex::ConcreteNode)
         print(io, operation(ex))
         print(io, "(")
         for arg in arguments(ex)[1:end-1]
-            print(io, arg)
+            show(io, arg)
             print(io, ", ")
         end
         if length(arguments(ex)) >= 1
-            print(io, last(arguments(ex)))
+            show(io, last(arguments(ex)))
         end
+    else
+        invoke(show, Tuple{IO, Any}, io, ex)
     end
 end
 

@@ -52,6 +52,8 @@ SymbolicUtils.istree(stmt::Body) = true
 SymbolicUtils.operation(stmt::Body) = Body
 SymbolicUtils.arguments(stmt::Body) = [stmt.stmt]
 
+show_statement(io, stmt::Body, level) = show_statement(io, stmt.stmt, level)
+
 struct Pass <: ConcreteStatement end
 
 SymbolicUtils.istree(stmt::Pass) = false

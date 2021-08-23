@@ -12,9 +12,17 @@ export ConcreteNode, ConcreteStatement, ConcreteExpression
 export Loop, Assign, Where, Pass
 export Access, Call, Literal, Index, Workspace, Name, Quantified
 export Tensor, Operator, Body
-export postorder, value
+export postorder, value, name
 
 include("concrete.jl")
 include("parse.jl")
+
+is"""
+    ∀ i (
+        ∀ j A[i, j] += w[j]
+    where
+        ∀ j, k w[j] += B[i, k] * C[k, j]
+    )
+"""
 
 end

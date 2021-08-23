@@ -27,6 +27,7 @@ function Base.show(io::IO, ex::ConcreteNode)
         if length(arguments(ex)) >= 1
             show(io, last(arguments(ex)))
         end
+        print(io, ")")
     else
         invoke(show, Tuple{IO, Any}, io, ex)
     end
@@ -125,6 +126,8 @@ Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, mime, ex::Name) = print(io, ex.name)
 
+name(ex::Name) = ex.name
+
 struct Literal <: ConcreteExpression
     val
 end
@@ -143,6 +146,8 @@ end
 SymbolicUtils.istree(ex::Index) = true
 SymbolicUtils.operation(ex::Index) = Index
 SymbolicUtils.arguments(ex::Index) = [ex.name]
+
+name(ex::Index) = name(ex.name)
 
 show_expression(io, mime, ex::Index) = show_expression(io, mime, ex.name)
 
@@ -248,6 +253,8 @@ end
 SymbolicUtils.istree(ex::Tensor) = true
 SymbolicUtils.operation(ex::Tensor) = Tensor
 SymbolicUtils.arguments(ex::Tensor) = [ex.name]
+
+name(ex::Tensor) = name(ex.name)
 
 show_expression(io, mime, ex::Tensor) = show_expression(io, mime, ex.name)
 

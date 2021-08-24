@@ -7,6 +7,7 @@ using SymbolicUtils: Fixpoint, Chain, Postwalk
 
 export @is_str, @ie_str
 export @xrule, @xarule, @xacrule
+export @capture
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
 export Loop, Assign, Where, Pass

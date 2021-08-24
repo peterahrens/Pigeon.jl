@@ -153,3 +153,25 @@ end
 macro xacrule(ex)
     return esc(:(SymbolicUtils.@acrule $(macroexpand(__module__, ex))))
 end
+
+macro capture(ex, lhs)
+    keys = Symbol[]
+    lhs_term = SymbolicUtils.makepattern(lhs, keys)
+    unique!(keys)
+    bind = Expr(:block, map(key-> :($(esc(key)) = getindex(__MATCHES__, $(QuoteNode(key)))), keys)...)
+    quote
+        $(__source__)
+        lhs_pattern = $(lhs_term)
+        __MATCHES__ = SymbolicUtils.Rule($(QuoteNode(lhs)),
+             lhs_pattern,
+             SymbolicUtils.matcher(lhs_pattern),
+             identity,
+             SymbolicUtils.rule_depth($lhs_term))($(esc(ex)))
+        if __MATCHES__ !== nothing
+            $bind
+            true
+        else
+            false
+        end
+    end
+end

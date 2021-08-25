@@ -142,10 +142,6 @@ macro ie_str(s)
     return parse_index_expression(s)
 end
 
-macro xrule(ex)
-    return esc(:($SymbolicUtils.@rule $(macroexpand(__module__, ex))))
-end
-
 macro capture(ex, lhs)
     keys = Symbol[]
     lhs_term = SymbolicUtils.makepattern(lhs, keys)

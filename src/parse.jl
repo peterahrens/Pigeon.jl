@@ -146,14 +146,6 @@ macro xrule(ex)
     return esc(:($SymbolicUtils.@rule $(macroexpand(__module__, ex))))
 end
 
-macro xarule(ex)
-    return esc(:(SymbolicUtils.@ordered_acrule $(macroexpand(__module__, ex))))
-end
-
-macro xacrule(ex)
-    return esc(:(SymbolicUtils.@acrule $(macroexpand(__module__, ex))))
-end
-
 macro capture(ex, lhs)
     keys = Symbol[]
     lhs_term = SymbolicUtils.makepattern(lhs, keys)

@@ -14,6 +14,7 @@ export Access, Call, Literal, Index, Workspace, Name, Quantified
 export Tensor, Operator, Body
 export postorder, value, name
 
+include("utils.jl")
 include("concrete.jl")
 include("parse.jl")
 

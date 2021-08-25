@@ -61,16 +61,6 @@ Base.map(f, node::ConcreteNode) = postorder(f, node)
 #determify(node) = node
 #determify(node::SymbolicUtils.Term) = operation(node)(map(determify, arguments(node))...)
 
-struct Body <: ConcreteStatement
-    stmt
-end
-
-SymbolicUtils.istree(stmt::Body) = true
-SymbolicUtils.operation(stmt::Body) = Body
-SymbolicUtils.arguments(stmt::Body) = [stmt.stmt]
-
-show_statement(io, mime, stmt::Body, level) = show_statement(io, mime, stmt.stmt, level)
-
 struct Pass <: ConcreteStatement end
 
 SymbolicUtils.istree(stmt::Pass) = false

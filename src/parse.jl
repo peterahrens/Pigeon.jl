@@ -73,7 +73,7 @@ struct TreeToConcrete <: Lerche.Transformer
 end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
-Lerche.@rule loop(t::TreeToConcrete, args) = :(Loop($(args[1:end-1]...), Body($(args[end]))))
+Lerche.@rule loop(t::TreeToConcrete, args) = :(Loop($(args[1:end-1]...), $(args[end])))
 Lerche.@inline_rule index(t::TreeToConcrete, name) = :(Index($name))
 Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
 Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)

@@ -72,11 +72,6 @@ struct Loop <: ConcreteStatement
 	body
 
     Loop(args...) = new(args[1:end-1], args[end])
-    #function Loop(args...)
-    #    i = findfirst(arg->(arg isa Body), args)
-    #    @assert i !== nothing && findnext(arg->(arg isa Body), args, i + 1) === nothing
-    #    new([args[j] for j in eachindex(args) if i != j], args[i])
-    #end
 end
 
 SymbolicUtils.istree(stmt::Loop) = true
@@ -128,18 +123,6 @@ SymbolicUtils.istree(ex::Literal) = false
 Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
-
-struct Index <: ConcreteExpression
-    name
-end
-
-SymbolicUtils.istree(ex::Index) = true
-SymbolicUtils.operation(ex::Index) = Index
-SymbolicUtils.arguments(ex::Index) = [ex.name]
-
-name(ex::Index) = name(ex.name)
-
-show_expression(io, mime, ex::Index) = show_expression(io, mime, ex.name)
 
 struct Quantified <: ConcreteExpression
     idx 
@@ -198,28 +181,11 @@ function show_statement(io, mime, stmt::Assign, level)
     print(io, "\n")
 end
 
-struct Operator <: ConcreteExpression
-    val
-end
-
-SymbolicUtils.istree(ex::Operator) = true
-SymbolicUtils.operation(ex::Operator) = Operator
-SymbolicUtils.arguments(ex::Operator) = [ex.val]
-
-show_expression(io, mime, ex::Operator) = show_expression(io, mime, ex.val)
-
 struct Call <: ConcreteExpression
     op
     args
     Call(op, args...) = new(op, args)
-    #function Call(args...)
-    #    i = findfirst(arg->(arg isa Operator), args)
-    #    @assert i !== nothing && findnext(arg->(arg isa Operator), args, i + 1) === nothing
-    #    new(args[i], [args[j] for j in eachindex(args) if i != j])
-    #end
 end
-
-(op::Operator)(args...) = Call(op, args...)
 
 SymbolicUtils.istree(ex::Call) = true
 SymbolicUtils.operation(ex::Call) = Call
@@ -236,27 +202,10 @@ function show_expression(io, mime, ex::Call)
     print(io, ")")
 end
 
-struct Tensor <: ConcreteExpression
-    name
-end
-
-SymbolicUtils.istree(ex::Tensor) = true
-SymbolicUtils.operation(ex::Tensor) = Tensor
-SymbolicUtils.arguments(ex::Tensor) = [ex.name]
-
-name(ex::Tensor) = name(ex.name)
-
-show_expression(io, mime, ex::Tensor) = show_expression(io, mime, ex.name)
-
 struct Access <: ConcreteExpression
     tns
     idxs
     Access(tns, inds...) = new(tns, inds)
-    #function Access(args...)
-    #    i = findfirst(arg->(arg isa Tensor), args)
-    #    @assert i !== nothing && findnext(arg->(arg isa Tensor), args, i+1) === nothing
-    #    new(args[i], [args[j] for j in eachindex(args) if i != j])
-    #end
 end
 
 SymbolicUtils.istree(ex::Access) = true

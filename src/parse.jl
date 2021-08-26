@@ -76,7 +76,7 @@ end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
 Lerche.@rule loop(t::TreeToConcrete, args) = :(Loop($(args[1:end-1]...), $(args[end])))
-Lerche.@inline_rule index(t::TreeToConcrete, name) = :(Index($name))
+Lerche.@inline_rule index(t::TreeToConcrete, name) = name
 Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
 Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)
 Lerche.@terminal TIMES(t::TreeToConcrete, _) = Literal(*)
@@ -89,16 +89,16 @@ Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
 Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
 Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$(name.name)...))
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
-Lerche.@inline_rule operator(t::TreeToConcrete, name) = :(Operator($name))
+Lerche.@inline_rule operator(t::TreeToConcrete, name) = name
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))
 Lerche.@inline_rule tensor(t::TreeToConcrete, name) = name
 Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(Call($f, $(args...)))
-Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(+))), $arg1, $arg2))
-Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(-))), $arg1, $arg2))
-Lerche.@inline_rule negate(t::TreeToConcrete, f, arg) = :(Call(Operator($(Literal(-))), $arg))
-Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(*))), $arg1, $arg2))
-Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(/))), $arg1, $arg2))
-Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(^))), $arg1, $arg2))
+Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(+)), $arg1, $arg2))
+Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(-)), $arg1, $arg2))
+Lerche.@inline_rule negate(t::TreeToConcrete, f, arg) = :(Call($(Literal(-)), $arg))
+Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(*)), $arg1, $arg2))
+Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(/)), $arg1, $arg2))
+Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(^)), $arg1, $arg2))
 
 function preparse_index(s)
 	s′ = []

@@ -10,8 +10,8 @@ export @capture
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
 export Loop, Assign, Where, Pass
-export Access, Call, Literal, Index, Workspace, Name, Quantified
-export Tensor, Operator, Body
+export Access, Call, Literal, Workspace, Name, Quantified
+export Operator, Body
 export postorder, value, name
 
 include("utils.jl")

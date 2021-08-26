@@ -1,24 +1,18 @@
 
+
+
+
+#_statement: where | _producer
+#where: _statement _WHERE _producer
+#_producer: _hole | loop | _body
+#
+#_body: assign | _OPEN_PAREN _statement _CLOSE_PAREN
+#
+#loop: _LOOP (index | _holes) (_COMMA (index | _holes))* _statement
+#
+#assign: (access | _hole) [(operator | _holes)] _EQUALS _expression
+
 const index_grammar = """
-_hole: INTERPOLATE | slot
-_holes: INTERPOLATE | slot | segment | splat
-
-_statement: where | _producer
-where: _statement _WHERE _producer
-_producer: _hole | loop | _body
-
-_body: assign | _OPEN_PAREN _statement _CLOSE_PAREN
-
-loop: _LOOP (index | _holes) (_COMMA (index | _holes))* _statement
-index: NAME
-
-assign: (access | _hole) [(operator | _holes)] _EQUALS _expression
-
-operator: NAME | PLUS | MINUS | TIMES | SLASH | CARET
-
-access: (tensor | _hole) _OPEN_BRACKET [(index | _holes) ((_COMMA index) | (_COMMA _holes))*] _CLOSE_BRACKET
-tensor: NAME
-
 _expression: add | subtract | negate | _term
 add: _expression PLUS _term
 subtract: _expression MINUS _term
@@ -28,8 +22,11 @@ multiply: _term TIMES _factor
 divide: _term SLASH _factor
 _factor: exponentiate | _base
 exponentiate: _base CARET _factor
-_base: _hole | LITERAL | _OPEN_PAREN _expression _CLOSE_PAREN | call | access
-call: (operator | _hole) _OPEN_PAREN (_expression | segment | splat) (_COMMA (_expression | segment | splat))* _CLOSE_PAREN
+_base: call | access | _argument
+call: _argument _OPEN_PAREN _expressions _CLOSE_PAREN
+access: _argument _OPEN_BRACKET _expressions _CLOSE_BRACKET
+_expressions: [(_expression | segment | splat)] (_COMMA (_expression | segment | splat))*
+_argument: INTERPOLATE | slot | LITERAL | NAME | PLUS | MINUS | TIMES | SLASH | CARET | _OPEN_PAREN _expression _CLOSE_PAREN
 
 slot: _APPROX NAME
 segment: _APPROX _APPROX NAME
@@ -66,7 +63,7 @@ const index_expression_parser = Lerche.Lark(
 )
 
 const index_statement_parser = Lerche.Lark(
-    "?start: _statement\n" * index_grammar,
+    "?start: _expression\n" * index_grammar,
     parser="lalr",lexer="contextual"
 )
 

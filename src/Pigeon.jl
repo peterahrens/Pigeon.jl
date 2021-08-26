@@ -18,6 +18,8 @@ include("utils.jl")
 include("concrete.jl")
 include("parse.jl")
 
+
+#=
 is"""
     ∀ i (
         ∀ j A[i, j] += w[j]
@@ -25,5 +27,6 @@ is"""
         ∀ j, k w[j] += B[i, k] * C[k, j]
     )
 """
+=#
 
 end

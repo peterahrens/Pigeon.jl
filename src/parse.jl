@@ -22,11 +22,11 @@ _base: call | access | _argument
 call: _argument _OPEN_PAREN [_expressions] _CLOSE_PAREN
 access: _argument _OPEN_BRACKET [_expressions] _CLOSE_BRACKET
 _arguments: _argument (_COMMA _argument)*
-_argument: INTERPOLATE | slot | segment | splat | LITERAL | NAME | PLUS | MINUS | TIMES | SLASH | CARET | _OPEN_PAREN _statement _CLOSE_PAREN
-
+splat: _argument _ELLIPSIS
+_argument: splat | _leaf
 slot: _APPROX NAME
 segment: _APPROX _APPROX NAME
-splat: _APPROX _APPROX NAME _ELLIPSIS
+_leaf: INTERPOLATE | slot | segment | LITERAL | NAME | PLUS | MINUS | TIMES | SLASH | CARET | _OPEN_PAREN _statement _CLOSE_PAREN
 
 PLUS: /\\+\\s*/
 MINUS: /\\-\\s*/
@@ -80,7 +80,7 @@ Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = t.bindings[Symbol(strip(
 Lerche.@terminal LITERAL(t::TreeToConcrete, num) = Literal(parse(Int, strip(String(num), [' ',])))
 Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
 Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
-Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$(name.name)...))
+Lerche.@inline_rule splat(t::TreeToConcrete, arg) = esc(:($arg...))
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
 Lerche.@inline_rule operator(t::TreeToConcrete, name) = name
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))

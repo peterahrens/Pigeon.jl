@@ -125,7 +125,7 @@ _where!(args) = Where(args[1], args[2])
 
 SymbolicUtils.istree(stmt::Where) = true
 SymbolicUtils.operation(stmt::Where) = _where
-SymbolicUtils.arguments(stmt::Where) = [stmt.cons, stmt.prod]
+SymbolicUtils.arguments(stmt::Where) = Any[stmt.cons, stmt.prod]
 SymbolicUtils.similarterm(::ConcreteNode, ::typeof(_where), args, T...) = _where!(args)
 
 function show_statement(io, mime, stmt::Where, level)
@@ -147,7 +147,7 @@ loop!(args) = Loop(args, pop!(args))
 
 SymbolicUtils.istree(stmt::Loop) = true
 SymbolicUtils.operation(stmt::Loop) = loop
-SymbolicUtils.arguments(stmt::Loop) = [stmt.idxs; stmt.body]
+SymbolicUtils.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
 SymbolicUtils.similarterm(::ConcreteNode, ::typeof(loop), args, T...) = loop!(args)
 
 function show_statement(io, mime, stmt::Loop, level)
@@ -183,9 +183,9 @@ SymbolicUtils.istree(stmt::Assign) = true
 SymbolicUtils.operation(stmt::Assign) = assign
 function SymbolicUtils.arguments(stmt::Assign)
     if stmt.op === nothing
-        [stmt.lhs, stmt.rhs]
+        Any[stmt.lhs, stmt.rhs]
     else
-        [stmt.lhs, stmt.op, stmt.rhs]
+        Any[stmt.lhs, stmt.op, stmt.rhs]
     end
 end
 SymbolicUtils.similarterm(::ConcreteNode, ::typeof(assign), args, T...) = assign!(args)
@@ -213,7 +213,7 @@ call!(args) = Call(popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Call) = true
 SymbolicUtils.operation(ex::Call) = call
-SymbolicUtils.arguments(ex::Call) = [ex.op; ex.args]
+SymbolicUtils.arguments(ex::Call) = Any[ex.op; ex.args]
 SymbolicUtils.similarterm(::ConcreteNode, ::typeof(call), args, T...) = call!(args)
 
 function show_expression(io, mime, ex::Call)
@@ -238,7 +238,7 @@ access!(args) = Access(popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Access) = true
 SymbolicUtils.operation(ex::Access) = access
-SymbolicUtils.arguments(ex::Access) = [ex.tns; ex.idxs]
+SymbolicUtils.arguments(ex::Access) = Any[ex.tns; ex.idxs]
 SymbolicUtils.similarterm(::ConcreteNode, ::typeof(access), args, T...) = access!(args)
 
 function show_expression(io, mime, ex::Access)

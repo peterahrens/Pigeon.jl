@@ -1,7 +1,3 @@
-
-
-
-
 const index_notation_grammar = """
 ?start: _statement
 

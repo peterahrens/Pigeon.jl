@@ -2,7 +2,9 @@
 
 
 
-const index_grammar = """
+const index_notation_grammar = """
+?start: _statement
+
 _statement: where | _producer
 where: _statement _WHERE _producer
 _producer: loop | assign | _expression
@@ -53,15 +55,7 @@ INTERPOLATE: /##interpolate#[0-9_]*\\s*/
 %import common.CNAME
 """
 
-const index_expression_parser = Lerche.Lark(
-    "?start: _expression\n" * index_grammar,
-    parser="lalr",lexer="contextual"
-)
-
-const index_statement_parser = Lerche.Lark(
-    "?start: _statement\n" * index_grammar,
-    parser="lalr",lexer="contextual"
-)
+const index_notation_parser = Lerche.Lark(index_notation_grammar, parser="lalr",lexer="contextual")
 
 struct TreeToConcrete <: Lerche.Transformer
     bindings
@@ -69,7 +63,6 @@ end
 
 Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(Where($cons, $prod))
 Lerche.@rule loop(t::TreeToConcrete, args) = :(Loop($(args[1:end-1]...), $(args[end])))
-Lerche.@inline_rule index(t::TreeToConcrete, name) = name
 Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
 Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)
 Lerche.@terminal TIMES(t::TreeToConcrete, _) = Literal(*)
@@ -80,11 +73,9 @@ Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = t.bindings[Symbol(strip(
 Lerche.@terminal LITERAL(t::TreeToConcrete, num) = Literal(parse(Int, strip(String(num), [' ',])))
 Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
 Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
-Lerche.@inline_rule splat(t::TreeToConcrete, arg) = esc(:($arg...))
+Lerche.@inline_rule splat(t::TreeToConcrete, arg) = :($arg...)
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
-Lerche.@inline_rule operator(t::TreeToConcrete, name) = name
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))
-Lerche.@inline_rule tensor(t::TreeToConcrete, name) = name
 Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(Call($f, $(args...)))
 Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(+)), $arg1, $arg2))
 Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(-)), $arg1, $arg2))
@@ -93,7 +84,7 @@ Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Litera
 Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(/)), $arg1, $arg2))
 Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(Call($(Literal(^)), $arg1, $arg2))
 
-function preparse_index(s)
+function preparse_index_notation(s)
 	s′ = []
 	pos = 1
     bindings = Dict()
@@ -117,24 +108,14 @@ function preparse_index(s)
     (s, bindings)
 end
 
-function parse_index_expression(s)
-    (s, bindings) = preparse_index(s)
-    t = Lerche.parse(index_expression_parser,s) 
+function parse_index_notation(s)
+    (s, bindings) = preparse_index_notation(s)
+    t = Lerche.parse(index_notation_parser,s) 
     return Lerche.transform(TreeToConcrete(bindings),t)
 end
 
-function parse_index_statement(s)
-    (s, bindings) = preparse_index(s)
-    t = Lerche.parse(index_statement_parser,s) 
-    return Lerche.transform(TreeToConcrete(bindings),t)
-end
-
-macro is_str(s)
-    return parse_index_statement(s)
-end
-
-macro ie_str(s)
-    return parse_index_expression(s)
+macro i_str(s)
+    return parse_index_notation(s)
 end
 
 macro capture(ex, lhs)

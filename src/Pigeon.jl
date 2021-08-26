@@ -5,7 +5,7 @@ using SymbolicUtils
 using SymbolicUtils: arguments, operation, istree
 using SymbolicUtils: Fixpoint, Chain, Postwalk
 
-export @is_str, @ie_str
+export @i_str
 export @capture
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression

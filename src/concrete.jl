@@ -43,7 +43,7 @@ function postorder(f, node::ConcreteNode)
 end
 
 Base.isless(a::ConcreteNode, b::ConcreteNode) = hash(a) < hash(b)
-Base.hash(a::ConcreteNode, h::UInt) = hash((operation(a), arguments(a)...), h)
+Base.hash(a::ConcreteNode, h::UInt) = hash(operation(a), hash(arguments(a), h))
 
 #=
 function Base.:(==)(a::T, b::T) where {T <: ConcreteNode}

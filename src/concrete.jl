@@ -1,6 +1,7 @@
 abstract type ConcreteNode end
 abstract type ConcreteStatement <: ConcreteNode end
 abstract type ConcreteExpression <: ConcreteNode end
+abstract type ConcreteTerminal <: ConcreteExpression end
 
 const tab = "  "
 
@@ -44,6 +45,17 @@ end
 Base.isless(a::ConcreteNode, b::ConcreteNode) = hash(a) < hash(b)
 Base.hash(a::ConcreteNode, h::UInt) = hash((operation(a), arguments(a)...), h)
 
+#=
+function Base.:(==)(a::T, b::T) where {T <: ConcreteNode}
+    if istree(a) && istree(b)
+        (operation(a) == operation(b)) && 
+        (arguments(a) == arguments(b))
+    else
+        invoke(==, Tuple{Any, Any}, a, b)
+    end
+end
+=#
+
 function postorder(f, node::SymbolicUtils.Term)
     f(term(operation(node), map(child->postorder(f, child), arguments(node))...))
 end
@@ -67,29 +79,7 @@ SymbolicUtils.istree(stmt::Pass) = false
 
 show_statement(io, mime, stmt::Pass, level) = print(io, tab^level * "()")
 
-struct Loop <: ConcreteStatement
-	idxs
-	body
-
-    Loop(args...) = new(args[1:end-1], args[end])
-end
-
-SymbolicUtils.istree(stmt::Loop) = true
-SymbolicUtils.operation(stmt::Loop) = Loop
-SymbolicUtils.arguments(stmt::Loop) = [stmt.idxs..., stmt.body]
-
-function show_statement(io, mime, stmt::Loop, level)
-    print(io, tab^level * "∀ ")
-    show_expression(io, mime, stmt.idxs[1])
-    for idx in stmt.idxs[2:end]
-        print(io,", ")
-        show_expression(io, mime, idx)
-    end
-    print(io," \n")
-    show_statement(io, mime, stmt.body, level + 1)
-end
-
-struct Workspace <: ConcreteExpression
+struct Workspace <: ConcreteTerminal
     n
 end
 
@@ -102,7 +92,7 @@ function show_expression(io, ex::Workspace)
     print(io, "}[...]")
 end
 
-struct Name <: ConcreteExpression
+struct Name <: ConcreteTerminal
     name
 end
 
@@ -113,7 +103,7 @@ show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 name(ex::Name) = ex.name
 
-struct Literal <: ConcreteExpression
+struct Literal <: ConcreteTerminal
     val
 end
 
@@ -124,24 +114,19 @@ Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
-struct Quantified <: ConcreteExpression
-    idx 
-end
-
-SymbolicUtils.istree(ex::Quantified) = true
-SymbolicUtils.operation(ex::Quantified) = Quantified
-SymbolicUtils.arguments(ex::Quantified) = [ex.idx]
-
-show_expression(io, mime, ex::Quantified) = show_expression(io, mime, ex.idx)
-
 struct Where <: ConcreteStatement
-	cons
-	prod
+	cons::Any
+	prod::Any
 end
+Base.:(==)(a::Where, b::Where) = a.cons == b.cons && a.prod == b.prod
+
+_where(args...) = _where!(vcat(args...))
+_where!(args) = Where(args[1], args[2])
 
 SymbolicUtils.istree(stmt::Where) = true
-SymbolicUtils.operation(stmt::Where) = Where
+SymbolicUtils.operation(stmt::Where) = _where
 SymbolicUtils.arguments(stmt::Where) = [stmt.cons, stmt.prod]
+SymbolicUtils.similarterm(::ConcreteNode, ::typeof(_where), args, T...) = _where!(args)
 
 function show_statement(io, mime, stmt::Where, level)
     print(io, tab^level * "(\n")
@@ -151,16 +136,51 @@ function show_statement(io, mime, stmt::Where, level)
     print(io, tab^level * ")\n")
 end
 
+struct Loop <: ConcreteStatement
+	idxs::Vector{Any}
+	body::Any
+end
+Base.:(==)(a::Loop, b::Loop) = a.idxs == b.idxs && a.body == b.body
+
+loop(args...) = loop!(vcat(args...))
+loop!(args) = Loop(args, pop!(args))
+
+SymbolicUtils.istree(stmt::Loop) = true
+SymbolicUtils.operation(stmt::Loop) = loop
+SymbolicUtils.arguments(stmt::Loop) = [stmt.idxs; stmt.body]
+SymbolicUtils.similarterm(::ConcreteNode, ::typeof(loop), args, T...) = loop!(args)
+
+function show_statement(io, mime, stmt::Loop, level)
+    print(io, tab^level * "∀ ")
+    show_expression(io, mime, stmt.idxs[1])
+    for idx in stmt.idxs[2:end]
+        print(io,", ")
+        show_expression(io, mime, idx)
+    end
+    print(io," \n")
+    show_statement(io, mime, stmt.body, level + 1)
+end
+
 struct Assign <: ConcreteStatement
-	lhs
-	op
-	rhs
-    Assign(lhs, op, rhs) = new(lhs, op, rhs)
-    Assign(lhs, rhs) = new(lhs, nothing, rhs)
+	lhs::Any
+	op::Any
+	rhs::Any
+end
+Base.:(==)(a::Assign, b::Assign) = a.lhs == b.lhs && a.op == b.op && a.rhs == b.rhs
+
+assign(args...) = assign!(vcat(args...))
+function assign!(args)
+    if length(args) == 2
+        Assign(args[1], nothing, args[2])
+    elseif length(args) == 3
+        Assign(args[1], args[2], args[3])
+    else
+        throw(ArgumentError("wrong number of arguments to assign"))
+    end
 end
 
 SymbolicUtils.istree(stmt::Assign) = true
-SymbolicUtils.operation(stmt::Assign) = Assign
+SymbolicUtils.operation(stmt::Assign) = assign
 function SymbolicUtils.arguments(stmt::Assign)
     if stmt.op === nothing
         [stmt.lhs, stmt.rhs]
@@ -168,6 +188,7 @@ function SymbolicUtils.arguments(stmt::Assign)
         [stmt.lhs, stmt.op, stmt.rhs]
     end
 end
+SymbolicUtils.similarterm(::ConcreteNode, ::typeof(assign), args, T...) = assign!(args)
 
 function show_statement(io, mime, stmt::Assign, level)
     print(io, tab^level)
@@ -182,14 +203,18 @@ function show_statement(io, mime, stmt::Assign, level)
 end
 
 struct Call <: ConcreteExpression
-    op
-    args
-    Call(op, args...) = new(op, args)
+    op::Any
+    args::Vector{Any}
 end
+Base.:(==)(a::Call, b::Call) = a.op == b.op && a.args == b.args
+
+call(args...) = call!(vcat(args...))
+call!(args) = Call(popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Call) = true
-SymbolicUtils.operation(ex::Call) = Call
-SymbolicUtils.arguments(ex::Call) = [ex.op, ex.args...]
+SymbolicUtils.operation(ex::Call) = call
+SymbolicUtils.arguments(ex::Call) = [ex.op; ex.args]
+SymbolicUtils.similarterm(::ConcreteNode, ::typeof(call), args, T...) = call!(args)
 
 function show_expression(io, mime, ex::Call)
     show_expression(io, mime, ex.op)
@@ -203,14 +228,18 @@ function show_expression(io, mime, ex::Call)
 end
 
 struct Access <: ConcreteExpression
-    tns
-    idxs
-    Access(tns, inds...) = new(tns, inds)
+    tns::Any
+    idxs::Vector{Any}
 end
+Base.:(==)(a::Access, b::Access) = a.tns == b.tns && a.idxs == b.idxs
+
+access(args...) = access!(vcat(args...))
+access!(args) = Access(popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Access) = true
-SymbolicUtils.operation(ex::Access) = Access
-SymbolicUtils.arguments(ex::Access) = [ex.tns, ex.idxs...]
+SymbolicUtils.operation(ex::Access) = access
+SymbolicUtils.arguments(ex::Access) = [ex.tns; ex.idxs]
+SymbolicUtils.similarterm(::ConcreteNode, ::typeof(access), args, T...) = access!(args)
 
 function show_expression(io, mime, ex::Access)
     show_expression(io, mime, ex.tns)

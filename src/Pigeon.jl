@@ -9,9 +9,9 @@ export @i_str
 export @capture
 
 export ConcreteNode, ConcreteStatement, ConcreteExpression
-export Loop, Assign, Where, Pass
-export Access, Call, Literal, Workspace, Name, Quantified
-export Operator, Body
+export Loop, Assign, Where, Access, Call
+export loop, assign, _where, access, call
+export Pass, Literal, Workspace, Name
 export postorder, value, name
 
 include("utils.jl")

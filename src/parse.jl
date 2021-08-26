@@ -2,17 +2,13 @@
 
 
 
-#_statement: where | _producer
-#where: _statement _WHERE _producer
-#_producer: _hole | loop | _body
-#
-#_body: assign | _OPEN_PAREN _statement _CLOSE_PAREN
-#
-#loop: _LOOP (index | _holes) (_COMMA (index | _holes))* _statement
-#
-#assign: (access | _hole) [(operator | _holes)] _EQUALS _expression
-
 const index_grammar = """
+_statement: where | _producer
+where: _statement _WHERE _producer
+_producer: loop | assign | _expression
+loop: _LOOP _arguments _statement
+assign: _expression [_argument] _EQUALS _expression
+_expressions: _expression (_COMMA _expression)*
 _expression: add | subtract | negate | _term
 add: _expression PLUS _term
 subtract: _expression MINUS _term
@@ -23,10 +19,10 @@ divide: _term SLASH _factor
 _factor: exponentiate | _base
 exponentiate: _base CARET _factor
 _base: call | access | _argument
-call: _argument _OPEN_PAREN _expressions _CLOSE_PAREN
-access: _argument _OPEN_BRACKET _expressions _CLOSE_BRACKET
-_expressions: [(_expression | segment | splat)] (_COMMA (_expression | segment | splat))*
-_argument: INTERPOLATE | slot | LITERAL | NAME | PLUS | MINUS | TIMES | SLASH | CARET | _OPEN_PAREN _expression _CLOSE_PAREN
+call: _argument _OPEN_PAREN [_expressions] _CLOSE_PAREN
+access: _argument _OPEN_BRACKET [_expressions] _CLOSE_BRACKET
+_arguments: _argument (_COMMA _argument)*
+_argument: INTERPOLATE | slot | segment | splat | LITERAL | NAME | PLUS | MINUS | TIMES | SLASH | CARET | _OPEN_PAREN _statement _CLOSE_PAREN
 
 slot: _APPROX NAME
 segment: _APPROX _APPROX NAME
@@ -63,7 +59,7 @@ const index_expression_parser = Lerche.Lark(
 )
 
 const index_statement_parser = Lerche.Lark(
-    "?start: _expression\n" * index_grammar,
+    "?start: _statement\n" * index_grammar,
     parser="lalr",lexer="contextual"
 )
 

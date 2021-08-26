@@ -5,7 +5,9 @@ _holes: INTERPOLATE | slot | segment | splat
 
 _statement: where | _producer
 where: _statement _WHERE _producer
-_producer: _hole | loop | assign | _OPEN_PAREN _statement _CLOSE_PAREN
+_producer: _hole | loop | _body
+
+_body: assign | _OPEN_PAREN _statement _CLOSE_PAREN
 
 loop: _LOOP (index | _holes) (_COMMA (index | _holes))* _statement
 index: NAME
@@ -89,7 +91,7 @@ Lerche.@inline_rule splat(t::TreeToConcrete, name) = esc(:(~~$(name.name)...))
 Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(Assign($(lhs_op_rhs...)))
 Lerche.@inline_rule operator(t::TreeToConcrete, name) = :(Operator($name))
 Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(Access($tns, $(idxs...)))
-Lerche.@inline_rule tensor(t::TreeToConcrete, name) = :(Tensor($name))
+Lerche.@inline_rule tensor(t::TreeToConcrete, name) = name
 Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(Call($f, $(args...)))
 Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(+))), $arg1, $arg2))
 Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(Call(Operator($(Literal(-))), $arg1, $arg2))

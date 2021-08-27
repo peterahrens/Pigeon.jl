@@ -1,23 +1,23 @@
-abstract type ConcreteNode end
-abstract type ConcreteStatement <: ConcreteNode end
-abstract type ConcreteExpression <: ConcreteNode end
-abstract type ConcreteTerminal <: ConcreteExpression end
+abstract type IndexNode end
+abstract type IndexStatement <: IndexNode end
+abstract type IndexExpression <: IndexNode end
+abstract type IndexTerminal <: IndexExpression end
 
 const tab = "  "
 
-function Base.show(io::IO, mime::MIME"text/plain", stmt::ConcreteStatement)
+function Base.show(io::IO, mime::MIME"text/plain", stmt::IndexStatement)
 	println(io, "\"\"\"")
 	show_statement(io, mime, stmt, 0)
 	println(io, "\"\"\"")
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", ex::ConcreteExpression)
+function Base.show(io::IO, mime::MIME"text/plain", ex::IndexExpression)
 	print(io, "\"")
 	show_expression(io, mime, ex)
 	print(io, "\"")
 end
 
-function Base.show(io::IO, ex::ConcreteNode)
+function Base.show(io::IO, ex::IndexNode)
     if istree(ex)
         print(io, operation(ex))
         print(io, "(")
@@ -34,7 +34,7 @@ function Base.show(io::IO, ex::ConcreteNode)
     end
 end
 
-function postorder(f, node::ConcreteNode)
+function postorder(f, node::IndexNode)
     if istree(node)
         f(operation(node)(map(child->postorder(f, child), arguments(node))...))
     else
@@ -42,11 +42,11 @@ function postorder(f, node::ConcreteNode)
     end
 end
 
-Base.isless(a::ConcreteNode, b::ConcreteNode) = hash(a) < hash(b)
-Base.hash(a::ConcreteNode, h::UInt) = hash(operation(a), hash(arguments(a), h))
+Base.isless(a::IndexNode, b::IndexNode) = hash(a) < hash(b)
+Base.hash(a::IndexNode, h::UInt) = hash(operation(a), hash(arguments(a), h))
 
 #=
-function Base.:(==)(a::T, b::T) where {T <: ConcreteNode}
+function Base.:(==)(a::T, b::T) where {T <: IndexNode}
     if istree(a) && istree(b)
         (operation(a) == operation(b)) && 
         (arguments(a) == arguments(b))
@@ -59,10 +59,10 @@ end
 function postorder(f, node::SymbolicUtils.Term)
     f(term(operation(node), map(child->postorder(f, child), arguments(node))...))
 end
-Base.map(f, node::ConcreteNode) = postorder(f, node)
+Base.map(f, node::IndexNode) = postorder(f, node)
 
 #termify(node::SymbolicUtils.Term) = node
-#function termify(node::ConcreteNode)
+#function termify(node::IndexNode)
 #    if istree(node)
 #        return term(operation(node), map(termify, arguments(node))...)
 #    else
@@ -73,13 +73,13 @@ Base.map(f, node::ConcreteNode) = postorder(f, node)
 #determify(node) = node
 #determify(node::SymbolicUtils.Term) = operation(node)(map(determify, arguments(node))...)
 
-struct Pass <: ConcreteStatement end
+struct Pass <: IndexStatement end
 
 SymbolicUtils.istree(stmt::Pass) = false
 
 show_statement(io, mime, stmt::Pass, level) = print(io, tab^level * "()")
 
-struct Workspace <: ConcreteTerminal
+struct Workspace <: IndexTerminal
     n
 end
 
@@ -92,7 +92,7 @@ function show_expression(io, ex::Workspace)
     print(io, "}[...]")
 end
 
-struct Name <: ConcreteTerminal
+struct Name <: IndexTerminal
     name
 end
 
@@ -103,7 +103,7 @@ show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 name(ex::Name) = ex.name
 
-struct Literal <: ConcreteTerminal
+struct Literal <: IndexTerminal
     val
 end
 
@@ -114,7 +114,7 @@ Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
-struct Where <: ConcreteStatement
+struct Where <: IndexStatement
 	cons::Any
 	prod::Any
 end
@@ -126,7 +126,7 @@ _where!(args) = Where(args[1], args[2])
 SymbolicUtils.istree(stmt::Where) = true
 SymbolicUtils.operation(stmt::Where) = _where
 SymbolicUtils.arguments(stmt::Where) = Any[stmt.cons, stmt.prod]
-SymbolicUtils.similarterm(::ConcreteNode, ::typeof(_where), args, T...) = _where!(args)
+SymbolicUtils.similarterm(::IndexNode, ::typeof(_where), args, T...) = _where!(args)
 
 function show_statement(io, mime, stmt::Where, level)
     print(io, tab^level * "(\n")
@@ -136,7 +136,7 @@ function show_statement(io, mime, stmt::Where, level)
     print(io, tab^level * ")\n")
 end
 
-struct Loop <: ConcreteStatement
+struct Loop <: IndexStatement
 	idxs::Vector{Any}
 	body::Any
 end
@@ -148,7 +148,7 @@ loop!(args) = Loop(args, pop!(args))
 SymbolicUtils.istree(stmt::Loop) = true
 SymbolicUtils.operation(stmt::Loop) = loop
 SymbolicUtils.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
-SymbolicUtils.similarterm(::ConcreteNode, ::typeof(loop), args, T...) = loop!(args)
+SymbolicUtils.similarterm(::IndexNode, ::typeof(loop), args, T...) = loop!(args)
 
 function show_statement(io, mime, stmt::Loop, level)
     print(io, tab^level * "∀ ")
@@ -163,7 +163,7 @@ function show_statement(io, mime, stmt::Loop, level)
     show_statement(io, mime, stmt.body, level + 1)
 end
 
-struct Assign <: ConcreteStatement
+struct Assign <: IndexStatement
 	lhs::Any
 	op::Any
 	rhs::Any
@@ -190,7 +190,7 @@ function SymbolicUtils.arguments(stmt::Assign)
         Any[stmt.lhs, stmt.op, stmt.rhs]
     end
 end
-SymbolicUtils.similarterm(::ConcreteNode, ::typeof(assign), args, T...) = assign!(args)
+SymbolicUtils.similarterm(::IndexNode, ::typeof(assign), args, T...) = assign!(args)
 
 function show_statement(io, mime, stmt::Assign, level)
     print(io, tab^level)
@@ -204,7 +204,7 @@ function show_statement(io, mime, stmt::Assign, level)
     print(io, "\n")
 end
 
-struct Call <: ConcreteExpression
+struct Call <: IndexExpression
     op::Any
     args::Vector{Any}
 end
@@ -216,7 +216,7 @@ call!(args) = Call(popfirst!(args), args)
 SymbolicUtils.istree(ex::Call) = true
 SymbolicUtils.operation(ex::Call) = call
 SymbolicUtils.arguments(ex::Call) = Any[ex.op; ex.args]
-SymbolicUtils.similarterm(::ConcreteNode, ::typeof(call), args, T...) = call!(args)
+SymbolicUtils.similarterm(::IndexNode, ::typeof(call), args, T...) = call!(args)
 
 function show_expression(io, mime, ex::Call)
     show_expression(io, mime, ex.op)
@@ -229,7 +229,7 @@ function show_expression(io, mime, ex::Call)
     print(io, ")")
 end
 
-struct Access <: ConcreteExpression
+struct Access <: IndexExpression
     tns::Any
     idxs::Vector{Any}
 end
@@ -241,7 +241,7 @@ access!(args) = Access(popfirst!(args), args)
 SymbolicUtils.istree(ex::Access) = true
 SymbolicUtils.operation(ex::Access) = access
 SymbolicUtils.arguments(ex::Access) = Any[ex.tns; ex.idxs]
-SymbolicUtils.similarterm(::ConcreteNode, ::typeof(access), args, T...) = access!(args)
+SymbolicUtils.similarterm(::IndexNode, ::typeof(access), args, T...) = access!(args)
 
 function show_expression(io, mime, ex::Access)
     show_expression(io, mime, ex.tns)

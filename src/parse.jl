@@ -53,32 +53,32 @@ INTERPOLATE: /##interpolate#[0-9_]*\\s*/
 
 const index_notation_parser = Lerche.Lark(index_notation_grammar, parser="lalr",lexer="contextual")
 
-struct TreeToConcrete <: Lerche.Transformer
+struct TreeToIndex <: Lerche.Transformer
     bindings
 end
 
-Lerche.@inline_rule where(t::TreeToConcrete, cons, prod) = :(_where($cons, $prod))
-Lerche.@rule loop(t::TreeToConcrete, args) = :(loop($(args[1:end-1]...), $(args[end])))
-Lerche.@terminal PLUS(t::TreeToConcrete, _) = Literal(+)
-Lerche.@terminal MINUS(t::TreeToConcrete, _) = Literal(-)
-Lerche.@terminal TIMES(t::TreeToConcrete, _) = Literal(*)
-Lerche.@terminal SLASH(t::TreeToConcrete, _) = Literal(/)
-Lerche.@terminal CARET(t::TreeToConcrete, _) = Literal(^)
-Lerche.@terminal NAME(t::TreeToConcrete, name) = Name(Symbol(strip(String(name), [' ',])))
-Lerche.@terminal INTERPOLATE(t::TreeToConcrete, name) = t.bindings[Symbol(strip(String(name), [' ',]))]
-Lerche.@terminal LITERAL(t::TreeToConcrete, num) = Literal(parse(Int, strip(String(num), [' ',])))
-Lerche.@inline_rule slot(t::TreeToConcrete, name) = esc(:(~$(name.name)))
-Lerche.@inline_rule segment(t::TreeToConcrete, name) = esc(:(~~$(name.name)))
-Lerche.@inline_rule splat(t::TreeToConcrete, arg) = :($arg...)
-Lerche.@rule assign(t::TreeToConcrete, lhs_op_rhs) = :(assign($(lhs_op_rhs...)))
-Lerche.@inline_rule access(t::TreeToConcrete, tns, idxs...) = :(access($tns, $(idxs...)))
-Lerche.@inline_rule call(t::TreeToConcrete, f, args...) = :(call($f, $(args...)))
-Lerche.@inline_rule add(t::TreeToConcrete, arg1, f, arg2) = :(call($(Literal(+)), $arg1, $arg2))
-Lerche.@inline_rule subtract(t::TreeToConcrete, arg1, f, arg2) = :(call($(Literal(-)), $arg1, $arg2))
-Lerche.@inline_rule negate(t::TreeToConcrete, f, arg) = :(call($(Literal(-)), $arg))
-Lerche.@inline_rule multiply(t::TreeToConcrete, arg1, f, arg2) = :(call($(Literal(*)), $arg1, $arg2))
-Lerche.@inline_rule divide(t::TreeToConcrete, arg1, f, arg2) = :(call($(Literal(/)), $arg1, $arg2))
-Lerche.@inline_rule exponentiate(t::TreeToConcrete, arg1, f, arg2) = :(call($(Literal(^)), $arg1, $arg2))
+Lerche.@inline_rule where(t::TreeToIndex, cons, prod) = :(_where($cons, $prod))
+Lerche.@rule loop(t::TreeToIndex, args) = :(loop($(args[1:end-1]...), $(args[end])))
+Lerche.@terminal PLUS(t::TreeToIndex, _) = Literal(+)
+Lerche.@terminal MINUS(t::TreeToIndex, _) = Literal(-)
+Lerche.@terminal TIMES(t::TreeToIndex, _) = Literal(*)
+Lerche.@terminal SLASH(t::TreeToIndex, _) = Literal(/)
+Lerche.@terminal CARET(t::TreeToIndex, _) = Literal(^)
+Lerche.@terminal NAME(t::TreeToIndex, name) = Name(Symbol(strip(String(name), [' ',])))
+Lerche.@terminal INTERPOLATE(t::TreeToIndex, name) = t.bindings[Symbol(strip(String(name), [' ',]))]
+Lerche.@terminal LITERAL(t::TreeToIndex, num) = Literal(parse(Int, strip(String(num), [' ',])))
+Lerche.@inline_rule slot(t::TreeToIndex, name) = esc(:(~$(name.name)))
+Lerche.@inline_rule segment(t::TreeToIndex, name) = esc(:(~~$(name.name)))
+Lerche.@inline_rule splat(t::TreeToIndex, arg) = :($arg...)
+Lerche.@rule assign(t::TreeToIndex, lhs_op_rhs) = :(assign($(lhs_op_rhs...)))
+Lerche.@inline_rule access(t::TreeToIndex, tns, idxs...) = :(access($tns, $(idxs...)))
+Lerche.@inline_rule call(t::TreeToIndex, f, args...) = :(call($f, $(args...)))
+Lerche.@inline_rule add(t::TreeToIndex, arg1, f, arg2) = :(call($(Literal(+)), $arg1, $arg2))
+Lerche.@inline_rule subtract(t::TreeToIndex, arg1, f, arg2) = :(call($(Literal(-)), $arg1, $arg2))
+Lerche.@inline_rule negate(t::TreeToIndex, f, arg) = :(call($(Literal(-)), $arg))
+Lerche.@inline_rule multiply(t::TreeToIndex, arg1, f, arg2) = :(call($(Literal(*)), $arg1, $arg2))
+Lerche.@inline_rule divide(t::TreeToIndex, arg1, f, arg2) = :(call($(Literal(/)), $arg1, $arg2))
+Lerche.@inline_rule exponentiate(t::TreeToIndex, arg1, f, arg2) = :(call($(Literal(^)), $arg1, $arg2))
 
 function preparse_index_notation(s)
 	s′ = []
@@ -107,31 +107,9 @@ end
 function parse_index_notation(s)
     (s, bindings) = preparse_index_notation(s)
     t = Lerche.parse(index_notation_parser,s) 
-    return Lerche.transform(TreeToConcrete(bindings),t)
+    return Lerche.transform(TreeToIndex(bindings),t)
 end
 
 macro i_str(s)
     return parse_index_notation(s)
-end
-
-macro capture(ex, lhs)
-    keys = Symbol[]
-    lhs_term = SymbolicUtils.makepattern(lhs, keys)
-    unique!(keys)
-    bind = Expr(:block, map(key-> :($(esc(key)) = getindex(__MATCHES__, $(QuoteNode(key)))), keys)...)
-    quote
-        $(__source__)
-        lhs_pattern = $(lhs_term)
-        __MATCHES__ = SymbolicUtils.Rule($(QuoteNode(lhs)),
-             lhs_pattern,
-             SymbolicUtils.matcher(lhs_pattern),
-             identity,
-             SymbolicUtils.rule_depth($lhs_term))($(esc(ex)))
-        if __MATCHES__ !== nothing
-            $bind
-            true
-        else
-            false
-        end
-    end
 end

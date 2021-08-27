@@ -152,10 +152,12 @@ SymbolicUtils.similarterm(::ConcreteNode, ::typeof(loop), args, T...) = loop!(ar
 
 function show_statement(io, mime, stmt::Loop, level)
     print(io, tab^level * "∀ ")
-    show_expression(io, mime, stmt.idxs[1])
-    for idx in stmt.idxs[2:end]
-        print(io,", ")
-        show_expression(io, mime, idx)
+    if !isempty(stmt.idxs)
+        show_expression(io, mime, stmt.idxs[1])
+        for idx in stmt.idxs[2:end]
+            print(io,", ")
+            show_expression(io, mime, idx)
+        end
     end
     print(io," \n")
     show_statement(io, mime, stmt.body, level + 1)

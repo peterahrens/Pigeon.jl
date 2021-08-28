@@ -24,7 +24,6 @@ function name_workspaces(prgm)
 	    return w₋(w)(node)
 	end))(prgm)
 end
-    
 
 function saturate_index(stmt)
     normalize = Fixpoint(Postwalk(Chain([
@@ -47,7 +46,7 @@ function saturate_index(stmt)
     ])))
     rhs = splay(rhs)
 
-    saturate = FixpointStep(PostwalkStep(ChainStep([
+    churn = FixpointStep(PostwalkStep(ChainStep([
         (@expand@rule i"~a + (~b + ~c)" => [i"(~a + ~b) + ~c"]),
         (@expand@rule i"~a + ~b" => [i"~b + ~a"]),
         #(@expand@rule i"- ~a + (- ~b)" => [i"-(~b + ~a)"]),
@@ -58,7 +57,7 @@ function saturate_index(stmt)
         #(@expand@rule i"-(~a * ~b)" => [i"(- ~a) * ~b"]),
         (@expand@rule i"~a * (~b + ~c)" => [i"~a * ~b + ~a * ~c"]),
     ])))
-    rhss = saturate(rhs)
+    rhss = churn(rhs)
 
     decommute = Postwalk(Chain([
         (@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),

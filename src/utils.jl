@@ -15,6 +15,13 @@ macro expand1(ex)
 end
 
 variproduct(args) = map(collect, product(args...))
+#function variproduct(args)
+#    if length(args) == 0
+#        return [[]]
+#    else
+#        [[[head]; tail] for (head, tail) in product(args[1], variproduct(args[2:end]))]
+#    end
+#end
 
 struct PassThroughStep{C}
     rw::C

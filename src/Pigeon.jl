@@ -27,8 +27,7 @@ include("parse.jl")
 include("saturate.jl")
 
 function snoop()
-    @time saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
-    @time saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
+    saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
     saturate_index(i"∀ i, j, k A[i, j] = B[i, k] * C[k, j] * x[j]")
     saturate_index(i"∀ i, j A[i] = (-B[j]) * C[j] + D[k]")
 

@@ -1,8 +1,6 @@
-function recognize_pattern(r)
-    (s, pos) -> begin
-        if (m = findnext(r, s, pos)) !== nothing && first(m) == pos
-            return last(m) + 1
-        end
+function recognize(r, s, pos)
+    if (m = findnext(r, s, pos)) !== nothing && first(m) == pos
+        return last(m) + 1
     end
 end
 
@@ -21,23 +19,23 @@ function parse_julia_greedy(s, pos)
         return Meta.parse(s[1:pos′ - lastindex("(") - 1], pos)
     end
 
-    return(ex, pos)
+    return (ex, pos)
 end
 
-function parse_index_where(s, pos)
+function parse_index_with(s, pos)
     pos, prod = parse_index_loop(s, pos)
-    while (pos′ = recognize_pattern(r"(\bwith\b)\s*")(s, pos)) !== nothing
+    while (pos′ = recognize(r"(\bwith\b)\s*", s, pos)) !== nothing
         (pos, cons) = parse_index_loop(s, pos′)
-        prod = :(_where($prod, $cons))
+        prod = :(with($prod, $cons))
     end
     (pos, prod)
 end
 
 function parse_index_loop(s, pos)
-    if (pos′ = recognize_pattern(r"(∀\b|(\bloop\b)))\s*")(s, pos)) !== nothing
+    if (pos′ = recognize(r"(∀\b|(\bloop\b))\s*", s, pos)) !== nothing
         (ex, pos) = parse_julia_generous(s, pos′)
         idxs = [capture_index_call(ex, true)]
-        while (pos′ = accept(r",\s*", s, pos)) !== nothing
+        while (pos′ = recognize(r",\s*", s, pos)) !== nothing
             (ex, pos) = parse_julia_generous(s, pos′)
             push!(idxs, capture_index_call(ex, true))
         end
@@ -48,9 +46,9 @@ function parse_index_loop(s, pos)
 end
 
 function parse_index_paren(s, pos)
-    if (pos′ = accept(r"\(\s*", s, pos)) !== nothing
-        (res, pos) = parse_index_where(s, pos = pos′)
-        @assert (pos′ = accept(r"\)\s*", s, pos)) !== nothing
+    if (pos′ = recognize(r"\(\s*", s, pos)) !== nothing
+        (res, pos) = parse_index_with(s, pos = pos′)
+        @assert (pos′ = recognize(r"\)\s*", s, pos)) !== nothing
         return (res, pos′)
     end
     parse_index_assign(s, pos)
@@ -62,8 +60,8 @@ function parse_index_assign(s, pos)
 end
 
 function capture_index_assign(ex)
-    incs = Dict(:+= => +, :*= => *, :/= => /, :^= => ^]
-    if haskey(ex.head, incs) && length(ex.args) == 2
+    incs = Dict(:+= => +, :*= => *, :/= => /, :^= => ^)
+    if haskey(incs, ex.head) && length(ex.args) == 2
         lhs = capture_index_call(ex.args[1], false)
         rhs = capture_index_call(ex.args[2], false)
         return :(assign($lhs, $(Literal(incs[ex.head])), $rhs))
@@ -109,8 +107,8 @@ function capture_index_interp(ex, wrap)
 end
 
 function parse_index(s)
-    pos = accept(r"\s*", s)
-    return parse_index_where(s, 1)
+    pos = recognize(r"\s*", s, 1)
+    return parse_index_with(s, 1)
 end
 
 macro i_str(s)

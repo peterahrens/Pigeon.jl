@@ -44,17 +44,17 @@ function enumerate_schedules_old(stmt)
 		(@expand@rule i"~a * ~b" => i"~b * ~a"),
 		(@expand@rule i"∀ ~i ∀ ~j ~s" => i"∀ ~j ∀ ~i ~s"),
 		(@expand@rule i"~Ai ~~f= ~g(~a, ~h(~~b))" =>
-		    w₊(i"~Ai ~~f= ~g(~a, $w₀) where $w₀ = ~h(~~b)")),
+		    w₊(i"~Ai ~~f= ~g(~a, $w₀) with $w₀ = ~h(~~b)")),
 		(@expand@rule i"~Ai += +(~a, ~f(~~b))" =>
-		    w₊(i"~Ai += +(~a, $w₀) where $w₀ += ~f(~~b)")),
+		    w₊(i"~Ai += +(~a, $w₀) with $w₀ += ~f(~~b)")),
 		(@expand@rule i"~Ai += *(~a, ~f(~~b))" =>
-		    w₊(i"~Ai += *(~a, $w₀) where $w₀ += ~f(~~b)")),
-		(@expand@rule i"∀ ~i (~c where ~p)" => if (~i in indices(~c)) && !(~i in indices(~p))
-		    i"(∀ ~i ~c) where ~p" end),
-		(@expand@rule i"∀ ~i (~c where ~p)" => if (~i in indices(~c)) && (~i in indices(~p))
-		    i"(∀ ~i ~c) where (∀ ~i ~p)" end),
-		(@expand@rule i"∀ ~i (~Ai += ~b * $w₁ where ~p)" => if !(~i in indices(i"~Ai += ~b * $w₁")) && (~i in indices(~p))
-		    i"~Ai += ~b * $w₁ where (∀ ~i ~p)" end),
+		    w₊(i"~Ai += *(~a, $w₀) with $w₀ += ~f(~~b)")),
+		(@expand@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && !(~i in indices(~p))
+		    i"(∀ ~i ~c) with ~p" end),
+		(@expand@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && (~i in indices(~p))
+		    i"(∀ ~i ~c) with (∀ ~i ~p)" end),
+		(@expand@rule i"∀ ~i (~Ai += ~b * $w₁ with ~p)" => if !(~i in indices(i"~Ai += ~b * $w₁")) && (~i in indices(~p))
+		    i"~Ai += ~b * $w₁ with (∀ ~i ~p)" end),
 	    ]
 		node′ = transform(node)
 		if node′ !== nothing && !(node′ in universe)

@@ -9,7 +9,7 @@ indices(node) = istree(node) ? mapreduce(indices, union, push!(arguments(node), 
 
 reducer(stmt::Assign) = stmt.op
 reducer(stmt::Loop) = reducer(stmt.body)
-reducer(stmt::Where) = reducer(stmt.cons)
+reducer(stmt::With) = reducer(stmt.cons)
 
 w₀ = Workspace(0)
 w₁ = Workspace(1)
@@ -18,7 +18,7 @@ w₋(_w) = Postwalk(node -> node isa Workspace ? (node.n == 1 ? _w : Workspace(n
 
 function name_workspaces(prgm)
 	w_n = 1
-	Postwalk(PassThrough((node) -> if node isa Where
+	Postwalk(PassThrough((node) -> if node isa With
 	    w = access(Name(Symbol("w_$w_n")), intersect(indices(node.prod), indices(node.cons)))
 	    w_n += 1
 	    return w₋(w)(node)
@@ -77,7 +77,7 @@ function saturate_index(stmt)
             for b in bs
                 if b != a && @expand @capture b i"~h(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
-                    push!(ys, w₊(i"$Ai $f= $d where $w₀ = $b"))
+                    push!(ys, w₊(i"$Ai $f= $d with $w₀ = $b"))
                 end
             end
             return ys
@@ -89,7 +89,7 @@ function saturate_index(stmt)
             for b in bs
                 if b != a && @expand @capture b i"~h(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
-                    push!(ys, w₊(i"$Ai $f= $d where $w₀ $f= $b"))
+                    push!(ys, w₊(i"$Ai $f= $d with $w₀ $f= $b"))
                 end
             end
             return ys
@@ -116,12 +116,12 @@ function saturate_index(stmt)
     #absorb = PassThrough(@expand@rule i"∀ ~i ∀ ~~j ~s" => i"∀ $(sort([~i; ~~j])) ~s")
 
     internalize = PrewalkStep(PassThroughStep(
-        (x) -> if @expand @capture x i"∀ ~~is (~c where ~p)"
+        (x) -> if @expand @capture x i"∀ ~~is (~c with ~p)"
             if reducer(p) != nothing
                 return map(combinations(intersect(is, indices(x)))) do js
                     i"""∀ $(setdiff(is, js))
                         ((∀ $(intersect(js, indices(c))) $c)
-                      where
+                      with
                         (∀ $(intersect(js, indices(p))) $p))
                     """
                 end
@@ -129,7 +129,7 @@ function saturate_index(stmt)
                 return map(combinations(intersect(is, indices(p)))) do js
                     i"""∀ $(setdiff(is, js))
                         ((∀ $(intersect(js, indices(c))) $c)
-                      where
+                      with
                         (∀ $js $p))
                     """
                 end

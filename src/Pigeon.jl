@@ -14,8 +14,8 @@ export @i_str
 export @capture
 
 export IndexNode, IndexStatement, IndexExpression
-export Loop, Assign, Where, Access, Call
-export loop, assign, _where, access, call
+export Loop, Assign, With, Access, Call
+export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
@@ -40,7 +40,7 @@ function snoop()
     i"""
         ∀ i (
             ∀ j A[i, j] += w[j]
-        where
+        with
             ∀ j, k w[j] += B[i, k] * C[k, j]
         )
     """

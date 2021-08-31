@@ -46,7 +46,7 @@ Base.isless(a::IndexNode, b::IndexNode) = hash(a) < hash(b)
 Base.hash(a::IndexNode, h::UInt) = hash(operation(a), hash(arguments(a), h))
 
 #=
-function Base.:(==)(a::T, b::T) where {T <: IndexNode}
+function Base.:(==)(a::T, b::T) with {T <: IndexNode}
     if istree(a) && istree(b)
         (operation(a) == operation(b)) && 
         (arguments(a) == arguments(b))
@@ -114,24 +114,24 @@ Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
-struct Where <: IndexStatement
+struct With <: IndexStatement
 	cons::Any
 	prod::Any
 end
-Base.:(==)(a::Where, b::Where) = a.cons == b.cons && a.prod == b.prod
+Base.:(==)(a::With, b::With) = a.cons == b.cons && a.prod == b.prod
 
-_where(args...) = _where!(vcat(args...))
-_where!(args) = Where(args[1], args[2])
+with(args...) = with!(vcat(args...))
+with!(args) = With(args[1], args[2])
 
-SymbolicUtils.istree(stmt::Where) = true
-SymbolicUtils.operation(stmt::Where) = _where
-SymbolicUtils.arguments(stmt::Where) = Any[stmt.cons, stmt.prod]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(_where), args, T...) = _where!(args)
+SymbolicUtils.istree(stmt::With) = true
+SymbolicUtils.operation(stmt::With) = with
+SymbolicUtils.arguments(stmt::With) = Any[stmt.cons, stmt.prod]
+SymbolicUtils.similarterm(::IndexNode, ::typeof(with), args, T...) = with!(args)
 
-function show_statement(io, mime, stmt::Where, level)
+function show_statement(io, mime, stmt::With, level)
     print(io, tab^level * "(\n")
     show_statement(io, mime, stmt.cons, level + 1)
-    print(io, "\n" * tab^level * "where\n")
+    print(io, "\n" * tab^level * "with\n")
     show_statement(io, mime, stmt.prod, level + 1)
     print(io, tab^level * ")\n")
 end

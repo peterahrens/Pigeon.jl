@@ -79,8 +79,12 @@ function parse_index_paren(s, pos, slot)
 end
 
 function capture_index_assign(ex, slot)
-    incs = Dict(:(=) => nothing, :+= => +, :*= => *, :/= => /, :^= => ^)
-    if haskey(incs, ex.head) && length(ex.args) == 2
+    incs = Dict(:+= => +, :*= => *, :/= => /, :^= => ^)
+    if ex.head == :(=) && length(ex.args) == 2
+        lhs = capture_index_expression(ex.args[1], false, slot)
+        rhs = capture_index_expression(ex.args[2], false, slot)
+        return :(assign($lhs, $rhs))
+    elseif haskey(incs, ex.head) && length(ex.args) == 2
         lhs = capture_index_expression(ex.args[1], false, slot)
         rhs = capture_index_expression(ex.args[2], false, slot)
         return :(assign($lhs, $(Literal(incs[ex.head])), $rhs))
@@ -111,9 +115,10 @@ function capture_index_expression(ex, wrap, slot)
         return esc(ex.args[1])
     elseif ex isa Symbol && wrap
         return Name(ex)
-    elseif !(ex isa Expr) && !wrap
+    elseif !(ex isa Expr)
         return Literal(ex)
     else
+        @show "msg" ex typeof(ex)
         error()
     end
 end

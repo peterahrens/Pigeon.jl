@@ -70,8 +70,6 @@ function saturate_index(stmt)
 
     #here, we only treat the second argument because we already did a bunch of churning earlier to consider different orders
 
-    println(bodies)
-
     precompute = PrewalkStep(ChainStep([
         (x-> if @ex@capture x i"~Ai <~~f>= ~a"
             bs = FixpointStep(PassThroughStep(@ex@rule i"(~g)(~~b)" => ~~b))(a)
@@ -119,7 +117,6 @@ function saturate_index(stmt)
 
     internalize = PrewalkStep(PassThroughStep(
         (x) -> if @ex @capture x i"∀ (~~is) (~c with ~p)"
-            println(p)
             if reducer(p) != nothing
                 return map(combinations(intersect(is, indices(x)))) do js
                     i"""∀ ($(setdiff(is, js)))
@@ -140,7 +137,7 @@ function saturate_index(stmt)
         end
     ))
     prgms = mapreduce(internalize, vcat, prgms)
-    prgms = map(Postwalk(PassThrough(@ex@rule i"∀ ([]) ~s" => ~s)), prgms)
+    prgms = map(Postwalk(PassThrough(@ex@rule i"∀ ($([])) ~s" => ~s)), prgms)
 
     reorder = PrewalkStep(PassThroughStep(
         @ex@rule i"∀ (~~is) ~s" => map(js-> i"∀ ($js) ~s", collect(permutations(~~is))[2:end])

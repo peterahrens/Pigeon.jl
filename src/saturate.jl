@@ -27,41 +27,41 @@ end
 
 function saturate_index(stmt)
     normalize = Fixpoint(Postwalk(Chain([
-        (@expand@rule i"∀ (~~i) ∀ (~~j) ~s" => i"∀ (~~i), (~~j) ~s"),
+        (@ex@rule i"∀ (~~i) ∀ (~~j) ~s" => i"∀ (~~i), (~~j) ~s"),
     ])))
 
     stmt = loop(stmt)
-    (@expand@capture normalize(stmt) i"∀ (~~idxs) ~lhs <~~op>= ~rhs") ||
+    (@ex@capture normalize(stmt) i"∀ (~~idxs) ~lhs <~~op>= ~rhs") ||
         throw(ArgumentError("expecting statement in index notation"))
 
     splay = Fixpoint(Postwalk(Chain([
-        (@expand@rule i"+(~a, ~b, ~c, ~~d)" => i"~a + +(~b, ~c, ~~d)"),
-        (@expand@rule i"+(~a)" => ~a),
-        (@expand@rule i"*(~a, ~b, ~c, ~~d)" => i"~a * *(~b, ~c, ~~d)"),
-        (@expand@rule i"*(~a)" => ~a),
-        (@expand@rule i"~a - ~b" => i"~a + (- ~b)"),
-        (@expand@rule i"- (- ~a)" => ~a),
-        (@expand@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
-        (@expand@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
+        (@ex@rule i"+(~a, ~b, ~c, ~~d)" => i"~a + +(~b, ~c, ~~d)"),
+        (@ex@rule i"+(~a)" => ~a),
+        (@ex@rule i"*(~a, ~b, ~c, ~~d)" => i"~a * *(~b, ~c, ~~d)"),
+        (@ex@rule i"*(~a)" => ~a),
+        (@ex@rule i"~a - ~b" => i"~a + (- ~b)"),
+        (@ex@rule i"- (- ~a)" => ~a),
+        (@ex@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
+        (@ex@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
     ])))
     rhs = splay(rhs)
 
     churn = FixpointStep(PostwalkStep(ChainStep([
-        (@expand@rule i"~a + (~b + ~c)" => [i"(~a + ~b) + ~c"]),
-        (@expand@rule i"~a + ~b" => [i"~b + ~a"]),
-        #(@expand@rule i"- ~a + (- ~b)" => [i"-(~b + ~a)"]),
-        #(@expand@rule i"-(~a + ~b)" => [i"- ~b + (- ~a)"]),
-        (@expand@rule i"~a * (~b * ~c)" => [i"(~a * ~b) * ~c"]),
-        (@expand@rule i"~a * ~b" => [i"~b * ~a"]),
-        #(@expand@rule i"~a * (- ~b)" => [i"-(~a * ~b)"]),
-        #(@expand@rule i"-(~a * ~b)" => [i"(- ~a) * ~b"]),
-        (@expand@rule i"~a * (~b + ~c)" => [i"~a * ~b + ~a * ~c"]),
+        (@ex@rule i"~a + (~b + ~c)" => [i"(~a + ~b) + ~c"]),
+        (@ex@rule i"~a + ~b" => [i"~b + ~a"]),
+        #(@ex@rule i"- ~a + (- ~b)" => [i"-(~b + ~a)"]),
+        #(@ex@rule i"-(~a + ~b)" => [i"- ~b + (- ~a)"]),
+        (@ex@rule i"~a * (~b * ~c)" => [i"(~a * ~b) * ~c"]),
+        (@ex@rule i"~a * ~b" => [i"~b * ~a"]),
+        #(@ex@rule i"~a * (- ~b)" => [i"-(~a * ~b)"]),
+        #(@ex@rule i"-(~a * ~b)" => [i"(- ~a) * ~b"]),
+        (@ex@rule i"~a * (~b + ~c)" => [i"~a * ~b + ~a * ~c"]),
     ])))
     rhss = churn(rhs)
 
     decommute = Postwalk(Chain([
-        (@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
-        (@expand@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
+        (@ex@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
+        (@ex@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
     ]))
 
     rhss = unique(map(decommute, rhss))
@@ -70,25 +70,27 @@ function saturate_index(stmt)
 
     #here, we only treat the second argument because we already did a bunch of churning earlier to consider different orders
 
+    println(bodies)
+
     precompute = PrewalkStep(ChainStep([
-        (x-> if @expand@capture x i"~Ai <~~f>= ~a"
-            bs = FixpointStep(PassThroughStep(@expand@rule i"(~g)(~~b)" => ~~b))(a)
+        (x-> if @ex@capture x i"~Ai <~~f>= ~a"
+            bs = FixpointStep(PassThroughStep(@ex@rule i"(~g)(~~b)" => ~~b))(a)
             ys = []
             for b in bs
-                if b != a && @expand @capture b i"(~h)(~~c)"
-                    d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
+                if b != a && @ex @capture b i"(~h)(~~c)"
+                    d = Postwalk(PassThrough(@ex@rule b => w₀))(a)
                     push!(ys, w₊(i"$Ai <$f>= $d with $w₀ = $b"))
                 end
             end
             return ys
         end),
-        (x-> if @expand@capture x i"~Ai <~f>= ~a"
-            bs = FixpointStep(PassThroughStep(@expand@rule i"(~g)(~~b)" =>
+        (x-> if @ex@capture x i"~Ai <~f>= ~a"
+            bs = FixpointStep(PassThroughStep(@ex@rule i"(~g)(~~b)" =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
-                if b != a && @expand @capture b i"(~h)(~~c)"
-                    d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
+                if b != a && @ex @capture b i"(~h)(~~c)"
+                    d = Postwalk(PassThrough(@ex@rule b => w₀))(a)
                     push!(ys, w₊(i"$Ai <$f>= $d with $w₀ <$f>= $b"))
                 end
             end
@@ -97,26 +99,27 @@ function saturate_index(stmt)
     ]))
 
     slurp = Fixpoint(Postwalk(Chain([
-        (@expand@rule i"+(~~a, +(~~b), ~~c)" => i"+(~~a, ~~b, ~~c)"),
-        (@expand@rule i"+(~a)" => ~a),
-        (@expand@rule i"~a - ~b" => i"~a + (- ~b)"),
-        (@expand@rule i"- (- ~a)" => ~a),
-        (@expand@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
-        (@expand@rule i"*(~~a, *(~~b), ~~c)" => i"*(~~a, ~~b, ~~c)"),
-        (@expand@rule i"*(~a)" => ~a),
-        (@expand@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
-        (@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
-        (@expand@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
+        (@ex@rule i"+(~~a, +(~~b), ~~c)" => i"+(~~a, ~~b, ~~c)"),
+        (@ex@rule i"+(~a)" => ~a),
+        (@ex@rule i"~a - ~b" => i"~a + (- ~b)"),
+        (@ex@rule i"- (- ~a)" => ~a),
+        (@ex@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
+        (@ex@rule i"*(~~a, *(~~b), ~~c)" => i"*(~~a, ~~b, ~~c)"),
+        (@ex@rule i"*(~a)" => ~a),
+        (@ex@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
+        (@ex@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
+        (@ex@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
     ])))
 
     bodies = unique(mapreduce(body->map(slurp, precompute(body)), vcat, bodies))
 
     prgms = map(body->i"∀ ($idxs) $body", bodies)
 
-    #absorb = PassThrough(@expand@rule i"∀ ~i ∀ ~~j ~s" => i"∀ $(sort([~i; ~~j])) ~s")
+    #absorb = PassThrough(@ex@rule i"∀ ~i ∀ ~~j ~s" => i"∀ $(sort([~i; ~~j])) ~s")
 
     internalize = PrewalkStep(PassThroughStep(
-        (x) -> if @expand @capture x i"∀ (~~is) (~c with ~p)"
+        (x) -> if @ex @capture x i"∀ (~~is) (~c with ~p)"
+            println(p)
             if reducer(p) != nothing
                 return map(combinations(intersect(is, indices(x)))) do js
                     i"""∀ ($(setdiff(is, js)))
@@ -137,10 +140,10 @@ function saturate_index(stmt)
         end
     ))
     prgms = mapreduce(internalize, vcat, prgms)
-    prgms = map(Postwalk(PassThrough(@expand@rule i"∀ $([]) ~s" => ~s)), prgms)
+    prgms = map(Postwalk(PassThrough(@ex@rule i"∀ ([]) ~s" => ~s)), prgms)
 
     reorder = PrewalkStep(PassThroughStep(
-        @expand@rule i"∀ (~~is) ~s" => map(js-> i"∀ ($js) ~s", collect(permutations(~~is))[2:end])
+        @ex@rule i"∀ (~~is) ~s" => map(js-> i"∀ ($js) ~s", collect(permutations(~~is))[2:end])
     ))
 
     return map(name_workspaces, mapreduce(reorder, vcat, prgms))

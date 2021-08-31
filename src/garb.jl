@@ -1,17 +1,17 @@
 #TODO this assumes arguments are unique
 function enumerate_schedules_old(stmt)
 	normalize = Fixpoint(Postwalk(Chain([
-	    (@expand@rule i"+(~a, ~b, ~c, ~~d)" => i"~a + +(~b, ~c, ~~d)"),
-	    (@expand@rule i"+(~a)" => ~a),
-	    (@expand@rule i"~a - ~b" => i"~a + (- ~b)"),
-	    (@expand@rule i"- (- ~a)" => ~a),
-	    (@expand@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
-	    (@expand@rule i"*(~a, ~b, ~c, ~~d)" => i"~a * *(~b, ~c, ~~d)"),
-	    (@expand@rule i"*(~a)" => ~a),
-	    (@expand@rule i"∀ ~i, ~j, ~~k ~s" => i"∀ ~i ∀ ~j, ~~k ~s"),
-	    (@expand@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
-	    #(@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end)
-	    #(@expand@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end)
+	    (@ex@rule i"+(~a, ~b, ~c, ~~d)" => i"~a + +(~b, ~c, ~~d)"),
+	    (@ex@rule i"+(~a)" => ~a),
+	    (@ex@rule i"~a - ~b" => i"~a + (- ~b)"),
+	    (@ex@rule i"- (- ~a)" => ~a),
+	    (@ex@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
+	    (@ex@rule i"*(~a, ~b, ~c, ~~d)" => i"~a * *(~b, ~c, ~~d)"),
+	    (@ex@rule i"*(~a)" => ~a),
+	    (@ex@rule i"∀ ~i, ~j, ~~k ~s" => i"∀ ~i ∀ ~j, ~~k ~s"),
+	    (@ex@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
+	    #(@ex@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end)
+	    #(@ex@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end)
 	])))
 	stmt = normalize(stmt)
 	universe = Set()
@@ -36,24 +36,24 @@ function enumerate_schedules_old(stmt)
 		end
 	    end
 	    for transform in [
-		(@expand@rule i"~a + (~b + ~c)" => i"(~a + ~b) + ~c"),
-		(@expand@rule i"(~a + ~b) + ~c" => i"~a + (~b + ~c)"),
-		(@expand@rule i"~a + ~b" => i"~b + ~a"),
-		(@expand@rule i"~a * (~b * ~c)" => i"(~a * ~b) * ~c"),
-		(@expand@rule i"(~a * ~b) * ~c" => i"~a * (~b * ~c)"),
-		(@expand@rule i"~a * ~b" => i"~b * ~a"),
-		(@expand@rule i"∀ ~i ∀ ~j ~s" => i"∀ ~j ∀ ~i ~s"),
-		(@expand@rule i"~Ai ~~f= ~g(~a, ~h(~~b))" =>
+		(@ex@rule i"~a + (~b + ~c)" => i"(~a + ~b) + ~c"),
+		(@ex@rule i"(~a + ~b) + ~c" => i"~a + (~b + ~c)"),
+		(@ex@rule i"~a + ~b" => i"~b + ~a"),
+		(@ex@rule i"~a * (~b * ~c)" => i"(~a * ~b) * ~c"),
+		(@ex@rule i"(~a * ~b) * ~c" => i"~a * (~b * ~c)"),
+		(@ex@rule i"~a * ~b" => i"~b * ~a"),
+		(@ex@rule i"∀ ~i ∀ ~j ~s" => i"∀ ~j ∀ ~i ~s"),
+		(@ex@rule i"~Ai ~~f= ~g(~a, ~h(~~b))" =>
 		    w₊(i"~Ai ~~f= ~g(~a, $w₀) with $w₀ = ~h(~~b)")),
-		(@expand@rule i"~Ai += +(~a, ~f(~~b))" =>
+		(@ex@rule i"~Ai += +(~a, ~f(~~b))" =>
 		    w₊(i"~Ai += +(~a, $w₀) with $w₀ += ~f(~~b)")),
-		(@expand@rule i"~Ai += *(~a, ~f(~~b))" =>
+		(@ex@rule i"~Ai += *(~a, ~f(~~b))" =>
 		    w₊(i"~Ai += *(~a, $w₀) with $w₀ += ~f(~~b)")),
-		(@expand@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && !(~i in indices(~p))
+		(@ex@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && !(~i in indices(~p))
 		    i"(∀ ~i ~c) with ~p" end),
-		(@expand@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && (~i in indices(~p))
+		(@ex@rule i"∀ ~i (~c with ~p)" => if (~i in indices(~c)) && (~i in indices(~p))
 		    i"(∀ ~i ~c) with (∀ ~i ~p)" end),
-		(@expand@rule i"∀ ~i (~Ai += ~b * $w₁ with ~p)" => if !(~i in indices(i"~Ai += ~b * $w₁")) && (~i in indices(~p))
+		(@ex@rule i"∀ ~i (~Ai += ~b * $w₁ with ~p)" => if !(~i in indices(i"~Ai += ~b * $w₁")) && (~i in indices(~p))
 		    i"~Ai += ~b * $w₁ with (∀ ~i ~p)" end),
 	    ]
 		node′ = transform(node)
@@ -69,17 +69,17 @@ function enumerate_schedules_old(stmt)
 	result = Any[stmt]
     
 	simplify = Fixpoint(Postwalk(Chain([
-	    (@expand@rule i"+(~~a, +(~~b), ~~c)" => i"+(~~a, ~~b, ~~c)"),
-	    (@expand@rule i"+(~a)" => ~a),
-	    (@expand@rule i"~a - ~b" => i"~a + (- ~b)"),
-	    (@expand@rule i"- (- ~a)" => ~a),
-	    (@expand@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
-	    (@expand@rule i"*(~~a, *(~~b), ~~c)" => i"*(~~a, ~~b, ~~c)"),
-	    (@expand@rule i"*(~a)" => ~a),
-	    (@expand@rule i"∀ ~~i ∀ ~~j ~s" => i"∀ ~~i, ~~j ~s"),
-	    (@expand@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
-	    (@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
-	    (@expand@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
+	    (@ex@rule i"+(~~a, +(~~b), ~~c)" => i"+(~~a, ~~b, ~~c)"),
+	    (@ex@rule i"+(~a)" => ~a),
+	    (@ex@rule i"~a - ~b" => i"~a + (- ~b)"),
+	    (@ex@rule i"- (- ~a)" => ~a),
+	    (@ex@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
+	    (@ex@rule i"*(~~a, *(~~b), ~~c)" => i"*(~~a, ~~b, ~~c)"),
+	    (@ex@rule i"*(~a)" => ~a),
+	    (@ex@rule i"∀ ~~i ∀ ~~j ~s" => i"∀ ~~i, ~~j ~s"),
+	    (@ex@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
+	    (@ex@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end),
+	    (@ex@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end),
 	])))
     
 	while !isempty(frontier)

@@ -13,7 +13,8 @@ end
 
 function parse_julia_generous(s, pos)
     @assert pos isa Integer
-    return Meta.parse(s, pos, greedy=false)
+    ex, pos = Meta.parse(s, pos, greedy=false)
+    return (ex, pos)
 end
 
 function parse_julia_greedy(s, pos)
@@ -29,7 +30,9 @@ function parse_julia_greedy(s, pos)
         return Meta.parse(s[1:pos′ - ncodeunits("(") - 1], pos)
     elseif ex.head == :error && length(ex.args) == 1 &&
         (m = match(r"^invalid character \"(.*)\" near", ex.args[1])) != nothing
-        return Meta.parse(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
+        return parse_julia_greedy(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
+    elseif ex.head == :error || ex.head == :incomplete || ex === nothing
+        return nothing
     end
     return (ex, pos′)
 end
@@ -76,15 +79,15 @@ function parse_index_paren(s, pos, slot)
 end
 
 function capture_index_assign(ex, slot)
-    incs = Dict(:+= => +, :*= => *, :/= => /, :^= => ^)
+    incs = Dict(:(=) => nothing, :+= => +, :*= => *, :/= => /, :^= => ^)
     if haskey(incs, ex.head) && length(ex.args) == 2
-        lhs = capture_index_expression(ex.args[1], true, slot)
-        rhs = capture_index_expression(ex.args[2], true, slot)
+        lhs = capture_index_expression(ex.args[1], false, slot)
+        rhs = capture_index_expression(ex.args[2], false, slot)
         return :(assign($lhs, $(Literal(incs[ex.head])), $rhs))
     elseif ex.head == :comparison && length(ex.args) == 5 && ex.args[2] == :< && ex.args[4] == :>=
-        lhs = capture_index_expression(ex.args[1], true, slot)
-        op = capture_index_expression(ex.args[3], true, slot)
-        rhs = capture_index_expression(ex.args[5], true, slot)
+        lhs = capture_index_expression(ex.args[1], false, slot)
+        op = capture_index_expression(ex.args[3], false, slot)
+        rhs = capture_index_expression(ex.args[5], false, slot)
         return :(assign($lhs, $op, $rhs))
     end
     return capture_index_expression(ex, true, slot)
@@ -108,14 +111,20 @@ function capture_index_expression(ex, wrap, slot)
         return esc(ex.args[1])
     elseif ex isa Symbol && wrap
         return Name(ex)
-    elseif wrap
+    elseif !(ex isa Expr) && !wrap
         return Literal(ex)
     else
-        return esc(ex)
+        error()
     end
 end
 
-parse_index(s, slot) = parse_index_with(s, 1, slot)[1]
+function parse_index(s, slot)
+    ex, pos′ = parse_index_with(s, 1, slot)
+    if pos′ != ncodeunits(s) + 1
+        throw(ArgumentError("unexpected input at $(pretty_position(s, pos′))"))
+    end
+    return ex
+end
 
 macro i_str(s)
     return parse_index(s, true)

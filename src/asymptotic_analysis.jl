@@ -36,28 +36,28 @@ combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle(result_styl
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([
-    (@expand@rule _i"~f(~~a)" => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
-    (@expand@rule _i"+(~~a, +(~~b), ~~c)" => _i"+(~~a, ~~b, ~~c)"),
-    (@expand@rule _i"+(~~a)" => if any(isliteral, ~~a) _i"+($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...))))" end),
-    (@expand@rule _i"+(~~a, 0, ~~b)" => _i"+(~~a, ~~b)"),
+    (@expand@rule i"(~f)(~~a)" => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
+    (@expand@rule i"+(~~a, +(~~b), ~~c)" => i"+(~~a, ~~b, ~~c)"),
+    (@expand@rule i"+(~~a)" => if any(isliteral, ~~a) i"+($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...))))" end),
+    (@expand@rule i"+(~~a, 0, ~~b)" => i"+(~~a, ~~b)"),
 
-    (@expand@rule _i"*(~~a, *(~~b), ~~c)" => _i"*(~~a, ~~b, ~~c)"),
-    (@expand@rule _i"*(~~a)" => if any(isliteral, ~~a) _i"*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))" end),
-    (@expand@rule _i"*(~~a, 1, ~~b)" => _i"*(~~a, ~~b)"),
-    (@expand@rule _i"*(~~a, 0, ~~b)" => Literal(0)),
+    (@expand@rule i"*(~~a, *(~~b), ~~c)" => i"*(~~a, ~~b, ~~c)"),
+    (@expand@rule i"*(~~a)" => if any(isliteral, ~~a) i"*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))" end),
+    (@expand@rule i"*(~~a, 1, ~~b)" => i"*(~~a, ~~b)"),
+    (@expand@rule i"*(~~a, 0, ~~b)" => Literal(0)),
 
-    (@expand@rule _i"+(~a)" => ~a),
-    (@expand@rule _i"~a - ~b" => _i"~a + (- ~b)"),
-    (@expand@rule _i"- (- ~a)" => ~a),
-    (@expand@rule _i"- +(~a, ~~b)" => _i"+(- ~a, - +(~~b))"),
-    (@expand@rule _i"*(~a)" => ~a),
-    (@expand@rule _i"*(~~a, - ~b, ~~c)" => _i"-(*(~~a, ~b, ~~c))"),
+    (@expand@rule i"+(~a)" => ~a),
+    (@expand@rule i"~a - ~b" => i"~a + (- ~b)"),
+    (@expand@rule i"- (- ~a)" => ~a),
+    (@expand@rule i"- +(~a, ~~b)" => i"+(- ~a, - +(~~b))"),
+    (@expand@rule i"*(~a)" => ~a),
+    (@expand@rule i"*(~~a, - ~b, ~~c)" => i"-(*(~~a, ~b, ~~c))"),
 
     #(@expand@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end)
     #(@expand@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end)
 
-    (@expand@rule i"~a[~~i] = 0" => Pass()), #TODO this is only valid when the default of A is 0
-    (@expand@rule i"~a[~~i] += $(Literal(0))" => Pass()),
+    (@expand@rule i"(~a)[~~i] = 0" => Pass()), #TODO this is only valid when the default of A is 0
+    (@expand@rule i"(~a)[~~i] += $(Literal(0))" => Pass()),
 ])))
 
 function (lwr::AsymptoticAnalysis)(stmt::Loop, ::CoiterateStyle)

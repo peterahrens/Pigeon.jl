@@ -71,25 +71,25 @@ function saturate_index(stmt)
     #here, we only treat the second argument because we already did a bunch of churning earlier to consider different orders
 
     precompute = PrewalkStep(ChainStep([
-        (x-> if @expand@capture x i"~Ai ~~f= ~a"
+        (x-> if @expand@capture x i"~Ai <~~f>= ~a"
             bs = FixpointStep(PassThroughStep(@expand@rule i"~g(~~b)" => ~~b))(a)
             ys = []
             for b in bs
                 if b != a && @expand @capture b i"~h(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
-                    push!(ys, w₊(i"$Ai $f= $d with $w₀ = $b"))
+                    push!(ys, w₊(i"$Ai <$f>= $d with $w₀ = $b"))
                 end
             end
             return ys
         end),
-        (x-> if @expand@capture x i"~Ai ~f= ~a"
+        (x-> if @expand@capture x i"~Ai <~f>= ~a"
             bs = FixpointStep(PassThroughStep(@expand@rule i"~g(~~b)" =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
                 if b != a && @expand @capture b i"~h(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
-                    push!(ys, w₊(i"$Ai $f= $d with $w₀ $f= $b"))
+                    push!(ys, w₊(i"$Ai <$f>= $d with $w₀ <$f>= $b"))
                 end
             end
             return ys

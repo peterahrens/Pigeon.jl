@@ -4,6 +4,13 @@ function recognize(r, s, pos)
     end
 end
 
+function pretty_position(s, pos)
+    line = 1 + count("\n", s[1:pos])
+    col = pos - ((m = findprev("\n", s, pos)) === nothing ? 1 : first(m))
+    col = length(s[1:col]) #decodeunitify, only approximately right.
+    count("\n", s) == 0 ? "column $col" : "line $line, column $col"
+end
+
 function parse_julia_generous(s, pos)
     @assert pos isa Integer
     return Meta.parse(s, pos, greedy=false)
@@ -20,6 +27,8 @@ function parse_julia_greedy(s, pos)
     elseif ex.head == :error && length(ex.args) == 1 &&
         (m = match(r"^space before \"\(\" not allowed in", ex.args[1])) != nothing
         return Meta.parse(s[1:pos′ - lastindex("(") - 1], pos)
+    elseif ex.head == :error
+        return nothing
     end
     return (ex, pos′)
 end
@@ -41,24 +50,28 @@ function parse_index_loop(s, pos, slot)
             (ex, pos) = parse_julia_generous(s, pos′)
             push!(idxs, capture_index_expression(ex, true, slot))
         end
-        (body, pos) = parse_index_paren(s, pos, slot)
+        (body, pos) = parse_index_loop(s, pos, slot)
         return (:(loop($(idxs...), $body)), pos)
-    end
-    parse_index_paren(s, pos, slot)
-end
-
-function parse_index_paren(s, pos, slot)
-    if (pos′ = recognize(r"\s*\(\s*", s, pos)) !== nothing
-        (res, pos) = parse_index_with(s, pos′, slot)
-        @assert (pos′ = recognize(r"\s*\)\s*", s, pos)) !== nothing
-        return (res, pos′)
     end
     parse_index_assign(s, pos, slot)
 end
 
 function parse_index_assign(s, pos, slot)
-    (ex, pos) = parse_julia_greedy(s, pos)
-    return (capture_index_assign(ex, slot), pos)
+    if (res = parse_julia_greedy(s, pos)) != nothing
+        ex, pos = res
+        return (capture_index_assign(ex, slot), pos)
+    end
+    return parse_index_paren(s, pos, slot)
+end
+
+function parse_index_paren(s, pos, slot)
+    if (pos′ = recognize(r"\s*\(\s*", s, pos)) !== nothing
+        (res, pos) = parse_index_with(s, pos′, slot)
+        (pos′ = recognize(r"\s*\)\s*", s, pos)) !== nothing ||
+            throw(ArgumentError("missing \")\" at $(pretty_position(s, pos))"))
+        return (res, pos′)
+    end
+    throw(ArgumentError("unrecognized input at $(pretty_position(s, pos))"))
 end
 
 function capture_index_assign(ex, slot)
@@ -77,6 +90,7 @@ function capture_index_assign(ex, slot)
 end
 
 function capture_index_expression(ex, wrap, slot)
+    println(ex)
     if ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~
         ex.args[2] isa Symbol && slot
         return esc(ex)
@@ -84,7 +98,7 @@ function capture_index_expression(ex, wrap, slot)
         ex.args[2] isa Expr && ex.args[2].head == :call && length(ex.args[2].args) == 2 && ex.args[2].args[1] == :~ &&
         ex.args[2].args[2] isa Symbol && slot
         return esc(ex)
-    elseif ex isa Expr && ex.head == :call && length(ex.args) > 1
+    elseif ex isa Expr && ex.head == :call && length(ex.args) >= 1
         op = capture_index_expression(ex.args[1], false, slot)
         return :(call($op, $(map(arg->capture_index_expression(arg, wrap, slot), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :ref && length(ex.args) >= 1

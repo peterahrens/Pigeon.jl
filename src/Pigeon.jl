@@ -28,7 +28,7 @@ include("parse_index.jl")
 include("asymptote.jl")
 
 include("style.jl")
-#include("asymptotic_analysis.jl")
+include("asymptotic_analysis.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
@@ -45,6 +45,8 @@ function snoop()
         )
     """
 end
+
+
 
 if Base.VERSION >= v"1.4.2"
     #snoop()

@@ -114,12 +114,6 @@ git-tree-sha1 = "bdde43e002847c34c206735b1cf860bc3abd35e7"
 uuid = "2ee39098-c373-598a-b85f-a56591580800"
 version = "1.6.4"
 
-[[Lerche]]
-deps = ["DataStructures", "Logging"]
-git-tree-sha1 = "8f6a2d1ac5f0da03d526e02e7b3b4bbe2319f9e7"
-uuid = "d42ef402-04e6-4356-9f73-091573ea58dc"
-version = "0.5.1"
-
 [[LibGit2]]
 deps = ["Printf"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"

@@ -24,7 +24,7 @@ export saturate_index
 include("utils.jl")
 include("index.jl")
 include("parse_index.jl")
-#include("saturate.jl")
+include("saturate.jl")
 include("asymptote.jl")
 
 include("style.jl")

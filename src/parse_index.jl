@@ -23,12 +23,13 @@ function parse_julia_greedy(s, pos)
         #m.captures[1] in ["∀", "loop", "with", ")", "(", ","]
         #yeah, this substring is quadratic space
         #no, i don't care
-        return Meta.parse(s[1:pos′ - lastindex(m.captures[1]) - 1], pos)
+        return Meta.parse(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
     elseif ex.head == :error && length(ex.args) == 1 &&
         (m = match(r"^space before \"\(\" not allowed in", ex.args[1])) != nothing
-        return Meta.parse(s[1:pos′ - lastindex("(") - 1], pos)
-    elseif ex.head == :error
-        return nothing
+        return Meta.parse(s[1:pos′ - ncodeunits("(") - 1], pos)
+    elseif ex.head == :error && length(ex.args) == 1 &&
+        (m = match(r"^invalid character \"(.*)\" near", ex.args[1])) != nothing
+        return Meta.parse(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
     end
     return (ex, pos′)
 end
@@ -90,7 +91,6 @@ function capture_index_assign(ex, slot)
 end
 
 function capture_index_expression(ex, wrap, slot)
-    println(ex)
     if ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~
         ex.args[2] isa Symbol && slot
         return esc(ex)

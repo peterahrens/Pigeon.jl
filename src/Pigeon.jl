@@ -25,7 +25,7 @@ include("utils.jl")
 include("index.jl")
 include("parse_index.jl")
 #include("saturate.jl")
-#include("asymptote.jl")
+include("asymptote.jl")
 
 include("style.jl")
 #include("asymptotic_analysis.jl")

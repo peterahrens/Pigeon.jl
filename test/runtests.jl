@@ -2,14 +2,14 @@ using Pigeon
 using Test
 
 @testset "Pigeon.jl" begin
-    @test i"f(:B[i, k] * :C[k, j]^3, 42)" ==
-        call(:f, call(*, access(:B, Name(:i), Name(:k)), call(^, access(:C, Name(:k), Name(:j)), 3)), 42)
+    @test i":f(:B[i, k] * :C[k, j]^3, 42)" ==
+    call(:f, call(*, access(:B, Name(:i), Name(:k)), call(^, access(:C, Name(:k), Name(:j)), Literal(3))), Literal(42))
 
     @test i"""
         ∀ i (
             ∀ j :A[i, j] += :w[j]
         with
-            ∀ j, k w[j] += :B[i, k] * :C[k, j]
+            ∀ j, k :w[j] += :B[i, k] * :C[k, j]
         )
     """ == loop(Name(:i),
             with(loop(Name(:j),

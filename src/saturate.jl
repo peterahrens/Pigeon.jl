@@ -27,11 +27,11 @@ end
 
 function saturate_index(stmt)
     normalize = Fixpoint(Postwalk(Chain([
-        (@expand@rule i"∀ ~~i ∀ ~~j ~s" => i"∀ ~~i, ~~j ~s"),
+        (@expand@rule i"∀ (~~i) ∀ (~~j) ~s" => i"∀ (~~i), (~~j) ~s"),
     ])))
 
     stmt = loop(stmt)
-    (@expand@capture normalize(stmt) i"∀ ~~idxs ~lhs ~~op= ~rhs") ||
+    (@expand@capture normalize(stmt) i"∀ (~~idxs) ~lhs <~~op>= ~rhs") ||
         throw(ArgumentError("expecting statement in index notation"))
 
     splay = Fixpoint(Postwalk(Chain([
@@ -66,16 +66,16 @@ function saturate_index(stmt)
 
     rhss = unique(map(decommute, rhss))
 
-    bodies = map(rhs->i"$lhs $op=$rhs", rhss)
+    bodies = map(rhs->i"$lhs <$op>=$rhs", rhss)
 
     #here, we only treat the second argument because we already did a bunch of churning earlier to consider different orders
 
     precompute = PrewalkStep(ChainStep([
         (x-> if @expand@capture x i"~Ai <~~f>= ~a"
-            bs = FixpointStep(PassThroughStep(@expand@rule i"~g(~~b)" => ~~b))(a)
+            bs = FixpointStep(PassThroughStep(@expand@rule i"(~g)(~~b)" => ~~b))(a)
             ys = []
             for b in bs
-                if b != a && @expand @capture b i"~h(~~c)"
+                if b != a && @expand @capture b i"(~h)(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
                     push!(ys, w₊(i"$Ai <$f>= $d with $w₀ = $b"))
                 end
@@ -83,11 +83,11 @@ function saturate_index(stmt)
             return ys
         end),
         (x-> if @expand@capture x i"~Ai <~f>= ~a"
-            bs = FixpointStep(PassThroughStep(@expand@rule i"~g(~~b)" =>
+            bs = FixpointStep(PassThroughStep(@expand@rule i"(~g)(~~b)" =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
-                if b != a && @expand @capture b i"~h(~~c)"
+                if b != a && @expand @capture b i"(~h)(~~c)"
                     d = Postwalk(PassThrough(@expand@rule b => w₀))(a)
                     push!(ys, w₊(i"$Ai <$f>= $d with $w₀ <$f>= $b"))
                 end
@@ -111,36 +111,36 @@ function saturate_index(stmt)
 
     bodies = unique(mapreduce(body->map(slurp, precompute(body)), vcat, bodies))
 
-    prgms = map(body->i"∀ $idxs $body", bodies)
+    prgms = map(body->i"∀ ($idxs) $body", bodies)
 
     #absorb = PassThrough(@expand@rule i"∀ ~i ∀ ~~j ~s" => i"∀ $(sort([~i; ~~j])) ~s")
 
     internalize = PrewalkStep(PassThroughStep(
-        (x) -> if @expand @capture x i"∀ ~~is (~c with ~p)"
+        (x) -> if @expand @capture x i"∀ (~~is) (~c with ~p)"
             if reducer(p) != nothing
                 return map(combinations(intersect(is, indices(x)))) do js
-                    i"""∀ $(setdiff(is, js))
-                        ((∀ $(intersect(js, indices(c))) $c)
+                    i"""∀ ($(setdiff(is, js)))
+                        ((∀ ($(intersect(js, indices(c)))) $c)
                       with
-                        (∀ $(intersect(js, indices(p))) $p))
+                        (∀ ($(intersect(js, indices(p)))) $p))
                     """
                 end
             else
                 return map(combinations(intersect(is, indices(p)))) do js
-                    i"""∀ $(setdiff(is, js))
-                        ((∀ $(intersect(js, indices(c))) $c)
+                    i"""∀ ($(setdiff(is, js)))
+                        ((∀ ($(intersect(js, indices(c)))) $c)
                       with
-                        (∀ $js $p))
+                        (∀ ($js) $p))
                     """
                 end
             end
         end
     ))
     prgms = mapreduce(internalize, vcat, prgms)
-    prgms = map(Postwalk(PassThrough(@expand@rule i"∀ $(())... ~s" => ~s)), prgms)
+    prgms = map(Postwalk(PassThrough(@expand@rule i"∀ $([]) ~s" => ~s)), prgms)
 
     reorder = PrewalkStep(PassThroughStep(
-        @expand@rule i"∀ ~~is ~s" => map(js-> i"∀ $js ~s", permutations(~~is))
+        @expand@rule i"∀ (~~is) ~s" => map(js-> i"∀ ($js) ~s", collect(permutations(~~is))[2:end])
     ))
 
     return map(name_workspaces, mapreduce(reorder, vcat, prgms))

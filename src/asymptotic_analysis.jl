@@ -34,6 +34,7 @@ resolve_style(lwr::AsymptoticAnalysis, root::Loop, node::Access, style::Coiterat
         resolve_style(lwr, root, node, style.style)
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle(result_style(a.style, b.style), a.verified | b.verified)
 
+#=
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([
     (@expand@rule i"~f(~~a)" => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
@@ -59,6 +60,7 @@ annihilate_index = Fixpoint(Postwalk(Chain([
     (@expand@rule i"~a[~~i] = 0" => Pass()), #TODO this is only valid when the default of A is 0
     (@expand@rule i"~a[~~i] += $(Literal(0))" => Pass()),
 ])))
+=#
 
 function (lwr::AsymptoticAnalysis)(stmt::Loop, ::CoiterateStyle)
     lwr′ = quantify(lwr, stmt.idxs[1])

@@ -23,8 +23,12 @@ export saturate_index
 
 include("utils.jl")
 include("index.jl")
-include("parse.jl")
+include("parse_index.jl")
 include("saturate.jl")
+include("asymptote.jl")
+
+include("style.jl")
+include("asymptotic_analysis.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")

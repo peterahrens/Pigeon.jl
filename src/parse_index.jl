@@ -115,11 +115,8 @@ function capture_index_expression(ex, wrap, slot)
         return esc(ex.args[1])
     elseif ex isa Symbol && wrap
         return Name(ex)
-    elseif !(ex isa Expr)
-        return Literal(ex)
     else
-        @show "msg" ex typeof(ex)
-        error()
+        return esc(:(Literal($ex)))
     end
 end
 

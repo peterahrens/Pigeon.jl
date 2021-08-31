@@ -1,6 +1,5 @@
 module Pigeon
 
-using Lerche
 using SymbolicUtils
 using SymbolicUtils: arguments, operation, istree, similarterm
 using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough

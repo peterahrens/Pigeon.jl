@@ -5,6 +5,7 @@ function recognize(r, s, pos)
 end
 
 function parse_julia_generous(s, pos)
+    @assert pos isa Integer
     return Meta.parse(s, pos, greedy=false)
 end
 
@@ -13,22 +14,23 @@ function parse_julia_greedy(s, pos)
     if ex.head == :error && length(ex.args) == 1 &&
         (m = match(r"^extra token \\\"(.*)\\\" after end of expression", ex.args[1])) != nothing# &&
         #m.captures[1] in ["∀", "loop", "with", ")", "(", ","]
+        #yeah, this substring is quadratic space
+        #no, i don't care
         return Meta.parse(s[1:pos′ - lastindex(m.captures[1]) - 1], pos)
     elseif ex.head == :error && length(ex.args) == 1 &&
         (m = match(r"^space before \"\(\" not allowed in", ex.args[1])) != nothing
         return Meta.parse(s[1:pos′ - lastindex("(") - 1], pos)
     end
-
-    return (ex, pos)
+    return (ex, pos′)
 end
 
 function parse_index_with(s, pos)
-    pos, prod = parse_index_loop(s, pos)
+    (prod, pos) = parse_index_loop(s, pos)
     while (pos′ = recognize(r"(\bwith\b)\s*", s, pos)) !== nothing
-        (pos, cons) = parse_index_loop(s, pos′)
+        (cons, pos) = parse_index_loop(s, pos′)
         prod = :(with($prod, $cons))
     end
-    (pos, prod)
+    (prod, pos)
 end
 
 function parse_index_loop(s, pos)
@@ -47,7 +49,7 @@ end
 
 function parse_index_paren(s, pos)
     if (pos′ = recognize(r"\(\s*", s, pos)) !== nothing
-        (res, pos) = parse_index_with(s, pos = pos′)
+        (res, pos) = parse_index_with(s, pos′)
         @assert (pos′ = recognize(r"\)\s*", s, pos)) !== nothing
         return (res, pos′)
     end
@@ -77,10 +79,10 @@ function capture_index_call(ex, wrap)
     if ex.head == :call && length(ex.args) > 1 && ex.args[1] != :~
         return :(call($(map(arg -> capture_index_call(arg, wrap), ex.args...))))
     end
-    return capture_index_assign
+    return capture_index_access(ex, wrap)
 end
 
-function capture_index_assign(ex, wrap)
+function capture_index_access(ex, wrap)
     if ex.head == :ref && length(ex.args) >= 1
         tns = capture_index_call(arg, wrap)
         return :(access($(map(arg->capture_index_call(arg, true), ex.args[2:end]...))))
@@ -108,7 +110,7 @@ end
 
 function parse_index(s)
     pos = recognize(r"\s*", s, 1)
-    return parse_index_with(s, 1)
+    return parse_index_with(s, 1)[1]
 end
 
 macro i_str(s)

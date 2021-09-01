@@ -11,66 +11,66 @@ function pretty_position(s, pos)
     count("\n", s) == 0 ? "column $col" : "line $line, column $col"
 end
 
-function parse_julia_generous(s, pos)
-    @assert pos isa Integer
-    ex, pos = Meta.parse(s, pos, greedy=false)
-    return (ex, pos)
-end
-
-function parse_julia_greedy(s, pos)
-	ex, pos′ = Meta.parse(s, pos, raise=false)
-    if ex.head == :error && length(ex.args) == 1 &&
-        (m = match(r"^extra token \\\"(.*)\\\" after end of expression", ex.args[1])) != nothing# &&
-        #m.captures[1] in ["∀", "loop", "with", ")", "(", ","]
-        #yeah, this substring is quadratic space
-        #no, i don't care
-        return Meta.parse(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
-    elseif ex.head == :error && length(ex.args) == 1 &&
-        (m = match(r"^space before \"\(\" not allowed in", ex.args[1])) != nothing
-        return Meta.parse(s[1:pos′ - ncodeunits("(") - 1], pos)
-    elseif ex.head == :error && length(ex.args) == 1 &&
-        (m = match(r"^invalid character \"(.*)\" near", ex.args[1])) != nothing
-        return parse_julia_greedy(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
-    elseif ex.head == :error || ex.head == :incomplete || ex === nothing
-        return nothing
+function parse_julia(s, pos; ctx...)
+    if ctx.data.greedy
+        ex, pos′ = Meta.parse(s, pos, raise=false)
+        if ex isa Expr && ex.head == :error && length(ex.args) == 1 &&
+            (m = match(r"^extra token \\\"(.*)\\\" after end of expression", ex.args[1])) != nothing &&
+            m.captures[1] in ["loop", "with", ")", "("]
+            return Meta.parse(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos)
+        elseif ex isa Expr && ex.head == :error && length(ex.args) == 1 &&
+            (m = match(r"^space before \"\(\" not allowed in", ex.args[1])) != nothing
+            return Meta.parse(s[1:pos′ - ncodeunits("(") - 1], pos)
+        elseif ex isa Expr && ex.head == :error && length(ex.args) == 1 &&
+            (m = match(r"^invalid character \"(.*)\" near", ex.args[1])) != nothing && 
+            m.captures[1] in ["∀",]
+            return parse_julia(s[1:pos′ - ncodeunits(m.captures[1]) - 1], pos; ctx...)
+        elseif (ex isa Expr && (ex.head == :error || ex.head == :incomplete)) || ex === nothing
+            return (ex, nothing)
+        end
+        return (ex, pos′)
+    else
+        (ex, pos′) = Meta.parse(s, pos, greedy=false, raise=false)
+        if (ex isa Expr && (ex.head == :error || ex.head == :incomplete)) || ex === nothing
+            return (ex, nothing)
+        end
+        return (ex, pos′)
     end
-    return (ex, pos′)
 end
 
-function parse_index_with(s, pos, slot)
-    (prod, pos) = parse_index_loop(s, pos, slot)
+function parse_index_with(s, pos; ctx...)
+    (prod, pos) = parse_index_loop(s, pos; ctx...)
     while (pos′ = recognize(r"\s*(\bwith\b)\s*", s, pos)) !== nothing
-        (cons, pos) = parse_index_loop(s, pos′, slot)
+        (cons, pos) = parse_index_loop(s, pos′; ctx...)
         prod = :(with($prod, $cons))
     end
     (prod, pos)
 end
 
-function parse_index_loop(s, pos, slot)
+function parse_index_loop(s, pos; ctx...)
     if (pos′ = recognize(r"\s*(∀|(\bloop\b))\s*", s, pos)) !== nothing
-        (ex, pos) = parse_julia_generous(s, pos′)
-        idxs = [capture_index_expression(ex, true, slot)]
+        idx, pos = parse_index_assign(s, pos′; ctx..., greedy=false, namify=true, literalize=true)
+        idxs = [idx]
         while (pos′ = recognize(r",\s*", s, pos)) !== nothing
-            (ex, pos) = parse_julia_generous(s, pos′)
-            push!(idxs, capture_index_expression(ex, true, slot))
+            idx, pos = parse_index_assign(s, pos′; ctx..., greedy=false, namify=true, literalize=true)
+            push!(idxs, idx)
         end
-        (body, pos) = parse_index_loop(s, pos, slot)
+        body, pos = parse_index_loop(s, pos; ctx...)
         return (:(loop($(idxs...), $body)), pos)
     end
-    parse_index_assign(s, pos, slot)
+    parse_index_assign(s, pos; ctx...)
 end
 
-function parse_index_assign(s, pos, slot)
-    if (res = parse_julia_greedy(s, pos)) != nothing
-        ex, pos = res
-        return (capture_index_assign(ex, slot), pos)
+function parse_index_assign(s, pos; ctx...)
+    if ((ex, pos′) = parse_julia(s, pos; ctx...); pos′ !== nothing)
+        return (capture_index_assign(ex; ctx...), pos′)
     end
-    return parse_index_paren(s, pos, slot)
+    parse_index_paren(s, pos; ctx...)
 end
 
-function parse_index_paren(s, pos, slot)
+function parse_index_paren(s, pos; ctx...)
     if (pos′ = recognize(r"\s*\(\s*", s, pos)) !== nothing
-        (res, pos) = parse_index_with(s, pos′, slot)
+        (res, pos) = parse_index_with(s, pos′; ctx..., greedy=true)
         (pos′ = recognize(r"\s*\)\s*", s, pos)) !== nothing ||
             throw(ArgumentError("missing \")\" at $(pretty_position(s, pos))"))
         return (res, pos′)
@@ -78,56 +78,67 @@ function parse_index_paren(s, pos, slot)
     throw(ArgumentError("unrecognized input at $(pretty_position(s, pos))"))
 end
 
-function capture_index_assign(ex, slot)
-    incs = Dict(:+= => +, :*= => *, :/= => /, :^= => ^)
-    if ex.head == :(=) && length(ex.args) == 2
-        lhs = capture_index_expression(ex.args[1], false, slot)
-        rhs = capture_index_expression(ex.args[2], false, slot)
+function capture_index_assign(ex; ctx...)
+    incs = Dict(:+= => :+, :*= => :*, :/= => :/, :^= => :^)
+    if ex isa Expr && ex.head == :(=) && length(ex.args) == 2
+        lhs = capture_index_expression(ex.args[1]; ctx...)
+        rhs = capture_index_expression(ex.args[2]; ctx...)
         return :(assign($lhs, $rhs))
-    elseif haskey(incs, ex.head) && length(ex.args) == 2
-        lhs = capture_index_expression(ex.args[1], false, slot)
-        rhs = capture_index_expression(ex.args[2], false, slot)
-        return :(assign($lhs, $(Literal(incs[ex.head])), $rhs))
-    elseif ex.head == :comparison && length(ex.args) == 5 && ex.args[2] == :< && ex.args[4] == :>=
-        lhs = capture_index_expression(ex.args[1], false, slot)
-        op = capture_index_expression(ex.args[3], false, slot)
-        rhs = capture_index_expression(ex.args[5], false, slot)
+    elseif ex isa Expr && haskey(incs, ex.head) && length(ex.args) == 2
+        lhs = capture_index_expression(ex.args[1]; ctx...)
+        rhs = capture_index_expression(ex.args[2]; ctx...)
+        op = capture_index_expression(incs[ex.head]; ctx..., namify=false, literalize=true)
+        return :(assign($lhs, $op, $rhs))
+    elseif ex isa Expr && ex.head == :comparison && length(ex.args) == 5 && ex.args[2] == :< && ex.args[4] == :>=
+        lhs = capture_index_expression(ex.args[1]; ctx...)
+        op = capture_index_expression(ex.args[3]; ctx..., namify=false, literalize=true)
+        rhs = capture_index_expression(ex.args[5]; ctx...)
         return :(assign($lhs, $op, $rhs))
     end
-    return capture_index_expression(ex, true, slot)
+    return capture_index_expression(ex; ctx...)
 end
 
-function capture_index_expression(ex, wrap, slot)
-    if ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~
-        ex.args[2] isa Symbol && slot
+#I don't know why this is obvious but it is?
+#functions get literalized
+#arguments get namified and literalized
+#tensors don't get wrapped at all
+#indices get namified and literalized
+function capture_index_expression(ex; ctx...)
+    if ctx.data.slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
+        ex.args[2] isa Symbol
         return esc(ex)
-    elseif ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
+    elseif ctx.data.slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
         ex.args[2] isa Expr && ex.args[2].head == :call && length(ex.args[2].args) == 2 && ex.args[2].args[1] == :~ &&
-        ex.args[2].args[2] isa Symbol && slot
+        ex.args[2].args[2] isa Symbol
         return esc(ex)
     elseif ex isa Expr && ex.head == :call && length(ex.args) >= 1
-        op = capture_index_expression(ex.args[1], false, slot)
-        return :(call($op, $(map(arg->capture_index_expression(arg, wrap, slot), ex.args[2:end])...)))
+        op = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=true)
+        return :(call($op, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :ref && length(ex.args) >= 1
-        tns = capture_index_expression(ex.args[1], false, slot)
-        return :(access($tns, $(map(arg->capture_index_expression(arg, true, slot), ex.args[2:end])...)))
+        tns = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=false)
+        return :(access($tns, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :$ && length(ex.args) == 1
         return esc(ex.args[1])
-    elseif ex isa Symbol && wrap
+    elseif ex isa Symbol && ctx.data.namify
         return Name(ex)
-    else
+    elseif ctx.data.pattern && ctx.data.literalize
+        return esc(Expr(:$, :(Literal($ex))))
+    elseif ctx.data.literalize
         return esc(:(Literal($ex)))
+    else
+        return esc(ex)
     end
 end
 
-function parse_index(s, slot)
-    ex, pos′ = parse_index_with(s, 1, slot)
+function parse_index(s; namify=false, literalize=false, pattern=false, greedy=true, slot = false)
+    ex, pos′ = parse_index_with(s, 1; namify=namify, literalize=literalize, slot=slot, pattern=pattern, greedy=greedy)
     if pos′ != ncodeunits(s) + 1
         throw(ArgumentError("unexpected input at $(pretty_position(s, pos′))"))
     end
     return ex
 end
 
-macro i_str(s)
-    return parse_index(s, true)
+macro i_str(s, flags...)
+    flags = isempty(flags) ? [] : flags[1]
+    return parse_index(s; pattern = ('p' in flags), slot = ('p' in flags) | ('c' in flags))
 end

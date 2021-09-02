@@ -16,6 +16,9 @@ SLTensor(name) = SymbolicLocateTensor(name)
 
 isimplicit(x) = false
 
+#pass in a guard on the iteration
+#return the iteration and whatever information should be gleaned from the assignments
+
 struct AsymptoticAnalysis
     qnts::Set{Any}
 end
@@ -28,6 +31,11 @@ quantify(lwr::AsymptoticAnalysis, vars...) = AsymptoticAnalysis(union(lwr.qnts, 
 (lwr::AsymptoticAnalysis)(::Pass, ::DefaultStyle) = Empty()
 
 function (lwr::AsymptoticAnalysis)(root::Assign, ::DefaultStyle)
+    #at the point when we get to lowering an assign, the lhs had better be a resolvable location
+    #(do_assign(resolve(root.lhs), $op, lwr(root.rhs))
+    #similarly, at the point when we get to lowering an access, the lhs had better be a resolvable location, otherwise we just resolve it too.
+    #assignments allow lhs to put info into scope
+    #coiterates will call merge on those scopes, and wheres will call merge on those scopes.
     return Times(name.(lwr.qnts)...)
 end
 

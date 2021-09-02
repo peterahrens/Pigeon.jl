@@ -6,12 +6,15 @@ end
 name(tns::SymbolicCoiterableTensor) = tns.name
 SCTensor(name) = SCTensor(name, Literal(0))
 SCTensor(name, default) = SymbolicCoiterableTensor(name, default, false)
+isimplicit(tns::SymbolicCoiterableTensor) = tns.implicit
 
 struct SymbolicLocateTensor
     name
 end
 name(tns::SymbolicLocateTensor) = tns.name
 SLTensor(name) = SymbolicLocateTensor(name)
+
+isimplicit(x) = false
 
 struct AsymptoticAnalysis
     qnts::Set{Any}
@@ -70,8 +73,8 @@ annihilate_index = Fixpoint(Postwalk(Chain([
     (@ex@rule i"(~a)[~~i] += 0"p => Pass()),
     (@ex@rule i"(~a)[~~i] *= 1"p => Pass()),
 
-    (@ex@rule i"(~a)[~~i] *= ~b"p => if a.implicit && a.default == Literal(0) Pass() end),
-    (@ex@rule i"(~a)[~~i] = ~b"p => if a.implicit && a.default == ~b Pass() end),
+    (@ex@rule i"(~a)[~~i] *= ~b"p => if isimplicit(~a) && (~a).default == Literal(0) Pass() end),
+    (@ex@rule i"(~a)[~~i] = ~b"p => if isimplicit(~a) && (~a).default == ~b Pass() end),
 
     (@ex@rule i"∀ (~~i) $(Pass())"p => Pass()),
     (@ex@rule i"$(Pass()) with $(Pass())"p => Pass()),

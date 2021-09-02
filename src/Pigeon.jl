@@ -18,6 +18,8 @@ export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
+export SCTensor, SLTensor
+
 export saturate_index
 export normalize_index
 

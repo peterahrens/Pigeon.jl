@@ -1,17 +1,17 @@
-struct HollowSymbolicTensor
+struct SymbolicCoiterableTensor
     name
     default
     implicit #describes whether this tensor initially holds entirely implicit values
 end
-name(tns::HollowSymbolicTensor) = tns.name
-HSTensor(name) = HSTensor(name, Literal(0))
-HSTensor(name, default) = HollowSymbolicTensor(name, default, false)
+name(tns::SymbolicCoiterableTensor) = tns.name
+SCTensor(name) = SCTensor(name, Literal(0))
+SCTensor(name, default) = SymbolicCoiterableTensor(name, default, false)
 
-struct DenseSymbolicTensor
+struct SymbolicLocateTensor
     name
 end
-name(tns::DenseSymbolicTensor) = tns.name
-DSTensor(name) = DenseSymbolicTensor(name)
+name(tns::SymbolicLocateTensor) = tns.name
+SLTensor(name) = SymbolicLocateTensor(name)
 
 struct AsymptoticAnalysis
     qnts::Set{Any}
@@ -29,7 +29,8 @@ function (lwr::AsymptoticAnalysis)(root::Assign, ::DefaultStyle)
 end
 
 function (lwr::AsymptoticAnalysis)(stmt::Loop, ::DefaultStyle)
-    quantify(lwr, stmt.idxs...)(stmt.body)
+    isempty(stmt.idxs) && return lwr(stmt.body)
+    quantify(lwr, stmt.idxs[1])(Loop(stmt.idxs[2:end], stmt.body))
 end
 
 struct CoiterateStyle
@@ -37,7 +38,7 @@ struct CoiterateStyle
     verified
 end
 
-make_style(lwr::AsymptoticAnalysis, root::Loop, node::HollowSymbolicTensor) = CoiterateStyle(DefaultStyle(), false)
+make_style(lwr::AsymptoticAnalysis, root::Loop, node::SymbolicCoiterableTensor) = CoiterateStyle(DefaultStyle(), false)
 resolve_style(lwr::AsymptoticAnalysis, root::Loop, node::Access, style::CoiterateStyle) =
     ((!isempty(root.idxs) && root.idxs[1] in node.idxs) || style.verified) ? CoiterateStyle(style.style, true) :
         resolve_style(lwr, root, node, style.style)
@@ -69,7 +70,8 @@ annihilate_index = Fixpoint(Postwalk(Chain([
     (@ex@rule i"(~a)[~~i] += 0"p => Pass()),
     (@ex@rule i"(~a)[~~i] *= 1"p => Pass()),
 
-    (@ex@rule i"(~a)[~~i] *= 1"p => if a.implicit && a.default == Literal(0) Pass() end),
+    (@ex@rule i"(~a)[~~i] *= ~b"p => if a.implicit && a.default == Literal(0) Pass() end),
+    (@ex@rule i"(~a)[~~i] = ~b"p => if a.implicit && a.default == ~b Pass() end),
 
     (@ex@rule i"∀ (~~i) $(Pass())"p => Pass()),
     (@ex@rule i"$(Pass()) with $(Pass())"p => Pass()),
@@ -94,7 +96,7 @@ function _coiterate_asymptote(lwr, root, node)
 end
 coiterate_asymptote(lwr, root, stmt::Access) = coiterate_asymptote(lwr, root, stmt, stmt.tns)
 coiterate_asymptote(lwr, root, stmt::Access, tns) = _coiterate_asymptote(lwr, root, stmt)
-function coiterate_asymptote(lwr, root, stmt::Access, tns::HollowSymbolicTensor)
+function coiterate_asymptote(lwr, root, stmt::Access, tns::SymbolicCoiterableTensor)
     root.idxs[1] in stmt.idxs || return Empty()
     return Such(Times(name.(lwr.qnts)...), Exists(name.(filter(j->!(j ∈ lwr.qnts), stmt.idxs))...,
                 Predicate(name.(arguments(stmt))...)))
@@ -119,8 +121,8 @@ function _coiterate_cases(lwr, root, node::Assign)
 end
 coiterate_cases(lwr, root, stmt::Access, write) = coiterate_cases(lwr, root, stmt::Access, write, stmt.tns)
 coiterate_cases(lwr, root, stmt::Access, write, tns) = _coiterate_cases(lwr, root, stmt, write)
-function coiterate_cases(lwr, root, stmt::Access, write, tns::HollowSymbolicTensor)
-    stmt′ = Access(HollowSymbolicTensor(tns.name, tns.default, true), stmt.idxs)
+function coiterate_cases(lwr::AsymptoticAnalysis, root, stmt::Access, write, tns::SymbolicCoiterableTensor)
+    stmt′ = Access(SymbolicCoiterableTensor(tns.name, tns.default, true), stmt.idxs)
     if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
         return [(Exists(name.(filter(j->!(j ∈ lwr.qnts), stmt.idxs))...,
                 Predicate(name.(arguments(stmt))...)), stmt),

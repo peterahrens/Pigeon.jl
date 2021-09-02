@@ -120,17 +120,21 @@ function saturate_index(stmt)
             if reducer(p) != nothing
                 return map(combinations(intersect(is, indices(x)))) do js
                     i"""∀ ($(setdiff(is, js)))
-                        ((∀ ($(intersect(js, indices(c)))) $c)
-                      with
-                        (∀ ($(intersect(js, indices(p)))) $p))
+                        (
+                            (∀ ($(intersect(js, indices(c)))) $c)
+                        with
+                            (∀ ($(intersect(js, indices(p)))) $p)
+                        )
                     """
                 end
             else
                 return map(combinations(intersect(is, indices(p)))) do js
                     i"""∀ ($(setdiff(is, js)))
-                        ((∀ ($(intersect(js, indices(c)))) $c)
-                      with
-                        (∀ ($js) $p))
+                        (
+                            (∀ ($(intersect(js, indices(c)))) $c)
+                        with
+                            (∀ ($js) $p)
+                        )
                     """
                 end
             end

@@ -130,7 +130,7 @@ function capture_index_expression(ex; ctx...)
     end
 end
 
-function parse_index(s; namify=false, literalize=false, pattern=false, greedy=true, slot = false)
+function parse_index(s; namify=true, literalize=true, pattern=false, greedy=true, slot = false)
     ex, pos′ = parse_index_with(s, 1; namify=namify, literalize=literalize, slot=slot, pattern=pattern, greedy=greedy)
     if pos′ != ncodeunits(s) + 1
         throw(ArgumentError("unexpected input at $(pretty_position(s, pos′))"))

@@ -19,6 +19,7 @@ export Pass, Literal, Workspace, Name
 export postorder, value, name
 
 export saturate_index
+export normalize_index
 
 include("utils.jl")
 include("index.jl")
@@ -26,8 +27,10 @@ include("parse_index.jl")
 include("asymptote.jl")
 
 include("style.jl")
-#include("asymptotic_analysis.jl")
-#include("saturate.jl")
+include("asymptotic_analysis.jl")
+include("saturate.jl")
+include("normalize.jl")
+include("containment.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
@@ -45,7 +48,9 @@ function snoop()
     """
 end
 
-
+macro name(args::Symbol...)
+    return Expr(:block, map(arg->:($(esc(arg)) = Name($(QuoteNode(arg)))), args)..., :(($(map(esc, args)...), )))
+end
 
 if Base.VERSION >= v"1.4.2"
     #snoop()

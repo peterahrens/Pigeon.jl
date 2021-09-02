@@ -103,11 +103,29 @@ show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 name(ex::Name) = ex.name
 
+struct Freshie
+    name::Symbol
+    num::Int
+end
+
+function Base.show(io::IO, ex::Freshie)
+    print(io, ex.name)
+    print(io, "_")
+    print(io, ex.num)
+end
+
+fresh_num = 0
+
+freshen(ex::Symbol) = Freshie(ex, global fresh_num += 1)
+freshen(ex::Freshie) = Freshie(ex.name, global fresh_num += 1)
+
 struct Literal <: IndexTerminal
     val
 end
 
 value(ex::Literal) = ex.val
+isliteral(ex::Literal) = true
+isliteral(ex) = false
 
 SymbolicUtils.istree(ex::Literal) = false
 Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)

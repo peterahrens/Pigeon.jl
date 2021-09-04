@@ -220,3 +220,84 @@ end
 indices(x::Forall) = setdiff(indices(x.arg), x.idxs)
 indices(x::Exists) = setdiff(indices(x.arg), x.idxs)
 indices(x::Predicate) = x.args
+
+struct PointQuery
+    points
+end
+
+struct CanonVariable
+    n
+end
+
+function Base.getindex(q::PointQuery, idxs...)
+    d = Dict(args...)
+    rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
+    rename(x) = x
+    PostWalk(rename)(q.points)
+end
+
+function Base.setindex!(q::PointQuery, p, idxs...)
+    d = Dict(args...)
+    rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
+    q.points = Cup(q.points, PostWalk(rename)(q))
+end
+
+simplify_asymptote = Fixpoint(Postwalk(Chain([
+    (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
+
+    (@rule Such(~s, false) => Empty()),
+    (@rule Such($(Empty()), ~p) => Empty()),
+
+    (@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
+    (@rule Wedge(~~p, true, ~q, ~~r) => Wedge(~~p..., ~q, ~r...)),
+    (@rule Wedge(~~p, ~q, true, ~~r) => Wedge(~~p..., ~q, ~r...)),
+    (@rule Wedge(true) => true),
+    (@rule Wedge(~~p, false, ~q, ~~r) => false),
+    (@rule Wedge(~~p, ~q, false, ~~r) => false),
+    (@rule Wedge(~~p, ~q, ~~r, ~q, ~~s) => Wedge(~~p..., ~q, ~~r..., ~~s...)),
+
+    (@rule Vee(~p) => ~p),
+
+    (@rule Wedge(~~p, Vee(~q, ~r, ~~s), ~~t) => 
+        Vee(Wedge(~~p..., ~q, ~~t...), Wedge(~~p..., Vee(~r, ~~s...), ~~t...))),
+
+    (@rule Cup(~~s, $(Empty()), ~t, ~~u) => Cup(~~s..., ~t, ~~u...)),
+    (@rule Cup(~~s, ~t, $(Empty()), ~~u) => Cup(~~s..., ~t, ~~u...)),
+    (@rule Cup($(Empty())) => Empty()),
+    (@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
+    (@rule Cup(~~s, ~t, ~~u, ~t, ~~v) => Cup(~~s..., ~t, ~~u..., ~~v...)),
+
+    (@rule Cap(~~s, $(Empty()), ~~u) => Empty()),
+    (@rule Cap(~s) => ~s),
+
+    (@rule Times(~~s, $(Empty()), ~~u) => Empty()),
+    (@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
+    (@rule Times(Such(~s, ~p), ~~t) => Such(Times(~s, ~~t...), ~p)),
+    (@rule Times(Cup(~s, ~t, ~~u), ~~v) => Cup(Times(~s, ~~v...), Times(Cup(~t, ~~u...), ~~v...))),
+    (@rule Times(Cup(~s), ~~t) => Cup(Times(~s), ~~t...)),
+
+    (@rule Such(~t, true) => ~t),
+    (@rule Such(~t, Vee(~p, ~q)) => 
+        Cup(Such(~t, ~p), Such(~t, ~q))),
+    (@rule Such(Cup(~s, ~t, ~~u), ~p) => 
+        Cup(Such(~s, ~p), Such(Cup(~t, ~~u...), ~p))),
+    (@rule Such(Cup(~s), ~p) => Cup(Such(~s, ~p))),
+    (@rule Cap(~~s, Such(~t, ~p), ~~u, Such(~t, ~q), ~~v) =>
+        Cap(~~s..., Such(~t, Wedge(~p, ~q)), ~~u..., ~~v...)),
+
+    (@rule Exists(~~i, true) => true),
+    (@rule Exists(~~i, false) => false),
+    (@rule Exists(~p) => ~p),
+    (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
+    (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
+        i′ = freshen.(~~i)
+        q′ = Postwalk(subex->get(Dict(Pair.(~~i, i′)...), subex, subex))(~q)
+        Exists(i′..., Wedge(~~p..., q′, ~~r...))
+    end),
+    (@rule Exists(~~i, ~p) => if !isempty(setdiff(~~i, indices(~p)))
+        Exists(intersect(~~i, indices(~p))..., ~p)
+    end),
+
+    (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
+        Vee(Exists(~~i, ~p), Exists(~~i, Vee(~q, ~~r)))),
+])))

@@ -14,7 +14,7 @@ using Test
     """ ==
     loop(Name(:i), with(loop(Name(:j), assign(access(:A, Name(:i), Name(:j)), Literal(+), access(:w, Name(:j)))), loop(Name(:j), Name(:k), assign(access(:w, Name(:j)), Literal(+), call(Literal(*), access(:B, Name(:i), Name(:k)), access(:C, Name(:k), Name(:j)))))))
 
-    @names A B C D w_1 w_2
+    Pigeon.@name A B C D w_1 w_2
 
     @test Set(normalize_index.(saturate_index(i"A[i, j] += B[] + C[] + D[]"))) == Set(normalize_index.([
         i"""

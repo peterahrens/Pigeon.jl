@@ -19,7 +19,7 @@ w₋(_w) = Postwalk(node -> node isa Workspace ? (node.n == 1 ? _w : Workspace(n
 function name_workspaces(prgm)
 	w_n = 1
 	Postwalk(PassThrough((node) -> if node isa With
-	    w = access(Name(Symbol("w_$w_n")), intersect(indices(node.prod), indices(node.cons)))
+	    w = access(Name(Symbol("w_$w_n")), Update(), intersect(indices(node.prod), indices(node.cons)))
 	    w_n += 1
 	    return w₋(w)(node)
 	end))(prgm)

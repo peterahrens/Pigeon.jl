@@ -32,6 +32,7 @@
 #           Dispatch is super clear and straightforward
 #           No ambiguities because Accesses and References are typed by their tensor
 #           Common case is easy
+#           This is sortof like 4, with nice defaults. I'm choosing 4. We might do the same thing for accesses.
 #       Cons:
 #           Doesn't solve more complicated dispatch problems (How to dispatch access lowering? probably style resolution let's be honest)
 #           Sortof confusing because every implementation needs to do the same boilerplate to lower indices (is there any solution that avoids this?)
@@ -77,12 +78,15 @@ SLTensor(name) = SymbolicLocateTensor(name)
 
 isimplicit(x) = false
 
-struct ImplicitFiberRelation
-    init
-    data
+mutable struct SparseFiberRelation
+    init::PointQuery
+    data::PointQuery
     format
     default
 end
+
+implicit(tns::SparseFiberRelation) = (tns = copy(tns); tns.init = PointQuery(Empty()); tns)
+initialize(tns::SparseFiberRelation) = (tns = copy(tns); tns.data = PointQuery(Empty()); tns)
 
 struct CoiterateRelator end
 struct LocateRelator end

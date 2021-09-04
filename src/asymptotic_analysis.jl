@@ -113,14 +113,12 @@ end
 
 struct CoiterateStyle
     style
-    verified
 end
 
-make_style(root::Loop, ctx::AsymptoticContext, node::SymbolicCoiterableTensor) = CoiterateStyle(DefaultStyle(), false)
-resolve_style(root::Loop, ctx::AsymptoticContext, node::Access, style::CoiterateStyle) =
-    ((!isempty(root.idxs) && root.idxs[1] in node.idxs) || style.verified) ? CoiterateStyle(style.style, true) :
-        resolve_style(root, ctx, node, style.style)
-combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle(result_style(a.style, b.style), a.verified | b.verified)
+#TODO handle children of access?
+make_style(root::Loop, ctx::AsymptoticContext, node::Access{SymbolicCoiterableTensor}) =
+    (!isempty(root.idxs) && root.idxs[1] in node.idxs) ? CoiterateStyle(DefaultStyle()) : DefaultStyle()
+combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle(result_style(a.style, b.style))
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([
@@ -175,16 +173,12 @@ function _coiterate_asymptote(root, ctx, node)
         return Empty()
     end
 end
-coiterate_asymptote(root, ctx, stmt::Access) = coiterate_asymptote(root, ctx, stmt, stmt.tns)
-coiterate_asymptote(root, ctx, stmt, tns) = _coiterate_asymptote(root, ctx, stmt)
-function coiterate_asymptote(root, ctx, stmt, tns::SymbolicCoiterableTensor)
+function coiterate_asymptote(root, ctx, stmt::Access{SymbolicCoiterableTensor})
     root.idxs[1] in stmt.idxs || return Empty()
-    return Such(Times(name.(ctx.qnts)...), coiterate_predicate(ctx, tns, stmt.idxs))
+    return Such(Times(name.(ctx.qnts)...), coiterate_predicate(ctx, stmt.tns, stmt.idxs))
 end
 
 coiterate_cases(root, ctx, node) = _coiterate_cases(root, ctx, node)
-struct _coiterate_processed arg end
-coiterate_cases(root, ctx::AsymptoticContext, node::_coiterate_processed) = [(ctx.guard, node.arg)]
 function _coiterate_cases(root, ctx, node)
     if istree(node)
         map(product(map(arg->coiterate_cases(root, ctx, arg), arguments(node))...)) do case
@@ -195,26 +189,13 @@ function _coiterate_cases(root, ctx, node)
         [(ctx.guard, node),]
     end
 end
-coiterate_cases(root, ctx, stmt::Access) = coiterate_cases(root, ctx, stmt::Access, stmt.tns)
-coiterate_cases(root, ctx, stmt::Access, tns) = _coiterate_cases(root, ctx, stmt)
-function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access, tns::SymbolicCoiterableTensor)
+function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SymbolicCoiterableTensor})
     if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
-        return [(coiterate_predicate(ctx, tns, stmt.idxs), stmt),
-            (ctx.guard, tns.default),]
+        stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
+        return [(coiterate_predicate(ctx, stmt.tns, stmt.idxs), stmt),
+            (ctx.guard, stmt′),]
     else
         return [(ctx.guard, stmt),]
-    end
-end
-coiterate_cases(root, ctx, stmt::Assign) = coiterate_cases(root, ctx, stmt::Assign, stmt.lhs.tns)
-coiterate_cases(root, ctx, stmt::Assign, tns) = _coiterate_cases(root, ctx, stmt)
-function coiterate_cases(root, ctx::AsymptoticContext, stmt::Assign, tns::SymbolicCoiterableTensor)
-    stmt′ = Assign(_coiterate_processed(stmt.lhs), stmt.op, stmt.rhs)
-    if !isempty(stmt.lhs.idxs) && root.idxs[1] in stmt.lhs.idxs
-        stmt′′ = Assign(_coiterate_processed(Access(implicitize(tns), stmt.lhs.mode, stmt.lhs.idxs)), stmt.op, stmt.rhs)
-        ctx′ = enguard(ctx, coiterate_predicate(ctx, tns, stmt.lhs.idxs))
-        return vcat(_coiterate_cases(root, ctx′, stmt′), _coiterate_cases(root, ctx, stmt′′))
-    else
-        return _coiterate_cases(root, ctx, stmt′)
     end
 end
 

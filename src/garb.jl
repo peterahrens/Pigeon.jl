@@ -98,3 +98,30 @@ function enumerate_schedules_old(stmt)
 	return unique(map(simplify, result))
     end 
  
+    #=
+struct Initial <: IndexStatement
+	op::Any
+	val::Any
+end
+Base.:(==)(a::Initial, b::Initial) = a.op == b.op && a.val == b.val
+
+initial(args...) = initial!(vcat(args...))
+function initial!(args)
+    @assert length(args) == 2
+    return Initial(args[1], args[2])
+end
+
+SymbolicUtils.istree(ex::Initial) = true
+SymbolicUtils.operation(ex::Initial) = initial
+SymbolicUtils.arguments(ex::Initial) = [ex.op, ex.val]
+SymbolicUtils.similarterm(::IndexNode, ::typeof(initial), args, T...) = initial!(args)
+
+function show_expression(io, mime, ex::Initial, level)
+    show_expression(io, mime, ex.lhs)
+    print(io, "(")
+    print(io, ex.op)
+    print(io, ", ")
+    print(io, ex.val)
+    print(io, ")")
+end
+=#

@@ -210,7 +210,7 @@ coiterate_cases(root, ctx, stmt::Assign, tns) = _coiterate_cases(root, ctx, stmt
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Assign, tns::SymbolicCoiterableTensor)
     stmt′ = Assign(_coiterate_processed(stmt.lhs), stmt.op, stmt.rhs)
     if !isempty(stmt.lhs.idxs) && root.idxs[1] in stmt.lhs.idxs
-        stmt′′ = Assign(_coiterate_processed(Access(implicitize(tns), stmt.lhs.idxs)), stmt.op, stmt.rhs)
+        stmt′′ = Assign(_coiterate_processed(Access(implicitize(tns), stmt.lhs.mode, stmt.lhs.idxs)), stmt.op, stmt.rhs)
         ctx′ = enguard(ctx, coiterate_predicate(ctx, tns, stmt.lhs.idxs))
         return vcat(_coiterate_cases(root, ctx′, stmt′), _coiterate_cases(root, ctx, stmt′′))
     else

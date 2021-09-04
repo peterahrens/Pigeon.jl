@@ -81,16 +81,16 @@ end
 function capture_index_assign(ex; ctx...)
     incs = Dict(:+= => :+, :*= => :*, :/= => :/, :^= => :^)
     if ex isa Expr && ex.head == :(=) && length(ex.args) == 2
-        lhs = capture_index_expression(ex.args[1]; ctx...)
+        lhs = capture_index_expression(ex.args[1]; ctx..., mode=Write())
         rhs = capture_index_expression(ex.args[2]; ctx...)
         return :(assign($lhs, $rhs))
     elseif ex isa Expr && haskey(incs, ex.head) && length(ex.args) == 2
-        lhs = capture_index_expression(ex.args[1]; ctx...)
+        lhs = capture_index_expression(ex.args[1]; ctx..., mode=Update())
         rhs = capture_index_expression(ex.args[2]; ctx...)
         op = capture_index_expression(incs[ex.head]; ctx..., namify=false, literalize=true)
         return :(assign($lhs, $op, $rhs))
     elseif ex isa Expr && ex.head == :comparison && length(ex.args) == 5 && ex.args[2] == :< && ex.args[4] == :>=
-        lhs = capture_index_expression(ex.args[1]; ctx...)
+        lhs = capture_index_expression(ex.args[1]; ctx..., mode=Update())
         op = capture_index_expression(ex.args[3]; ctx..., namify=false, literalize=true)
         rhs = capture_index_expression(ex.args[5]; ctx...)
         return :(assign($lhs, $op, $rhs))
@@ -112,11 +112,11 @@ function capture_index_expression(ex; ctx...)
         ex.args[2].args[2] isa Symbol
         return esc(ex)
     elseif ex isa Expr && ex.head == :call && length(ex.args) >= 1
-        op = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=true)
-        return :(call($op, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true), ex.args[2:end])...)))
+        op = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=true, mode=Read())
+        return :(call($op, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true, mode=Read()), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :ref && length(ex.args) >= 1
-        tns = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=false)
-        return :(access($tns, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true), ex.args[2:end])...)))
+        tns = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=false, mode=Read())
+        return :(access($tns, $(ctx.data.mode), $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true, mode=Read()), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :$ && length(ex.args) == 1
         return esc(ex.args[1])
     elseif ex isa Symbol && ctx.data.namify
@@ -130,8 +130,8 @@ function capture_index_expression(ex; ctx...)
     end
 end
 
-function parse_index(s; namify=true, literalize=true, pattern=false, greedy=true, slot = false)
-    ex, pos′ = parse_index_with(s, 1; namify=namify, literalize=literalize, slot=slot, pattern=pattern, greedy=greedy)
+function parse_index(s; namify=true, literalize=true, pattern=false, greedy=true, slot = false, mode = Read())
+    ex, pos′ = parse_index_with(s, 1; namify=namify, literalize=literalize, slot=slot, pattern=pattern, greedy=greedy, mode=mode)
     if pos′ != ncodeunits(s) + 1
         throw(ArgumentError("unexpected input at $(pretty_position(s, pos′))"))
     end

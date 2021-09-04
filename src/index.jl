@@ -222,32 +222,6 @@ function show_statement(io, mime, stmt::Assign, level)
     print(io, "\n")
 end
 
-struct Initial <: IndexStatement
-	op::Any
-	val::Any
-end
-Base.:(==)(a::Initial, b::Initial) = a.op == b.op && a.val == b.val
-
-initial(args...) = initial!(vcat(args...))
-function initial!(args)
-    @assert length(args) == 2
-    return Initial(args[1], args[2])
-end
-
-SymbolicUtils.istree(ex::Initial) = true
-SymbolicUtils.operation(ex::Initial) = initial
-SymbolicUtils.arguments(ex::Initial) = [ex.op, ex.val]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(initial), args, T...) = initial!(args)
-
-function show_expression(io, mime, ex::Initial, level)
-    show_expression(io, mime, ex.lhs)
-    print(io, "(")
-    print(io, ex.op)
-    print(io, ", ")
-    print(io, ex.val)
-    print(io, ")")
-end
-
 struct Call <: IndexExpression
     op::Any
     args::Vector{Any}
@@ -273,18 +247,23 @@ function show_expression(io, mime, ex::Call)
     print(io, ")")
 end
 
-struct Access <: IndexExpression
-    tns::Any
+struct Read end
+struct Write end
+struct Update end
+
+struct Access{T, M} <: IndexExpression
+    tns::T
+    mode::M
     idxs::Vector{Any}
 end
 Base.:(==)(a::Access, b::Access) = a.tns == b.tns && a.idxs == b.idxs
 
 access(args...) = access!(vcat(args...))
-access!(args) = Access(popfirst!(args), args)
+access!(args) = Access(popfirst!(args), popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Access) = true
 SymbolicUtils.operation(ex::Access) = access
-SymbolicUtils.arguments(ex::Access) = Any[ex.tns; ex.idxs]
+SymbolicUtils.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]
 SymbolicUtils.similarterm(::IndexNode, ::typeof(access), args, T...) = access!(args)
 
 function show_expression(io, mime, ex::Access)

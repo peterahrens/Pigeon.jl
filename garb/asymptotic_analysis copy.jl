@@ -1,62 +1,3 @@
-# What to change?
-#
-# We want to make the coiterate_case function able to dispatch access handling based on tensors
-# options:
-#   1. rewrite rule dispatch (do a pass to collect rules, match in context you want, check concrete types)
-#      pros: 
-#           can express a wide variety of patterns, including the one we want
-#           we probably need to use some version of this for annihilation anyway
-#      cons:
-#           the common case is complicated
-#           dispatch is order-dependent
-#   2. type-based dispatch (type the tree)
-#      Pros:
-#           expressing the dispatch we want is a one-liner
-#      Cons:
-#           There's nothing to enforce that dispatch can become ambiguous
-#   3. delay matching (tensor declares result that gets unpacked into access later)
-#   3 (continued). give a list of parents to the visitor function
-#       Pros:
-#           Dispatch is a one-liner
-#       Cons:
-#           delays are confusing to implement
-#   4. make tensors responsible for holding indices
-#       Pros:
-#           Dispatch is super clear and straightforward
-#           Makes some semantic sense
-#       Cons:
-#           There's no good interface for if indices are shifted or something (in dense case)
-#           Tensors need to implement more complicated functions
-#   5. use special Access types
-#       Pros:
-#           Dispatch is super clear and straightforward
-#           No ambiguities because Accesses and References are typed by their tensor
-#           Common case is easy
-#       Cons:
-#           Doesn't solve more complicated dispatch problems (How to dispatch access lowering? probably style resolution let's be honest)
-#           Sortof confusing because every implementation needs to do the same boilerplate to lower indices (is there any solution that avoids this?)
-#   6. use style resolution at every level
-#       Pros:
-#           consistent
-#       Cons:
-#           messy
-#           sorta makes most sense for forall, where, and assign statements, not access statements, which usually feel very terminal
-#   7. need to differentiate lhs from rhs access
-#       Could use "reference" type, could pass in a "write" parameter in traversals, some context-based approaches help too.
-#       I like the "reference" type because it's clean, but it's unclear if Access{Any} is more specific than Union{Access{T}, Reference{T}}
-#       What if we pass in a write or read parameter into the Access?
-#       Access{Tns, true} vs Access{Tns, false} ?
-#   Notes: What we're dealing with is that tensors belong more to the access
-#   node itself than to the children of the access, and that it's more
-#   convenient to treat them as terminals (indices cannot be functions). Indices
-#   usually aren't functions, but if they are, we sorta have bigger problems no?
-#   You won't get your Ph.D. if you handle indices that are functions.
-#   Notes: styles should move through an "access style resolution" step if we are gonna make this work.
-# We want to handle global iteration counting and contexts with mutability rather than functionally (cleaner)
-# We want to simplify assignments to references known to be entirely implicit
-# We want to initialize workspaces
-# We need tests
-
 struct SymbolicCoiterableTensor
     name
     default
@@ -89,26 +30,26 @@ AsymptoticContext() = AsymptoticContext(Set(), Dict(), true)
 quantify(ctx::AsymptoticContext, vars...) = AsymptoticContext(union(ctx.qnts, vars), ctx.bindings, ctx.guard)
 bind(ctx::AsymptoticContext, vars) = AsymptoticContext(ctx.qnts, merge(lower_asymptote_bind_merge, ctx.bindings, vars), ctx.guard)
 enguard(ctx::AsymptoticContext, guard) = AsymptoticContext(ctx.qnts, ctx.bindings, Wedge(ctx.guard, guard))
+iterate(ctx) = ctx.iters cup = Such(Times(name.(ctx.qnts)...), Wedge(ctx.guard))
 
 lower_asymptote_merge((iters_a, bindings_a), (iters_b, bindings_b)) =
     (Cup(iters_a, iters_b), merge(lower_asymptote_bind_merge, bindings_a, bindings_b))
 
-lower(::Pass, ::AsymptoticContext, ::DefaultStyle) = (Empty(), Dict())
+lower!(::Pass, ::AsymptoticContext, ::DefaultStyle) = nothing
 
-function lower(root::Assign, ctx::AsymptoticContext, ::DefaultStyle)
-    return (Such(Times(name.(ctx.qnts)...), ctx.guard), Dict())
+function lower!(root::Assign, ctx::AsymptoticContext, ::DefaultStyle)
+    iterate!(ctx, true)
 end
 
-function lower(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
-    isempty(stmt.idxs) && return lower(stmt.body, ctx)
-    return lower(Loop(stmt.idxs[2:end], stmt.body), quantify(ctx, stmt.idxs[1]))
+function lower!(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
+    push!(ctx.qnts, stmt.idxs[1])
+    lower(Loop(stmt.idxs[2:end], stmt.body)
+    pop!(ctx.qnts, stmt.idxs[1])
 end
 
-function lower(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
-    prod_iters, prod_bindings = lower(stmt.prod, ctx)
-    cons_iters, cons_bindings = lower(stmt.cons, bind(ctx, prod_bindings))
-    println(prod_bindings)
-    return (Cup(prod_iters, cons_iters), cons_bindings)
+function lower!(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
+    lower!(stmt.prod, ctx)
+    lower!(stmt.cons, ctx)
 end
 
 struct CoiterateStyle
@@ -157,14 +98,15 @@ annihilate_index = Fixpoint(Postwalk(Chain([
 
 function lower(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)
     isempty(stmt.idxs) && return ctx(stmt.body)
-    ctx′ = quantify(ctx, stmt.idxs[1])
+    push!(ctx.qnts, stmt.idxs[1])
     stmt′ = Loop(stmt.idxs[2:end], stmt.body)
-    loop_iters = coiterate_asymptote(stmt, ctx′, stmt′)
+    coiterate_asymptote!(stmt, ctx′, stmt′)
     cases = coiterate_cases(stmt, ctx′, stmt′)
-    body_iters, body_binds = mapreduce(lower_asymptote_merge, cases) do (guard, body)
-            lower(annihilate_index(body), enguard(ctx′, guard))
+    for (guard, body) in cases
+        push!(ctx.guards, guard)
+        lower(annihilate_index(body), ctx)
+        pop!(ctx.guards, guard)
     end
-    return (Cup(loop_iters, body_iters), body_binds)
 end
 
 coiterate_asymptote(root, ctx, node) = _coiterate_asymptote(root, ctx, node)
@@ -178,8 +120,8 @@ end
 coiterate_asymptote(root, ctx, stmt::Access) = coiterate_asymptote(root, ctx, stmt, stmt.tns)
 coiterate_asymptote(root, ctx, stmt, tns) = _coiterate_asymptote(root, ctx, stmt)
 function coiterate_asymptote(root, ctx, stmt, tns::SymbolicCoiterableTensor)
-    root.idxs[1] in stmt.idxs || return Empty()
-    return Such(Times(name.(ctx.qnts)...), coiterate_predicate(ctx, tns, stmt.idxs))
+    root.idxs[1] in stmt.idxs || return
+    iterate!(ctx, coiterate_predicate(ctx, tns, stmt.idxs))
 end
 
 coiterate_cases(root, ctx, node) = _coiterate_cases(root, ctx, node)
@@ -208,10 +150,9 @@ end
 coiterate_cases(root, ctx, stmt::Assign) = coiterate_cases(root, ctx, stmt::Assign, stmt.lhs.tns)
 coiterate_cases(root, ctx, stmt::Assign, tns) = _coiterate_cases(root, ctx, stmt)
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Assign, tns::SymbolicCoiterableTensor)
-    stmt′ = Assign(_coiterate_processed(stmt.lhs), stmt.op, stmt.rhs)
+    stmt′ = Assign(_coiterate_processed(stmt.lhs, coiterate_predicate(ctx, tns, stmt.lhs.idxs)), stmt.op, stmt.rhs)
     if !isempty(stmt.lhs.idxs) && root.idxs[1] in stmt.lhs.idxs
-        stmt′′ = Assign(_coiterate_processed(Access(implicitize(tns), stmt.lhs.idxs)), stmt.op, stmt.rhs)
-        ctx′ = enguard(ctx, coiterate_predicate(ctx, tns, stmt.lhs.idxs))
+        stmt′′ = Assign(_coiterate_processed(Access(implicit(tns), stmt.lhs.idxs)), stmt.op, stmt.rhs)
         return vcat(_coiterate_cases(root, ctx′, stmt′), _coiterate_cases(root, ctx, stmt′′))
     else
         return _coiterate_cases(root, ctx, stmt′)

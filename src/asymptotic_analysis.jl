@@ -1,6 +1,6 @@
 # What to change?
 #
-# We want to make the coiterate_case function able to dispatch access handling based on tensors
+# (A) We want to make the coiterate_case function able to dispatch access handling based on tensors
 # options:
 #   1. rewrite rule dispatch (do a pass to collect rules, match in context you want, check concrete types)
 #      pros: 
@@ -52,6 +52,7 @@
 #   usually aren't functions, but if they are, we sorta have bigger problems no?
 #   You won't get your Ph.D. if you handle indices that are functions.
 #   Notes: styles should move through an "access style resolution" step if we are gonna make this work.
+# come back to (A)
 # We want to handle global iteration counting and contexts with mutability rather than functionally (cleaner)
 # We want to simplify assignments to references known to be entirely implicit
 # We want to initialize workspaces
@@ -75,6 +76,16 @@ name(tns::SymbolicLocateTensor) = tns.name
 SLTensor(name) = SymbolicLocateTensor(name)
 
 isimplicit(x) = false
+
+struct ImplicitFiberRelation
+    init
+    data
+    format
+    default
+end
+
+struct CoiterateRelator end
+struct LocateRelator end
 
 #pass in a guard on the iteration
 #return the iteration and whatever information should be gleaned from the assignments
@@ -107,7 +118,6 @@ end
 function lower(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
     prod_iters, prod_bindings = lower(stmt.prod, ctx)
     cons_iters, cons_bindings = lower(stmt.cons, bind(ctx, prod_bindings))
-    println(prod_bindings)
     return (Cup(prod_iters, cons_iters), cons_bindings)
 end
 
@@ -229,63 +239,3 @@ function coiterate_bind(root, ctx, tns::Union{SymbolicCoiterableTensor, Symbolic
     Dict(name(tns)=>SymbolicPattern(Exists(filter(j->!(j ∈ ctx.qnts), root.lhs.idxs), renamer(ctx.guard))))
 end
 lower_asymptote_bind_merge(a::SymbolicPattern, b::SymbolicPattern) = SymbolicPattern(Vee(a.stuff, b.stuff))
-
-simplify_asymptote = Fixpoint(Postwalk(Chain([
-    (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
-
-    (@rule Such(~s, false) => Empty()),
-    (@rule Such($(Empty()), ~p) => Empty()),
-
-    (@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
-    (@rule Wedge(~~p, true, ~q, ~~r) => Wedge(~~p..., ~q, ~r...)),
-    (@rule Wedge(~~p, ~q, true, ~~r) => Wedge(~~p..., ~q, ~r...)),
-    (@rule Wedge(true) => true),
-    (@rule Wedge(~~p, false, ~q, ~~r) => false),
-    (@rule Wedge(~~p, ~q, false, ~~r) => false),
-    (@rule Wedge(~~p, ~q, ~~r, ~q, ~~s) => Wedge(~~p..., ~q, ~~r..., ~~s...)),
-
-    (@rule Vee(~p) => ~p),
-
-    (@rule Wedge(~~p, Vee(~q, ~r, ~~s), ~~t) => 
-        Vee(Wedge(~~p..., ~q, ~~t...), Wedge(~~p..., Vee(~r, ~~s...), ~~t...))),
-
-    (@rule Cup(~~s, $(Empty()), ~t, ~~u) => Cup(~~s..., ~t, ~~u...)),
-    (@rule Cup(~~s, ~t, $(Empty()), ~~u) => Cup(~~s..., ~t, ~~u...)),
-    (@rule Cup($(Empty())) => Empty()),
-    (@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
-    (@rule Cup(~~s, ~t, ~~u, ~t, ~~v) => Cup(~~s..., ~t, ~~u..., ~~v...)),
-
-    (@rule Cap(~~s, $(Empty()), ~~u) => Empty()),
-    (@rule Cap(~s) => ~s),
-
-    (@rule Times(~~s, $(Empty()), ~~u) => Empty()),
-    (@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
-    (@rule Times(Such(~s, ~p), ~~t) => Such(Times(~s, ~~t...), ~p)),
-    (@rule Times(Cup(~s, ~t, ~~u), ~~v) => Cup(Times(~s, ~~v...), Times(Cup(~t, ~~u...), ~~v...))),
-    (@rule Times(Cup(~s), ~~t) => Cup(Times(~s), ~~t...)),
-
-    (@rule Such(~t, true) => ~t),
-    (@rule Such(~t, Vee(~p, ~q)) => 
-        Cup(Such(~t, ~p), Such(~t, ~q))),
-    (@rule Such(Cup(~s, ~t, ~~u), ~p) => 
-        Cup(Such(~s, ~p), Such(Cup(~t, ~~u...), ~p))),
-    (@rule Such(Cup(~s), ~p) => Cup(Such(~s, ~p))),
-    (@rule Cap(~~s, Such(~t, ~p), ~~u, Such(~t, ~q), ~~v) =>
-        Cap(~~s..., Such(~t, Wedge(~p, ~q)), ~~u..., ~~v...)),
-
-    (@rule Exists(~~i, true) => true),
-    (@rule Exists(~~i, false) => false),
-    (@rule Exists(~p) => ~p),
-    (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
-    (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
-        i′ = freshen.(~~i)
-        q′ = Postwalk(subex->get(Dict(Pair.(~~i, i′)...), subex, subex))(~q)
-        Exists(i′..., Wedge(~~p..., q′, ~~r...))
-    end),
-    (@rule Exists(~~i, ~p) => if !isempty(setdiff(~~i, indices(~p)))
-        Exists(intersect(~~i, indices(~p))..., ~p)
-    end),
-
-    (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
-        Vee(Exists(~~i, ~p), Exists(~~i, Vee(~q, ~~r)))),
-])))

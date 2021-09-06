@@ -125,3 +125,64 @@ function show_expression(io, mime, ex::Initial, level)
     print(io, ")")
 end
 =#
+
+# What to change?
+#
+# (A) We want to make the coiterate_case function able to dispatch access handling based on tensors
+# options:
+#   1. rewrite rule dispatch (do a pass to collect rules, match in context you want, check concrete types)
+#      pros: 
+#           can express a wide variety of patterns, including the one we want
+#           we probably need to use some version of this for annihilation anyway
+#      cons:
+#           the common case is complicated
+#           dispatch is order-dependent
+#   2. type-based dispatch (type the tree)
+#      Pros:
+#           expressing the dispatch we want is a one-liner
+#      Cons:
+#           There's nothing to enforce that dispatch can become ambiguous
+#   3. delay matching (tensor declares result that gets unpacked into access later)
+#   3 (continued). give a list of parents to the visitor function
+#       Pros:
+#           Dispatch is a one-liner
+#       Cons:
+#           delays are confusing to implement
+#   4. make tensors responsible for holding indices
+#       Pros:
+#           Dispatch is super clear and straightforward
+#           Makes some semantic sense
+#       Cons:
+#           There's no good interface for if indices are shifted or something (in dense case)
+#           Tensors need to implement more complicated functions
+#   5. use special Access types
+#       Pros:
+#           Dispatch is super clear and straightforward
+#           No ambiguities because Accesses and References are typed by their tensor
+#           Common case is easy
+#           This is sortof like 4, with nice defaults. I'm choosing 4. We might do the same thing for accesses.
+#       Cons:
+#           Doesn't solve more complicated dispatch problems (How to dispatch access lowering? probably style resolution let's be honest)
+#           Sortof confusing because every implementation needs to do the same boilerplate to lower indices (is there any solution that avoids this?)
+#   6. use style resolution at every level
+#       Pros:
+#           consistent
+#       Cons:
+#           messy
+#           sorta makes most sense for forall, where, and assign statements, not access statements, which usually feel very terminal
+#   7. need to differentiate lhs from rhs access
+#       Could use "reference" type, could pass in a "write" parameter in traversals, some context-based approaches help too.
+#       I like the "reference" type because it's clean, but it's unclear if Access{Any} is more specific than Union{Access{T}, Reference{T}}
+#       What if we pass in a write or read parameter into the Access?
+#       Access{Tns, true} vs Access{Tns, false} ?
+#   Notes: What we're dealing with is that tensors belong more to the access
+#   node itself than to the children of the access, and that it's more
+#   convenient to treat them as terminals (indices cannot be functions). Indices
+#   usually aren't functions, but if they are, we sorta have bigger problems no?
+#   You won't get your Ph.D. if you handle indices that are functions.
+#   Notes: styles should move through an "access style resolution" step if we are gonna make this work.
+# come back to (A)
+# We want to handle global iteration counting and contexts with mutability rather than functionally (cleaner)
+# We want to simplify assignments to references known to be entirely implicit
+# We want to initialize workspaces
+# We need tests

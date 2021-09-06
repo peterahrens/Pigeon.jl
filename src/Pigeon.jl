@@ -7,6 +7,7 @@ using SymbolicUtils: @rule
 
 using Base.Iterators: product
 using Combinatorics
+using DataStructures
 
 
 export @i_str

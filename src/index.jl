@@ -103,7 +103,7 @@ show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 name(ex::Name) = ex.name
 
-struct Freshie
+struct Freshie <: IndexTerminal
     name::Symbol
     num::Int
 end
@@ -181,8 +181,8 @@ function show_statement(io, mime, stmt::Loop, level)
     show_statement(io, mime, stmt.body, level + 1)
 end
 
-struct Assign <: IndexStatement
-	lhs::Any
+struct Assign{Lhs} <: IndexStatement
+	lhs::Lhs
 	op::Any
 	rhs::Any
 end

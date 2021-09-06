@@ -221,27 +221,6 @@ indices(x::Forall) = setdiff(indices(x.arg), x.idxs)
 indices(x::Exists) = setdiff(indices(x.arg), x.idxs)
 indices(x::Predicate) = x.args
 
-struct PointQuery
-    points
-end
-
-struct CanonVariable
-    n
-end
-
-function Base.getindex(q::PointQuery, idxs...)
-    d = Dict(args...)
-    rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
-    rename(x) = x
-    PostWalk(rename)(q.points)
-end
-
-function Base.setindex!(q::PointQuery, p, idxs...)
-    d = Dict(args...)
-    rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
-    q.points = Cup(q.points, PostWalk(rename)(q))
-end
-
 simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
 

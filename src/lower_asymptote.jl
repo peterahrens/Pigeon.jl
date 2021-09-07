@@ -20,14 +20,13 @@ function Base.setindex!(q::PointQuery, p, idxs...)
 end
 
 mutable struct SparseFiberRelation
-    data::PointQuery
     format
     default
     implicit
 end
 
 initialize(tns::SparseFiberRelation) = (tns.data = PointQuery(false))
-implicitize(tns::SparseFiberRelation) = (tns = copy(tns); tns.data = PointQuery(false); tns)
+implicitize(tns::SparseFiberRelation) = (tns = copy(tns); tns.implicit = true; tns)
 
 struct CoiterateRelator end
 struct LocateRelator end
@@ -36,6 +35,7 @@ mutable struct AsymptoticContext
     itrs::Any
     qnts::Vector{Any}
     guards::Vector{Any}
+    state::Dict
 end
 AsymptoticContext() = AsymptoticContext([], true)
 
@@ -65,6 +65,7 @@ function lower(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
 end
 
 function lower!(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
+    initialize!(getresult(stmt.prod), ctx)
     lower!(stmt.prod, ctx)
     lower!(stmt.cons, ctx)
 end
@@ -135,6 +136,7 @@ function coiterate_asymptote!(root, ctx, node)
 end
 function coiterate_asymptote!(root, ctx, stmt::Access{SymbolicCoiterableTensor})
     root.idxs[1] in stmt.idxs || return Empty()
+    data = get!(ctx.state, getname(stmt.tns), PointQuery(false))
     pred = Exists(getname.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
     return Such(Times(getname.(ctx.qnts)...), pred)
 end
@@ -152,7 +154,8 @@ end
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SymbolicCoiterableTensor})
     if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
         stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
-        pred = Exists(getname.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
+        data = get!(ctx.state, getname(stmt.tns), PointQuery(false))
+        pred = Exists(getname.(setdiff(idxs, ctx.qnts))..., data[stmt.idxs...])
         return [(pred, stmt),
             (ctx.guard, stmt′),]
     else
@@ -163,5 +166,10 @@ end
 function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
     pred = Exists(setdiff(ctx.qnts, root.lhs.idxs)..., ctx.guard)
-    root.lhs.tns.data[root.lhs.idxs...] = pred
+    data = get!(ctx.state, getname(root.lhs.tns), PointQuery(false))
+    data[root.lhs.idxs...] = pred
+end
+
+function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext, ::DefaultStyle)
+    ctx.state[getname(tns)] = PointQuery(false)
 end

@@ -4,12 +4,12 @@ dimensionalization assumes foralls have unique indices.
 bindings is a mapping from index->tensor, pos
 """
 
-function dimensionalize_index(prgm, ctx)
+function dimensionalize(prgm, ctx)
     idx_sites = Dict()
     lowered_axes = Dict()
-    Postorder(node -> (dimensionalize_index!(node, ctx, idx_sites, lowered_axes); node))
+    Postwalk(node -> (dimensionalize!(node, ctx, idx_sites, lowered_axes); node))(prgm)
 
-    idx_jdx = DisjointSets(keys(idx_sites))
+    idx_jdx = DisjointSets{Union{Symbol, Freshie}}(collect(keys(idx_sites))) #TODO type this as Any when you resolve DisjointSets #755
 
     site_jdx = Dict()
 
@@ -22,7 +22,7 @@ function dimensionalize_index(prgm, ctx)
     jdx_sites = Dict()
 
     for (idx, sites) in idx_sites
-        jdx = find_root!(idx_jdx)
+        jdx = find_root!(idx_jdx, idx)
         jdx_sites[jdx] = vcat(get(jdx_sites, jdx, []), sites)
     end
 
@@ -38,23 +38,18 @@ function dimensionalize_index(prgm, ctx)
     return jdx_lowered_axes
 end
 
-dimensionalize_index!(node, ctx, bindings) = nothing
+dimensionalize!(node, ctx, idx_sites, lowered_axes) = nothing
 
-function dimensionalize_index!(node::Access, ctx, bindings)
+function dimensionalize!(node::Access, ctx, idx_sites, lowered_axes)
     if !istree(node.tns)
-        for (n, idx) in enumerate(node.idxs))
-            push!(get(idx_sites, getname(idx)), (getname(tns), n))
+        for (n, idx) in enumerate(node.idxs)
+            push!(get!(idx_sites, getname(idx), []), (getname(node.tns), n))
         end
         for (n, axis) in enumerate(lower_axes(node.tns, ctx))
-            lowered_axes[(getname(tns), n)] = axis
+            lowered_axes[(getname(node.tns), n)] = axis
         end
     end
 end
 
-function axes(program)
-    Postwalk()(program) do node
-end
-function gather_axes(node::Access)
-    dict(declare_axes())
-end
-declare_axes(tns)
+function lower_axes end
+function lower_axis_merge end

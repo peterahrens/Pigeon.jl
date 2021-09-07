@@ -77,3 +77,9 @@ end
 function transform_ssa!(root::Name, renames)
     Name(getrename!(renames, getname(root)))
 end
+
+function transform_ssa!(root, renames)
+    rename(root, getrename!(renames, getname(root)))
+end
+
+function rename end

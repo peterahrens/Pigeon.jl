@@ -280,3 +280,25 @@ simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
         Vee(Exists(~~i, ~p), Exists(~~i, Vee(~q, ~~r)))),
 ])))
+
+mutable struct PointQuery
+    points
+end
+
+struct CanonVariable
+    n
+end
+
+function Base.getindex(q::PointQuery, idxs...)
+    d = Dict(enumerate(idxs))
+    rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
+    rename(x) = x
+    Postwalk(rename)(q.points)
+end
+
+function Base.setindex!(q::PointQuery, p, idxs...)
+    d = Dict(reverse.(enumerate(idxs)))
+    println(d)
+    rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
+    q.points = Vee(q.points, Postwalk(rename)(p))
+end

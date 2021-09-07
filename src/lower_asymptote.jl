@@ -1,23 +1,4 @@
-mutable struct PointQuery
-    points
-end
 
-struct CanonVariable
-    n
-end
-
-function Base.getindex(q::PointQuery, idxs...)
-    d = Dict(args...)
-    rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
-    rename(x) = x
-    PostWalk(rename)(q.points)
-end
-
-function Base.setindex!(q::PointQuery, p, idxs...)
-    d = Dict(args...)
-    rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
-    q.points = Vee(q.points, PostWalk(rename)(p))
-end
 
 mutable struct SparseFiberRelation
     format
@@ -55,7 +36,6 @@ lower!(::Pass, ::AsymptoticContext, ::DefaultStyle) = nothing
 function lower!(root::Assign, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
 end
-
 
 function lower(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
     isempty(stmt.idxs) && return lower(stmt.body, ctx)

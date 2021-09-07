@@ -36,6 +36,7 @@ include("style.jl")
 include("saturate.jl")
 include("transform_normalize.jl")
 include("transform_ssa.jl")
+include("dimensionalize.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")

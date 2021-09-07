@@ -75,7 +75,7 @@ Base.map(f, node::IndexNode) = postorder(f, node)
 
 struct Pass <: IndexStatement end
 
-SymbolicUtils.istree(stmt::Pass) = false
+TermInterface.istree(::Type{<:Pass}) = false
 
 show_statement(io, mime, stmt::Pass, level) = print(io, tab^level * "()")
 
@@ -83,7 +83,7 @@ struct Workspace <: IndexTerminal
     n
 end
 
-SymbolicUtils.istree(ex::Workspace) = false
+TermInterface.istree(::Type{<:Workspace}) = false
 Base.hash(ex::Workspace, h::UInt) = hash((Workspace, ex.n), h)
 
 function show_expression(io, ex::Workspace)
@@ -97,7 +97,7 @@ struct Name <: IndexTerminal
     name
 end
 
-SymbolicUtils.istree(ex::Name) = false
+TermInterface.istree(::Type{<:Name}) = false
 Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, mime, ex::Name) = print(io, ex.name)
@@ -112,7 +112,7 @@ value(ex::Literal) = ex.val
 isliteral(ex::Literal) = true
 isliteral(ex) = false
 
-SymbolicUtils.istree(ex::Literal) = false
+TermInterface.istree(::Type{<:Literal}) = false
 Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
@@ -126,10 +126,10 @@ Base.:(==)(a::With, b::With) = a.cons == b.cons && a.prod == b.prod
 with(args...) = with!(vcat(args...))
 with!(args) = With(args[1], args[2])
 
-SymbolicUtils.istree(stmt::With) = true
-SymbolicUtils.operation(stmt::With) = with
-SymbolicUtils.arguments(stmt::With) = Any[stmt.cons, stmt.prod]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(with), args, T...) = with!(args)
+TermInterface.istree(::Type{<:With}) = true
+TermInterface.operation(stmt::With) = with
+TermInterface.arguments(stmt::With) = Any[stmt.cons, stmt.prod]
+TermInterface.similarterm(::IndexNode, ::typeof(with), args, T...) = with!(args)
 
 function show_statement(io, mime, stmt::With, level)
     print(io, tab^level * "(\n")
@@ -148,10 +148,10 @@ Base.:(==)(a::Loop, b::Loop) = a.idxs == b.idxs && a.body == b.body
 loop(args...) = loop!(vcat(args...))
 loop!(args) = Loop(args, pop!(args))
 
-SymbolicUtils.istree(stmt::Loop) = true
-SymbolicUtils.operation(stmt::Loop) = loop
-SymbolicUtils.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(loop), args, T...) = loop!(args)
+TermInterface.istree(::Type{<:Loop}) = true
+TermInterface.operation(stmt::Loop) = loop
+TermInterface.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
+TermInterface.similarterm(::IndexNode, ::typeof(loop), args, T...) = loop!(args)
 
 function show_statement(io, mime, stmt::Loop, level)
     print(io, tab^level * "∀ ")
@@ -184,16 +184,16 @@ function assign!(args)
     end
 end
 
-SymbolicUtils.istree(stmt::Assign) = true
-SymbolicUtils.operation(stmt::Assign) = assign
-function SymbolicUtils.arguments(stmt::Assign)
+TermInterface.istree(::Type{<:Assign})= true
+TermInterface.operation(stmt::Assign) = assign
+function TermInterface.arguments(stmt::Assign)
     if stmt.op === nothing
         Any[stmt.lhs, stmt.rhs]
     else
         Any[stmt.lhs, stmt.op, stmt.rhs]
     end
 end
-SymbolicUtils.similarterm(::IndexNode, ::typeof(assign), args, T...) = assign!(args)
+TermInterface.similarterm(::IndexNode, ::typeof(assign), args, T...) = assign!(args)
 
 function show_statement(io, mime, stmt::Assign, level)
     print(io, tab^level)
@@ -216,10 +216,10 @@ Base.:(==)(a::Call, b::Call) = a.op == b.op && a.args == b.args
 call(args...) = call!(vcat(args...))
 call!(args) = Call(popfirst!(args), args)
 
-SymbolicUtils.istree(ex::Call) = true
-SymbolicUtils.operation(ex::Call) = call
-SymbolicUtils.arguments(ex::Call) = Any[ex.op; ex.args]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(call), args, T...) = call!(args)
+TermInterface.istree(::Type{<:Call}) = true
+TermInterface.operation(ex::Call) = call
+TermInterface.arguments(ex::Call) = Any[ex.op; ex.args]
+TermInterface.similarterm(::IndexNode, ::typeof(call), args, T...) = call!(args)
 
 function show_expression(io, mime, ex::Call)
     show_expression(io, mime, ex.op)
@@ -246,10 +246,10 @@ Base.:(==)(a::Access, b::Access) = a.tns == b.tns && a.idxs == b.idxs
 access(args...) = access!(vcat(Any[], args...))
 access!(args) = Access(popfirst!(args), popfirst!(args), args)
 
-SymbolicUtils.istree(ex::Access) = true
-SymbolicUtils.operation(ex::Access) = access
-SymbolicUtils.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(access), args, T...) = access!(args)
+TermInterface.istree(::Type{<:Access}) = true
+TermInterface.operation(ex::Access) = access
+TermInterface.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]
+TermInterface.similarterm(::IndexNode, ::typeof(access), args, T...) = access!(args)
 
 function show_expression(io, mime, ex::Access)
     show_expression(io, mime, ex.tns)

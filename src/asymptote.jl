@@ -45,9 +45,9 @@ struct Forall <: AsymptoteNode
     Forall(args...) = new(collect(args[1:end-1]), args[end])
 end
 
-SymbolicUtils.istree(ex::Forall) = true
-SymbolicUtils.operation(ex::Forall) = Forall
-SymbolicUtils.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
+TermInterface.istree(::Type{<:Forall}) = true
+TermInterface.operation(ex::Forall) = Forall
+TermInterface.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
 
 struct Exists <: AsymptoteNode
     idxs::Vector{Any}
@@ -55,9 +55,9 @@ struct Exists <: AsymptoteNode
     Exists(args...) = new(collect(args[1:end-1]), args[end])
 end
 
-SymbolicUtils.istree(ex::Exists) = true
-SymbolicUtils.operation(ex::Exists) = Exists
-SymbolicUtils.arguments(ex::Exists) = [ex.idxs;[ex.arg]]
+TermInterface.istree(::Type{<:Exists}) = true
+TermInterface.operation(ex::Exists) = Exists
+TermInterface.arguments(ex::Exists) = [ex.idxs;[ex.arg]]
 
 const QuantifierAsymptote = Union{Forall, Exists}
 
@@ -89,9 +89,9 @@ end
 
 bases(ex::Times) = mapreduce(bases, vcat, ex.args)
 
-SymbolicUtils.istree(ex::Times) = true
-SymbolicUtils.operation(ex::Times) = Times
-SymbolicUtils.arguments(ex::Times) = ex.args
+TermInterface.istree(::Type{<:Times}) = true
+TermInterface.operation(ex::Times) = Times
+TermInterface.arguments(ex::Times) = ex.args
 
 struct Cup <: AsymptoteNode
     args::Vector{Any}
@@ -100,9 +100,9 @@ end
 
 bases(ex::Cup) = mapreduce(bases, vcat, ex.args)
 
-SymbolicUtils.istree(ex::Cup) = true
-SymbolicUtils.operation(ex::Cup) = Cup
-SymbolicUtils.arguments(ex::Cup) = ex.args
+TermInterface.istree(::Type{<:Cup}) = true
+TermInterface.operation(ex::Cup) = Cup
+TermInterface.arguments(ex::Cup) = ex.args
 
 struct Cap <: AsymptoteNode
     args::Vector{Any}
@@ -111,26 +111,26 @@ end
 
 bases(ex::Cap) = mapreduce(bases, vcat, ex.args)
 
-SymbolicUtils.istree(ex::Cap) = true
-SymbolicUtils.operation(ex::Cap) = Cap
-SymbolicUtils.arguments(ex::Cap) = ex.args
+TermInterface.istree(::Type{<:Cap}) = true
+TermInterface.operation(ex::Cap) = Cap
+TermInterface.arguments(ex::Cap) = ex.args
 
 struct Vee <: AsymptoteNode
     args::Vector{Any}
     Vee(args...) = new(collect(args))
 end
 
-SymbolicUtils.istree(ex::Vee) = true
-SymbolicUtils.operation(ex::Vee) = Vee
-SymbolicUtils.arguments(ex::Vee) = ex.args
+TermInterface.istree(::Type{<:Vee}) = true
+TermInterface.operation(ex::Vee) = Vee
+TermInterface.arguments(ex::Vee) = ex.args
 
 struct Wedge <: AsymptoteNode args::Vector{Any}
     Wedge(args...) = new(collect(args))
 end
 
-SymbolicUtils.istree(ex::Wedge) = true
-SymbolicUtils.operation(ex::Wedge) = Wedge
-SymbolicUtils.arguments(ex::Wedge) = ex.args
+TermInterface.istree(::Type{<:Wedge}) = true
+TermInterface.operation(ex::Wedge) = Wedge
+TermInterface.arguments(ex::Wedge) = ex.args
 
 const BinaryAsymptote = Union{Times, Cup, Cap, Vee, Wedge}
 
@@ -161,7 +161,7 @@ end
 
 struct Empty <: AsymptoteNode end
 
-SymbolicUtils.istree(ex::Empty) = false
+TermInterface.istree(::Type{<:Empty}) = false
 
 show_asymptote(io::IO, mime::MIME"text/plain", ex::Empty) = println(io, "∅")
 
@@ -173,9 +173,9 @@ struct Predicate <: AsymptoteNode
     Predicate(op, args...) = new(op, collect(args))
 end
 
-SymbolicUtils.istree(ex::Predicate) = true
-SymbolicUtils.operation(ex::Predicate) = Predicate
-SymbolicUtils.arguments(ex::Predicate) = [[ex.op]; ex.args]
+TermInterface.istree(::Type{<:Predicate}) = true
+TermInterface.operation(ex::Predicate) = Predicate
+TermInterface.arguments(ex::Predicate) = [[ex.op]; ex.args]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Predicate)
     show_asymptote(io, mime, ex.op)
@@ -198,9 +198,9 @@ end
 
 bases(ex::Predicate) = bases(ex.prd)
 
-SymbolicUtils.istree(ex::Such) = true
-SymbolicUtils.operation(ex::Such) = Such
-SymbolicUtils.arguments(ex::Such) = [ex.tgt, ex.prd]
+TermInterface.istree(::Type{<:Such}) = true
+TermInterface.operation(ex::Such) = Such
+TermInterface.arguments(ex::Such) = [ex.tgt, ex.prd]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Such)
     print("{")

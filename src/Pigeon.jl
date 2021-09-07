@@ -1,7 +1,8 @@
 module Pigeon
 
 using SymbolicUtils
-using SymbolicUtils: arguments, operation, istree, similarterm
+using TermInterface
+using TermInterface: arguments, operation, istree, similarterm
 using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
 using SymbolicUtils: @rule
 

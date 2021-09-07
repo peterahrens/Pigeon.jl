@@ -170,6 +170,6 @@ function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticCont
     data[root.lhs.idxs...] = pred
 end
 
-function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext, ::DefaultStyle)
+function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end

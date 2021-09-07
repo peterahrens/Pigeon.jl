@@ -169,8 +169,6 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SparseFiberR
     if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
         stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
         pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
-        println(getdata(stmt.tns, ctx)[stmt.idxs...])
-        println(stmt.idxs)
         return [(pred, stmt),
             (guard(ctx), stmt′),]
     else

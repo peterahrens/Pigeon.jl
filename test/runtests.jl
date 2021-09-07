@@ -5,6 +5,7 @@ using Test
     include("test_parse.jl")
     include("test_ssa.jl")
     include("test_dimensionalize.jl")
+    include("test_lower_asymptote.jl")
 
     #=
     @test Set(normalize_index.(saturate_index(i"A[i, j] += B[] + C[] + D[]"))) == Set(normalize_index.([

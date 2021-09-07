@@ -17,14 +17,4 @@
                         (~A_1)[i] += D[~j_1]
                     )
     """p 
-
-    display(Pigeon.transform_ssa(i"""
-    ∀ i
-        ∀ j
-            ∀ j (
-                    A[i, j] += A[i] * C[i, j]
-                with
-                    A[i] += D[j]
-                )
-    """))
 end

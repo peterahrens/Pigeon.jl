@@ -175,7 +175,7 @@ end
 
 SymbolicUtils.istree(ex::Predicate) = true
 SymbolicUtils.operation(ex::Predicate) = Predicate
-SymbolicUtils.arguments(ex::Predicate) = [[ex.op];ex.args]
+SymbolicUtils.arguments(ex::Predicate) = [[ex.op]; ex.args]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Predicate)
     show_asymptote(io, mime, ex.op)
@@ -298,7 +298,7 @@ end
 
 function Base.setindex!(q::PointQuery, p, idxs...)
     d = Dict(reverse.(enumerate(idxs)))
-    println(d)
     rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
     q.points = Vee(q.points, Postwalk(rename)(p))
+    q[idxs...]
 end

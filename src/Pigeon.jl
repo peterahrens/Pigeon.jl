@@ -20,7 +20,7 @@ export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
-export SCTensor, SLTensor
+export Fiber, coiter, locate
 
 export saturate_index
 export normalize_index
@@ -31,12 +31,12 @@ include("parse_index.jl")
 include("asymptote.jl")
 
 include("style.jl")
-#include("asymptotic_analysis.jl")
-#include("containment.jl")
 include("saturate.jl")
 include("transform_normalize.jl")
 include("transform_ssa.jl")
 include("dimensionalize.jl")
+include("lower_asymptote.jl")
+include("containment.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")

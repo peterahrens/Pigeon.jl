@@ -92,6 +92,7 @@ function show_expression(io, ex::Workspace)
     print(io, "}[...]")
 end
 
+
 struct Name <: IndexTerminal
     name
 end
@@ -101,23 +102,7 @@ Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, mime, ex::Name) = print(io, ex.name)
 
-name(ex::Name) = ex.name
-
-struct Freshie <: IndexTerminal
-    name::Symbol
-    num::Int
-end
-
-function Base.show(io::IO, ex::Freshie)
-    print(io, ex.name)
-    print(io, "_")
-    print(io, ex.num)
-end
-
-fresh_num = 0
-
-freshen(ex::Symbol) = Freshie(ex, global fresh_num += 1)
-freshen(ex::Freshie) = Freshie(ex.name, global fresh_num += 1)
+getname(ex::Name) = ex.name
 
 struct Literal <: IndexTerminal
     val
@@ -247,18 +232,18 @@ function show_expression(io, mime, ex::Call)
     print(io, ")")
 end
 
-struct Read end
-struct Write end
-struct Update end
+struct Read <: IndexTerminal end
+struct Write <: IndexTerminal end
+struct Update <: IndexTerminal end
 
 struct Access{T, M} <: IndexExpression
     tns::T
     mode::M
-    idxs::Vector{Any}
+    idxs::Vector
 end
 Base.:(==)(a::Access, b::Access) = a.tns == b.tns && a.idxs == b.idxs
 
-access(args...) = access!(vcat(args...))
+access(args...) = access!(vcat(Any[], args...))
 access!(args) = Access(popfirst!(args), popfirst!(args), args)
 
 SymbolicUtils.istree(ex::Access) = true
@@ -280,3 +265,10 @@ function show_expression(io, mime, ex::Access)
 end
 
 show_expression(io, mime, ex) = print(io, ex)
+
+
+getresult(stmt::Assign) = getresult(stmt.lhs)
+getresult(stmt::Access) = getresult(stmt.tns)
+getresult(stmt::Loop) = getresult(stmt.body)
+getresult(stmt::With) = getresult(stmt.cons)
+getresult(arg) = arg

@@ -12,6 +12,7 @@ using DataStructures
 
 export @i_str
 export @capture
+export @name
 
 export IndexNode, IndexStatement, IndexExpression
 export Loop, Assign, With, Access, Call
@@ -30,10 +31,11 @@ include("parse_index.jl")
 include("asymptote.jl")
 
 include("style.jl")
-include("asymptotic_analysis.jl")
+#include("asymptotic_analysis.jl")
+#include("containment.jl")
 include("saturate.jl")
-include("normalize.jl")
-include("containment.jl")
+include("transform_normalize.jl")
+include("transform_ssa.jl")
 
 function snoop()
     saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")

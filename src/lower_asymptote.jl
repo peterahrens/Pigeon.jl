@@ -40,9 +40,9 @@ end
 AsymptoticContext() = AsymptoticContext([], true)
 
 function iterate!(ctx)
-    axes_pred = Wedge(map(qnt->Predicate(ctx.axes[qnt], name(qnt)), ctx.qnts)...)
+    axes_pred = Wedge(map(qnt->Predicate(ctx.axes[qnt], getname(qnt)), ctx.qnts)...)
     guard_pred = Wedge(ctx.guard...)
-    ctx.itrs = Cup(ctx.itrs, Such(Times(name.(ctx.qnts)...), Wedge(axes_pred, guard_pred)))
+    ctx.itrs = Cup(ctx.itrs, Such(Times(getname.(ctx.qnts)...), Wedge(axes_pred, guard_pred)))
 end
 
 quantify(f, ctx, var) = (push!(ctx.qnts, var); f(); pop!(ctx.qnts))
@@ -135,8 +135,8 @@ function coiterate_asymptote!(root, ctx, node)
 end
 function coiterate_asymptote!(root, ctx, stmt::Access{SymbolicCoiterableTensor})
     root.idxs[1] in stmt.idxs || return Empty()
-    pred = Exists(name.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
-    return Such(Times(name.(ctx.qnts)...), pred)
+    pred = Exists(getname.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
+    return Such(Times(getname.(ctx.qnts)...), pred)
 end
 
 function coiterate_cases(root, ctx, node)
@@ -152,7 +152,7 @@ end
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SymbolicCoiterableTensor})
     if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
         stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
-        pred = Exists(name.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
+        pred = Exists(getname.(setdiff(idxs, ctx.qnts))..., stmt.tns.data[stmt.idxs...])
         return [(pred, stmt),
             (ctx.guard, stmt′),]
     else

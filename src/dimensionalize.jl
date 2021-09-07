@@ -43,10 +43,10 @@ dimensionalize_index!(node, ctx, bindings) = nothing
 function dimensionalize_index!(node::Access, ctx, bindings)
     if !istree(node.tns)
         for (n, idx) in enumerate(node.idxs))
-            push!(get(idx_sites, name(idx)), (name(tns), n))
+            push!(get(idx_sites, getname(idx)), (getname(tns), n))
         end
         for (n, axis) in enumerate(lower_axes(node.tns, ctx))
-            lowered_axes[(name(tns), n)] = axis
+            lowered_axes[(getname(tns), n)] = axis
         end
     end
 end

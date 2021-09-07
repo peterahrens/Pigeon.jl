@@ -180,7 +180,7 @@ end
 
 function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
-    pred = Exists(setdiff(ctx.qnts, root.lhs.idxs)..., guard(ctx))
+    pred = Exists(getname.(setdiff(ctx.qnts, root.lhs.idxs))..., guard(ctx))
     getdata(root.lhs.tns, ctx)[root.lhs.idxs...] = pred
 end
 

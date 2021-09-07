@@ -290,14 +290,14 @@ struct CanonVariable
 end
 
 function Base.getindex(q::PointQuery, idxs...)
-    d = Dict(enumerate(idxs))
+    d = Dict(enumerate(map(getname, idxs)))
     rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
     rename(x) = x
     Postwalk(rename)(q.points)
 end
 
 function Base.setindex!(q::PointQuery, p, idxs...)
-    d = Dict(reverse.(enumerate(idxs)))
+    d = Dict(reverse.(enumerate(map(getname, idxs))))
     rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
     q.points = Vee(q.points, Postwalk(rename)(p))
     q[idxs...]

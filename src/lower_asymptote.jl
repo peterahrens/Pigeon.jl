@@ -136,13 +136,13 @@ function lower!(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)
     isempty(stmt.idxs) && return ctx(stmt.body)
     quantify(ctx, stmt.idxs[1]) do
         stmt′ = Loop(stmt.idxs[2:end], stmt.body)
-        coiterate_asymptote!(stmt, ctx, stmt′)
         cases = coiterate_cases(stmt, ctx, stmt′)
         for (guard, body) in cases
             enguard(ctx, guard) do
                 lower!(annihilate_index(body), ctx)
             end
         end
+        coiterate_asymptote!(stmt, ctx, stmt′)
     end
 end
 

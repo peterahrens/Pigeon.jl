@@ -31,4 +31,11 @@
     display(a)
     display(Pigeon.simplify_asymptote(a))
     println()
+
+    A = Fiber(:A, [coiter])
+    B = Fiber(:B, [locate, coiter])
+    a = Pigeon.asymptote(i"∀ i, j A[j] += B[i, j]")
+    display(a)
+    display(Pigeon.simplify_asymptote(a))
+    println()
 end

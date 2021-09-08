@@ -1,10 +1,12 @@
 @testset "asymptote" begin
-    A = Fiber(:A, [locate, coiter])
-    B = Fiber(:B, [coiter, locate])
+    A = Fiber(:A, [locate, locate])
+    B = Fiber(:B, [locate, coiter])
     C = Fiber(:C, [locate, coiter])
 
-
-    #a = Pigeon.asymptote(i" ∀ i, j, k A[i, j] += B[j, k] * C[k, i]")
+    a = Pigeon.asymptote(i" ∀ i, j, k A[i, j] += B[j, k] * C[i, k]")
+    display(a)
+    display(Pigeon.simplify_asymptote(a))
+    println()
 
     D = Fiber(:D, [locate])
     E = Fiber(:E, [coiter])

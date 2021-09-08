@@ -23,4 +23,13 @@
     @test_throws AssertionError Pigeon.dimensionalize(Pigeon.transform_ssa(i"""
         ∀ i A[i,] += B[i,]
     """), TestDimensionalizeContext())
+
+    A = TestDimensionalizeTensor(:A, [2])
+    B = TestDimensionalizeTensor(:B, [2])
+    C = TestDimensionalizeTensor(:C, [2])
+    w = TestDimensionalizeTensor(:w, [2])
+    w′ = TestDimensionalizeTensor(:w, [2])
+    dims = Pigeon.dimensionalize(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j]", TestDimensionalizeContext())
+    @test dims[:i] == 2
+    @test dims[:j] == 2
 end

@@ -3,10 +3,10 @@ struct Freshie
     n::Int
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", ex::Freshie)
+function Base.show(io::IO, ex::Freshie)
     print(io, ex.name)
     print(io, "_")
-    print(io, ex.num)
+    print(io, ex.n)
 end
 
 fresh_num = 0

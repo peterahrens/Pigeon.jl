@@ -211,7 +211,7 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex::Such)
 end
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex)
-    show(io, mime, ex)
+    show(io, ex)
 end
 
 function indices(x::AsymptoteNode)

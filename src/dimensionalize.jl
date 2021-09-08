@@ -35,6 +35,11 @@ function dimensionalize(prgm, ctx)
             unique(sites))
     end
 
+    for idx in keys(idx_sites)
+        jdx = find_root!(idx_jdx, idx)
+        jdx_lowered_axes[idx] = jdx_lowered_axes[jdx]
+    end
+
     return jdx_lowered_axes
 end
 

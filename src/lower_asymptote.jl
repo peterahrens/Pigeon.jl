@@ -56,9 +56,10 @@ function asymptote(prgm)
     return ctx.itrs
 end
 
-function iterate!(ctx)
+iterate!(ctx) = iterate!(ctx, true)
+function iterate!(ctx, cond)
     axes_pred = Wedge(map(qnt->Predicate(ctx.axes[getname(qnt)], getname(qnt)), ctx.qnts)...)
-    ctx.itrs = Cup(ctx.itrs, Such(Times(getname.(ctx.qnts)...), Wedge(axes_pred, guard(ctx))))
+    ctx.itrs = Cup(ctx.itrs, Such(Times(getname.(ctx.qnts)...), Wedge(axes_pred, guard(ctx), cond)))
 end
 
 quantify(f, ctx, var) = (push!(ctx.qnts, var); f(); pop!(ctx.qnts))
@@ -86,13 +87,17 @@ function lower!(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
 end
 
 struct CoiterateStyle
-    style
 end
 
 #TODO handle children of access?
-make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiberRelation}) =
-    (!isempty(root.idxs) && root.idxs[1] in node.idxs) ? CoiterateStyle(DefaultStyle()) : DefaultStyle()
-combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle(result_style(a.style, b.style))
+function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
+    isempty(root.idxs) && return DefaultStyle()
+    i = findfirst(isequal(root.idxs[1]), node.idxs)
+    (i !== nothing && node.idxs[1:i-1] ⊆ ctx.qnts) || return DefaultStyle()
+    node.tns.format[i] === coiter || return DefaultStyle()
+    return CoiterateStyle()
+end
+combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([
@@ -150,9 +155,11 @@ function coiterate_asymptote!(root, ctx, node)
 end
 
 function coiterate_asymptote!(root, ctx, stmt::Access{SparseFiberRelation})
-    root.idxs[1] in stmt.idxs || return Empty()
+    i = findfirst(isequal(root.idxs[1]), stmt.idxs)
+    (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return Empty()
+    stmt.tns.format[i] === coiter || return Empty() #TODO this line isn't extensible
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
-    return Such(Times(getname.(ctx.qnts)...), pred)
+    return iterate!(ctx, pred)
 end
 
 function coiterate_cases(root, ctx, node)
@@ -166,14 +173,13 @@ function coiterate_cases(root, ctx, node)
     end
 end
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SparseFiberRelation})
-    if !isempty(stmt.idxs) && root.idxs[1] in stmt.idxs
-        stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
-        pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
-        return [(pred, stmt),
-            (guard(ctx), stmt′),]
-    else
-        return [(guard(ctx), stmt),]
-    end
+    single = [(guard(ctx), stmt),]
+    i = findfirst(isequal(root.idxs[1]), stmt.idxs)
+    (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
+    stmt.tns.format[i] === coiter || return single
+    stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
+    pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
+    return [(pred, stmt), (guard(ctx), stmt′),]
 end
 
 function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticContext, ::DefaultStyle)

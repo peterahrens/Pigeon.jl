@@ -237,3 +237,9 @@ Postwalk(Chain([
         end
     end),
 ]))]))
+
+function asymptote_equal(a, b)
+    a = simplify_asymptote(a)
+    b = simplify_asymptote(b)
+    return isdominated(a, b) && isdominated(b, a)
+end

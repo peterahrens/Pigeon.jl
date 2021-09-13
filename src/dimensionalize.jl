@@ -44,30 +44,6 @@ Dimensions() = Dimensions(DisjointSets{Any}(), Dict())
 #return the right index into dims.labels.revmap, but reinterprets the access as the wrong type.
 #not sure which commit actually fixed this, but I need to move on with my life.
 Base.getindex(dims::Dimensions, idx) = dims.lowered_axes[find_root!(dims.labels, idx)]
-
-#=
-
-using InteractiveUtils
-using Debugger
-x = dims.labels.revmap[find_root!(dims.labels.internal, dims.labels.intmap[idx])]
-y = my_find_root!(dims.labels, idx)
-if find_root!(dims.labels, idx) != x
-    dump(find_root!(dims.labels, idx))
-    dump(y)
-    dump(dims.labels.revmap[find_root!(dims.labels.internal, dims.labels.intmap[idx])])
-    #global lock_freshies = true
-    #find_root!(dims.labels, idx)
-    #display(@which dims.labels.revmap[find_root!(dims.labels.internal, dims.labels.intmap[idx])])
-    display(dims.labels.revmap)
-    display(@code_typed my_find_root!(dims.labels, idx))
-    error()
-end
-
-#my_find_root!(labels::DisjointSets, key) = labels.revmap[find_root!(labels.internal, labels.intmap[key])]
-#my_find_root!(s::DisjointSets{T}, x::T) where {T} = s.revmap[find_root!(s.internal, s.intmap[x])]
-my_find_root!(s::DisjointSets{T}, x) where {T} = s.revmap[find_root!(s.internal, s.intmap[x])]
-=#
-
 Base.haskey(dims::Dimensions, idx) = idx in dims.labels
 function isdimensionalized(dims::Dimensions, node::Access)
     for (n, idx) in enumerate(getname.(node.idxs))

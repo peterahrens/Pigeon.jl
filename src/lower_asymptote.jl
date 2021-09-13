@@ -34,7 +34,7 @@ mutable struct AsymptoticContext
     qnts::Vector{Any}
     guards::Vector{Any}
     state::Dict
-    axes
+    dims
 end
 
 function getdata(tns::SparseFiberRelation, ctx::AsymptoticContext)
@@ -45,20 +45,21 @@ end
 lower_axes(tns::SparseFiberRelation, ::AsymptoticContext) = [(tns.name, i) for i = 1:length(tns.format)]
 lower_axis_merge(::AsymptoticContext, a, b) = a
 
-AsymptoticContext(dims) = AsymptoticContext(Empty(), [], [true], Dict(), dims)
+AsymptoticContext() = AsymptoticContext(Empty(), [], [true], Dict(), Dimensions())
+
+getdims(ctx::AsymptoticContext) = ctx.dims
 
 function asymptote(prgm)
     #TODO messy
     prgm = transform_ssa(prgm)
-    dims = dimensionalize(prgm, AsymptoticContext(nothing)) #TODO clean this up
-    ctx = AsymptoticContext(dims)
+    ctx = AsymptoticContext()
     lower!(prgm, ctx)
     return ctx.itrs
 end
 
 iterate!(ctx) = iterate!(ctx, true)
 function iterate!(ctx, cond)
-    axes_pred = Wedge(map(qnt->Predicate(ctx.axes[getname(qnt)], getname(qnt)), ctx.qnts)...)
+    axes_pred = Wedge(map(qnt->Predicate(ctx.dims[getname(qnt)], getname(qnt)), ctx.qnts)...)
     ctx.itrs = Cup(ctx.itrs, Such(Times(getname.(ctx.qnts)...), Wedge(axes_pred, guard(ctx), cond)))
 end
 
@@ -90,7 +91,13 @@ struct CoiterateStyle
 end
 
 #TODO handle children of access?
+function make_style(root, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
+    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
+    return DefaultStyle()
+end
+
 function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
+    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     isempty(root.idxs) && return DefaultStyle()
     i = findfirst(isequal(root.idxs[1]), node.idxs)
     (i !== nothing && node.idxs[1:i-1] ⊆ ctx.qnts) || return DefaultStyle()
@@ -98,6 +105,9 @@ function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiber
     return CoiterateStyle()
 end
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
+combine_style(a::CoiterateStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
+combine_style(a::DefaultStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
+combine_style(a::DimensionalizeStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([

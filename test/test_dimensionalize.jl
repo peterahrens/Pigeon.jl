@@ -3,33 +3,40 @@
         name
         dims
     end
-    struct TestDimensionalizeContext end
+    struct TestDimensionalizeContext
+        dims
+    end
+    Pigeon.lower!(root, ::TestDimensionalizeContext, ::Pigeon.DefaultStyle) = nothing
+    Pigeon.getdims(ctx::TestDimensionalizeContext) = ctx.dims
     Pigeon.getname(tns::TestDimensionalizeTensor) = tns.name
     Pigeon.lower_axes(tns::TestDimensionalizeTensor, ::TestDimensionalizeContext) = tns.dims
     Pigeon.lower_axis_merge(::TestDimensionalizeContext, a, b) = (@assert a == b; a)
     Pigeon.rename(tns::TestDimensionalizeTensor, name) = TestDimensionalizeTensor(name, tns.dims)
     A = TestDimensionalizeTensor(:A, [1, 10, 12])
     B = TestDimensionalizeTensor(:B, [3, 1, 10])
-    dims = Pigeon.dimensionalize(Pigeon.transform_ssa(i"""
+    ctx = TestDimensionalizeContext(Pigeon.Dimensions())
+    Pigeon.lower!(Pigeon.transform_ssa(i"""
         ∀ i, j, k, l A[i, j, k] += B[l, i, j]
-    """), TestDimensionalizeContext())
-    @test dims[:i] == 1
-    @test dims[:j] == 10
-    @test dims[:k] == 12
-    @test dims[:l] == 3
+    """), ctx, Pigeon.DimensionalizeStyle())
+    @test ctx.dims[:i] == 1
+    @test ctx.dims[:j] == 10
+    @test ctx.dims[:k] == 12
+    @test ctx.dims[:l] == 3
 
     A = TestDimensionalizeTensor(:A, [1,])
     B = TestDimensionalizeTensor(:B, [3])
-    @test_throws AssertionError Pigeon.dimensionalize(Pigeon.transform_ssa(i"""
+    ctx = TestDimensionalizeContext(Pigeon.Dimensions())
+    @test_throws AssertionError Pigeon.lower!(Pigeon.transform_ssa(i"""
         ∀ i A[i,] += B[i,]
-    """), TestDimensionalizeContext())
+    """), ctx, Pigeon.DimensionalizeStyle())
 
     A = TestDimensionalizeTensor(:A, [2])
     B = TestDimensionalizeTensor(:B, [2])
     C = TestDimensionalizeTensor(:C, [2])
     w = TestDimensionalizeTensor(:w, [2])
     w′ = TestDimensionalizeTensor(:w, [2])
-    dims = Pigeon.dimensionalize(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j]", TestDimensionalizeContext())
-    @test dims[:i] == 2
-    @test dims[:j] == 2
+    ctx = TestDimensionalizeContext(Pigeon.Dimensions())
+    Pigeon.lower!(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j]", ctx, Pigeon.DimensionalizeStyle())
+    @test ctx.dims[:i] == 2
+    @test ctx.dims[:j] == 2
 end

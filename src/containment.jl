@@ -41,6 +41,7 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Cap(~~s, Such(~t, ~p), ~~u, Such(~t, ~q), ~~v) =>
         Cap(~~s..., Such(~t, Wedge(~p, ~q)), ~~u..., ~~v...)),
 
+    (@rule Exists(~~i, false) => false),
     (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
     (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
         i′ = freshen.(~~i)
@@ -49,7 +50,7 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
     end),
 
     (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
-        Vee(Exists(~~i, ~p), Exists(~~i, Vee(~q, ~~r)))),
+        Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
 ])))
 
 
@@ -196,16 +197,12 @@ function isimplied(a, b)
     return false
 end
 
-supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote, 
+supersimplify_asymptote = Fixpoint(Chain([normalize_asymptote, 
     #(@rule ~p => display(~p)),
 Postwalk(Chain([
     (@rule Such(~t, Wedge(~~p, ~q, ~~r)) => begin
-        if isdominated(Such(~t, Wedge(~~p..., ~~r..., true)), Such(~t, ~q))
-            if isempty(~~p) && isempty(~~r)
-                Such(~t, true)
-            else
-                Such(~t, Wedge(~~p..., ~~r..., true))
-            end
+        if isdominated(Such(~t, Wedge(~~p..., ~~r...)), Such(~t, Wedge(~~p..., ~q, ~~r...)))
+            Such(~t, Wedge(~~p..., ~~r...))
         end
     end),
 
@@ -215,22 +212,14 @@ Postwalk(Chain([
         #println("dominate")
         #display(Such(~t, Exists(~~i..., ~q)))
         #println("??")
-        if isdominated(Such(~t, Exists(~~i..., Wedge(~~p..., ~~r..., true))), Such(~t, Exists(~~i..., ~q)))
-            if isempty(~~p) && isempty(~~r)
-                Such(~t, Exists(~~i..., true))
-            else
-                Such(~t, Exists(~~i..., Wedge(~~p..., ~~r..., true)))
-            end
+        if isdominated(Such(~t, Exists(~~i..., Wedge(~~p..., ~~r...))), Such(~t, Exists(~~i..., Wedge(~~p..., ~q, ~~r...))))
+            Such(~t, Exists(~~i..., Wedge(~~p..., ~~r...)))
         end
     end),
 
     (@rule Cup(~~s, ~t, ~~u) => begin
-        if isdominated(~t, Cup(~~s..., Empty(), ~~u...))
-            if isempty(~~s) && isempty(~~u)
-                return Empty()
-            else
-                Cup(~~s..., ~~u...)
-            end
+        if isdominated(~t, Cup(~~s..., ~~u...))
+            Cup(~~s..., ~~u...)
         end
     end),
 ]))]))

@@ -7,9 +7,6 @@
     C = Fiber(:C, [locate, coiter], [:I, :K])
 
     a = Pigeon.asymptote(i" ∀ i, j, k A[i, j] += B[j, k] * C[i, k]")
-    display(a)
-    display(Pigeon.supersimplify_asymptote(a))
-    println()
     a_ref = Cup(
         Such(Times(:i, :j, :k), Wedge(
             Predicate(:I, :i),
@@ -26,36 +23,80 @@
     )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    #=
-    D = Fiber(:D, [locate])
-    E = Fiber(:E, [coiter])
-    F = Fiber(:F, [locate])
+    D = Fiber(:D, [locate], [:I])
+    E = Fiber(:E, [coiter], [:I])
+    F = Fiber(:F, [locate], [:I])
     a = Pigeon.asymptote(i" ∀ i D[i] += E[i] * F[i]")
-    display(a)
-    display(Pigeon.supersimplify_asymptote(a))
-    println()
+    a_ref = Cup(
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:E, :i)
+        )),
+    )
+    @test Pigeon.asymptote_equal(a, a_ref)
 
-    A = Fiber(:A, [locate])
-    B = Fiber(:B, [coiter])
-    C = Fiber(:C, [coiter])
-    D = Fiber(:D, [coiter])
-    w = Fiber(:w, [coiter])
-    w′ = Fiber(:w, [locate])
-    a = Pigeon.asymptote(i"∀ i A[i] += B[i] * w[i] with ∀ i w′[i] += C[i] * D[i]")
-    display(a)
-    display(Pigeon.supersimplify_asymptote(a))
-    println()
+    A = Fiber(:A, [locate], [:I])
+    B = Fiber(:B, [coiter], [:I])
+    C = Fiber(:C, [coiter], [:I])
+    D = Fiber(:D, [coiter], [:I])
+    w = Fiber(:w, [coiter], [:I])
+    w′ = Fiber(:w, [locate], [:I])
+    a = Pigeon.asymptote(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j] * D[j]")
+    a_ref = Cup(
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:C, :i)
+        )),
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:D, :i)
+        )),
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:B, :i)
+        )),
+    )
+    @test Pigeon.asymptote_equal(a, a_ref)
 
     a = Pigeon.asymptote(i"∀ i,j A[i] += B[i] * w[j] with ∀ i w′[i] += C[i] * D[i]")
-    display(a)
-    display(Pigeon.supersimplify_asymptote(a))
-    println()
+    a_ref = Cup(
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:C, :i)
+        )),
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:D, :i)
+        )),
+        Such(Times(:i), Wedge(
+            Predicate(:I, :i),
+            Predicate(:B, :i)
+        )),
+        Such(Times(:i, :j), Wedge(
+            Predicate(:I, :i),
+            Predicate(:I, :j),
+            Predicate(:B, :i),
+            Predicate(:C, :j),
+            Predicate(:D, :j),
+        )),
+    )
+    @test Pigeon.asymptote_equal(a, a_ref)
 
-    A = Fiber(:A, [coiter])
-    B = Fiber(:B, [locate, coiter])
+    A = Fiber(:A, [coiter], [:J])
+    B = Fiber(:B, [locate, coiter], [:I, :J])
     a = Pigeon.asymptote(i"∀ i, j A[j] += B[i, j]")
-    display(a)
-    display(Pigeon.supersimplify_asymptote(a))
-    println()
-    =#
+
+    a_ref = Cup(
+        Such(Times(:i, :j), Wedge(
+            Predicate(:I, :i),
+            Predicate(:J, :j),
+            Predicate(:A, :j),
+        )),
+        Such(Times(:i, :j), Wedge(
+            Predicate(:I, :i),
+            Predicate(:J, :j),
+            Exists(:i, Predicate(:B, :i, :j)),
+        )),
+    )
+    @test Pigeon.asymptote_equal(a, a_ref)
 end

@@ -2,11 +2,11 @@ using Pigeon
 using Test
 
 @testset "Pigeon.jl" begin
-    include("test_parse.jl")
-    include("test_ssa.jl")
-    include("test_dimensionalize.jl")
-    include("test_lower_asymptote.jl")
-    include("test_asymptote_equal.jl")
+    #include("test_parse.jl")
+    #include("test_ssa.jl")
+    #include("test_dimensionalize.jl")
+    #include("test_lower_asymptote.jl")
+    include("test_containment.jl")
 
     #=
     @test Set(normalize_index.(saturate_index(i"A[i, j] += B[] + C[] + D[]"))) == Set(normalize_index.([

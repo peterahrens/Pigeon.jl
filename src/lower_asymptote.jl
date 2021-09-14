@@ -1,18 +1,20 @@
 mutable struct SparseFiberRelation
     name
     format
+    dims
     default
     implicit
 end
 Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
     tns.name,
     tns.format,
+    tns.dims,
     tns.default,
     tns.implicit)
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
-SparseFiberRelation(name, format) = SparseFiberRelation(name, format, Literal(0))
-SparseFiberRelation(name, format, default) = SparseFiberRelation(name, format, default, false)
+SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, Literal(0))
+SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, false)
 
 
 getname(tns::SparseFiberRelation) = tns.name
@@ -42,8 +44,8 @@ function getdata(tns::SparseFiberRelation, ctx::AsymptoticContext)
     get!(ctx.state, getname(tns), default)
 end
 
-lower_axes(tns::SparseFiberRelation, ::AsymptoticContext) = [(tns.name, i) for i = 1:length(tns.format)]
-lower_axis_merge(::AsymptoticContext, a, b) = a
+lower_axes(tns::SparseFiberRelation, ::AsymptoticContext) = tns.dims
+lower_axis_merge(::AsymptoticContext, a, b) = (@assert a == b; b)
 
 AsymptoticContext() = AsymptoticContext(Empty(), [], [true], Dict(), Dimensions())
 

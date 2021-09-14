@@ -1,13 +1,32 @@
 @testset "asymptote" begin
-    A = Fiber(:A, [locate, locate])
-    B = Fiber(:B, [locate, coiter])
-    C = Fiber(:C, [locate, coiter])
+    using Pigeon: Such, Times, Wedge, Vee, Predicate, Cup, Cap, Empty, Exists
+    using Pigeon: isdominated
+
+    A = Fiber(:A, [locate, locate], [:I, :J])
+    B = Fiber(:B, [locate, coiter], [:J, :K])
+    C = Fiber(:C, [locate, coiter], [:I, :K])
 
     a = Pigeon.asymptote(i" ∀ i, j, k A[i, j] += B[j, k] * C[i, k]")
     display(a)
     display(Pigeon.supersimplify_asymptote(a))
     println()
+    a_ref = Cup(
+        Such(Times(:i, :j, :k), Wedge(
+            Predicate(:I, :i),
+            Predicate(:J, :j),
+            Predicate(:K, :k),
+            Predicate(:B, :j, :k)
+        )),
+        Such(Times(:i, :j, :k), Wedge(
+            Predicate(:I, :i),
+            Predicate(:J, :j),
+            Predicate(:K, :k),
+            Predicate(:C, :i, :k)
+        )),
+    )
+    @test Pigeon.asymptote_equal(a, a_ref)
 
+    #=
     D = Fiber(:D, [locate])
     E = Fiber(:E, [coiter])
     F = Fiber(:F, [locate])
@@ -38,4 +57,5 @@
     display(a)
     display(Pigeon.supersimplify_asymptote(a))
     println()
+    =#
 end

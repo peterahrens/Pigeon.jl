@@ -40,7 +40,21 @@
         Such(Times(:i, :j), Predicate(:A, :i, :j))
     )
     @test isdominated(
+        Such(Times(:i), Exists(:j, Predicate(:A, :i, :j))),
+        Such(Times(:i, :j), Predicate(:A, :i, :j))
+    )
+    @test isdominated(
         Such(Times(:i, :j), Predicate(:A, :i, :j)),
+        Such(Times(:j, :i), Predicate(:A, :i, :j))
+    )
+
+    @test isdominated(
+        Such(Times(:k, :l), Predicate(:A, :k, :l)),
+        Such(Times(:j, :i), Predicate(:A, :i, :j))
+    )
+
+    @test !isdominated(
+        Such(Times(:k, :l), Predicate(:A, :k, :k)),
         Such(Times(:j, :i), Predicate(:A, :i, :j))
     )
 
@@ -49,19 +63,17 @@
         Such(Times(), Exists(:i, :j, Wedge(Predicate(:A, :i), Predicate(:B, :j)))),
     )
 
-    #=
-    @test isdominated(Empty(), Times(:i))
-    @test !isdominated(Times(), Empty())
-    @test !isdominated(Times(), Empty())
+    @test isdominated(
+        Such(Times(:i), Wedge(Predicate(:A, :i), Predicate(:B, :i))),
+        Such(Times(:i), Exists(:j, Wedge(Predicate(:A, :i), Predicate(:B, :j)))),
+    )
 
-
+    @test !isdominated(
+        Such(Times(:i, :j, :k, :l), Wedge(Predicate(:A, :i, :j, :k, :l), Predicate(:B, :i, :j, :k, :l))),
+        Such(Times(:i, :j, :k, :l), Wedge(Predicate(:A, :i, :i, :i, :i), Predicate(:B, :i, :i, :i, :i))),
+    )
 
     a = Such(Times(:i, :j, :k), Wedge(Predicate(:A, :i, :j)))
     b = Cup(Such(Times(:i, :j, :k), Vee(Wedge(Predicate(:A, :i, :j), true), false)), Empty())
-    @test Pigeon.isdominated(a, b)
-
-    a = Such(Times(:i, :j, :k), Wedge(Predicate(:A, :i, :j)))
-    b = Cup(Such(Times(:i, :j, :k), Vee(Wedge(Predicate(:A, :i, :j), true), false)), Empty())
-    @test Pigeon.isdominated(a, b)
-    =#
+    @test isdominated(a, b)
 end

@@ -53,108 +53,26 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
 ])))
 
 
-struct _isdominated_Head end
-
 """
     isdominated(a, b)
     Given abstract set expressions a and b, return true when b dominates a.
     ArgumentError if the answer cannot be determined.
 """
 function isdominated(a, b)
-    vars = Dict()
-    preds = Dict()
-
-    function canonicalize_set(q)
+    function canonicalize(q)
         q = normalize_asymptote(Cup(q))
         err = ArgumentError("unrecognized query form: $q")
-        q isa Cup || throw(err)
-        (@capture q Cup(~~q_terms)) || throw(err)
-        return map(q_terms) do q_term
-            q_term = normalize_asymptote(Such(Times(q_term), Exists(Wedge(true))))
-            (@capture q_term Such(Times(~~q_heads), ~q_that)) || throw(err)
-            return (q_heads, q_that)
-        end
+        (@capture q Cup(~~q_queries)) || throw(err)
+        return q_queries
     end
-
-    function canonicalize_pred(q, r_heads, q_that)
-        err = ArgumentError("unrecognized query form: $q")
-        q_term = normalize_asymptote(Wedge(map(r_head->Predicate(_isdominated_Head(), r_head), r_heads)..., q_that))
-        (@capture q_term Exists(~~q_frees, Wedge(~~q_preds))) || throw(err)
-        q_op_args = Dict()
-        for q_pred in q_preds
-            q_pred isa Predicate || throw(err)
-            push!(get!(q_op_args, q_pred.op, []), q_pred.args)
-        end
-        return (q_op_args, q_preds)
-    end
-
-    a_terms = canonicalize_set(a)
-    b_terms = canonicalize_set(b)
-
-    #at some point we should check that predicate arity is consistent
-
-    for (a_heads, a_that) in a_terms
+    a_queries = canonicalize(a)
+    b_queries = canonicalize(b)
+    for a_query in a_queries
         covered = false
-        for (b_heads, b_that) in b_terms
-            (a_op_args, a_preds) = canonicalize_pred(a, b_heads, a_that)
-            (b_op_args, b_preds) = canonicalize_pred(b, a_heads, b_that)
-            keys(b_op_args) ⊆ keys(a_op_args) || continue
-            #is this a good heuristic?
-            b_preds = sort(b_preds, by=b_pred->length(a_op_args[b_pred.op]))
-
-            morph = Dict() #mighty morphin' power rangers...
-            depth = 1
-            width = ones(Int, length(b_preds))
-            bindings = [[] for _ = 1:length(b_preds)]
-            while true
-                if depth > length(b_preds)
-                    covered = true
-                    break
-                end
-                b_pred = b_preds[depth]
-
-                if width[depth] > length(a_op_args[b_pred.op])
-                    width[depth] = 1
-                    depth -= 1
-                    if depth > 0
-                        width[depth] += 1
-                    else
-                        break
-                    end
-                    continue
-                end
-                a_args = a_op_args[b_pred.op][width[depth]]
-
-                conflict = false
-                for b_idx in bindings[depth]
-                    delete!(morph, b_idx)
-                end
-                empty!(bindings[depth])
-                for (a_idx, b_idx) in zip(a_args, b_pred.args)
-                    if haskey(morph, b_idx)
-                        if morph[b_idx] != a_idx
-                            conflict = true
-                            break
-                        end
-                    else
-                        push!(bindings[depth], b_idx)
-                        morph[b_idx] = a_idx
-                    end
-                end
-
-                if !conflict
-                    depth += 1
-                else
-                    for b_idx in bindings[depth]
-                        delete!(morph, b_idx)
-                    end
-                    empty!(bindings[depth])
-                    width[depth] += 1
-                end
-            end
-
-            if covered
-                break
+        for b_query in b_queries
+            if _isdominated(a_query, b_query)
+                covered = true
+                continue
             end
         end
         if !covered
@@ -162,6 +80,120 @@ function isdominated(a, b)
         end
     end
     return true
+end
+
+function _isdominated(a, b)
+    head_op = gensym(:head)
+
+    function canonicalize(q)
+        q = normalize_asymptote(Such(Times(q), Exists(Wedge(true))))
+        (@capture q Such(Times(~~q_heads), ~q_that)) || throw(err)
+        return(q_heads, q_that)
+    end
+    a_heads, a_that = canonicalize(a)
+    b_heads, b_that = canonicalize(b)
+
+    #at some point we should check that predicate arity is consistent
+
+    #there is very likely a smarter way to do this inside the homomorphism
+    #finder that would be much smarter because it would use the existing
+    #bindings. I'm just not ready to write that code today. AFAICT, what we want
+    #to do is not equivalent to implication testing, and we would need the homomorphism
+    #to go "backwards" for the head variables. Something to consider in the future.
+    a_prop = Wedge(Predicate(head_op, a_heads...), a_that)
+    for b_head_set in combinations(b_heads, length(a_heads))
+        for b_head_order in permutations(b_head_set)
+            b_prop = Exists(b_heads..., Wedge(Predicate(head_op, b_head_order...), b_that))
+            if isimplied(a_prop, b_prop)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+"""
+    isimplied(a, b)
+    Given abstract predicate expressions a and b, return true when b implies a.
+    ArgumentError if the answer cannot be determined.
+"""
+function isimplied(a, b)
+    function canonicalize(p)
+        err = ArgumentError("unrecognized proposition: $p")
+        p = normalize_asymptote(Exists(Wedge(p)))
+        (@capture p Exists(~~p_frees, Wedge(~~p_preds))) || throw(err)
+        p_op_args = Dict()
+        for p_pred in p_preds
+            p_pred isa Predicate || throw(err)
+            push!(get!(p_op_args, p_pred.op, []), p_pred.args)
+        end
+        return (p_frees, p_op_args, p_preds)
+    end
+
+    (a_frees, a_op_args, a_preds) = canonicalize(a)
+    (b_frees, b_op_args, b_preds) = canonicalize(b)
+
+    keys(b_op_args) ⊆ keys(a_op_args) || return false
+
+    #is this a good heuristic?
+    b_preds = sort(b_preds, by=b_pred->length(a_op_args[b_pred.op]))
+
+    morph = Dict() #mighty morphin' power rangers...
+    depth = 1
+    width = ones(Int, length(b_preds))
+    bindings = [[] for _ = 1:length(b_preds)]
+    while true
+        if depth > length(b_preds)
+            return true
+        end
+        b_pred = b_preds[depth]
+
+        if width[depth] > length(a_op_args[b_pred.op])
+            width[depth] = 1
+            depth -= 1
+            if depth > 0
+                width[depth] += 1
+            else
+                break
+            end
+            continue
+        end
+        a_args = a_op_args[b_pred.op][width[depth]]
+
+        conflict = false
+        for b_idx in bindings[depth]
+            delete!(morph, b_idx)
+        end
+        empty!(bindings[depth])
+        for (a_idx, b_idx) in zip(a_args, b_pred.args)
+            if b_idx in b_frees
+                if haskey(morph, b_idx)
+                    if morph[b_idx] != a_idx
+                        conflict = true
+                        break
+                    end
+                else
+                    push!(bindings[depth], b_idx)
+                    morph[b_idx] = a_idx
+                end
+            elseif b_idx != a_idx
+                conflict = true
+                break
+            end
+        end
+
+        if !conflict
+            depth += 1
+        else
+            for b_idx in bindings[depth]
+                delete!(morph, b_idx)
+            end
+            empty!(bindings[depth])
+            width[depth] += 1
+        end
+    end
+
+    return false
 end
 
 supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote, 

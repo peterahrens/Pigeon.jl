@@ -39,7 +39,7 @@ show_asymptote_undelimited(io, mime, ex) =
 
 bases(ex) = [ex]
 
-struct Forall <: AsymptoteNode
+struct Forall <: AsymptotePredicate
     idxs::Vector{Any}
     arg::Any
     Forall(args...) = new(collect(args[1:end-1]), args[end])
@@ -49,7 +49,7 @@ TermInterface.istree(::Type{<:Forall}) = true
 TermInterface.operation(ex::Forall) = Forall
 TermInterface.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
 
-struct Exists <: AsymptoteNode
+struct Exists <: AsymptotePredicate
     idxs::Vector{Any}
     arg::Any
     Exists(args...) = new(collect(args[1:end-1]), args[end])
@@ -82,7 +82,7 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex::QuantifierAsymptote)
     show_asymptote_undelimited(io, mime, ex.arg)
 end
 
-struct Times <: AsymptoteNode
+struct Times <: AsymptoteSet
     args::Vector{Any}
     Times(args...) = new(collect(args))
 end
@@ -93,7 +93,7 @@ TermInterface.istree(::Type{<:Times}) = true
 TermInterface.operation(ex::Times) = Times
 TermInterface.arguments(ex::Times) = ex.args
 
-struct Cup <: AsymptoteNode
+struct Cup <: AsymptoteSet
     args::Vector{Any}
     Cup(args...) = new(collect(args))
 end
@@ -104,7 +104,7 @@ TermInterface.istree(::Type{<:Cup}) = true
 TermInterface.operation(ex::Cup) = Cup
 TermInterface.arguments(ex::Cup) = ex.args
 
-struct Cap <: AsymptoteNode
+struct Cap <: AsymptoteSet
     args::Vector{Any}
     Cap(args...) = new(collect(args))
 end
@@ -115,7 +115,7 @@ TermInterface.istree(::Type{<:Cap}) = true
 TermInterface.operation(ex::Cap) = Cap
 TermInterface.arguments(ex::Cap) = ex.args
 
-struct Vee <: AsymptoteNode
+struct Vee <: AsymptotePredicate
     args::Vector{Any}
     Vee(args...) = new(collect(args))
 end
@@ -124,7 +124,8 @@ TermInterface.istree(::Type{<:Vee}) = true
 TermInterface.operation(ex::Vee) = Vee
 TermInterface.arguments(ex::Vee) = ex.args
 
-struct Wedge <: AsymptoteNode args::Vector{Any}
+struct Wedge <: AsymptotePredicate
+    args::Vector{Any}
     Wedge(args...) = new(collect(args))
 end
 
@@ -159,7 +160,7 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex::BinaryAsymptote)
     end
 end
 
-struct Empty <: AsymptoteNode end
+struct Empty <: AsymptoteSet end
 
 TermInterface.istree(::Type{<:Empty}) = false
 
@@ -167,7 +168,7 @@ show_asymptote(io::IO, mime::MIME"text/plain", ex::Empty) = println(io, "∅")
 
 bases(ex::Empty) = []
 
-struct Predicate <: AsymptoteNode
+struct Predicate <: AsymptotePredicate
     op
     args
     Predicate(op, args...) = new(op, collect(args))
@@ -190,7 +191,7 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex::Predicate)
     print("]")
 end
 
-struct Such <: AsymptoteNode
+struct Such <: AsymptoteSet
     tgt
     prd
     Such(tgt, prd) = new(tgt, prd)

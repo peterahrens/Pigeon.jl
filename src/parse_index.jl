@@ -12,7 +12,7 @@ function pretty_position(s, pos)
 end
 
 function parse_julia(s, pos; ctx...)
-    if ctx.data.greedy
+    if values(ctx).greedy
         ex, pos′ = Meta.parse(s, pos, raise=false)
         if ex isa Expr && ex.head == :error && length(ex.args) == 1 &&
             (m = match(r"^extra token \\\"(.*)\\\" after end of expression", ex.args[1])) != nothing &&
@@ -104,10 +104,10 @@ end
 #tensors don't get wrapped at all
 #indices get namified and literalized
 function capture_index_expression(ex; ctx...)
-    if ctx.data.slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
+    if values(ctx).slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
         ex.args[2] isa Symbol
         return esc(ex)
-    elseif ctx.data.slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
+    elseif values(ctx).slot && ex isa Expr && ex.head == :call && length(ex.args) == 2 && ex.args[1] == :~ &&
         ex.args[2] isa Expr && ex.args[2].head == :call && length(ex.args[2].args) == 2 && ex.args[2].args[1] == :~ &&
         ex.args[2].args[2] isa Symbol
         return esc(ex)
@@ -116,14 +116,14 @@ function capture_index_expression(ex; ctx...)
         return :(call($op, $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true, mode=Read()), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :ref && length(ex.args) >= 1
         tns = capture_index_expression(ex.args[1]; ctx..., namify=false, literalize=false, mode=Read())
-        return :(access($tns, $(ctx.data.mode), $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true, mode=Read()), ex.args[2:end])...)))
+        return :(access($tns, $(values(ctx).mode), $(map(arg->capture_index_expression(arg; ctx..., namify=true, literalize=true, mode=Read()), ex.args[2:end])...)))
     elseif ex isa Expr && ex.head == :$ && length(ex.args) == 1
         return esc(ex.args[1])
-    elseif ex isa Symbol && ctx.data.namify
+    elseif ex isa Symbol && values(ctx).namify
         return Name(ex)
-    elseif ctx.data.pattern && ctx.data.literalize
+    elseif values(ctx).pattern && values(ctx).literalize
         return esc(Expr(:$, :(Literal($ex))))
-    elseif ctx.data.literalize
+    elseif values(ctx).literalize
         return esc(:(Literal($ex)))
     else
         return esc(ex)

@@ -68,8 +68,6 @@ function saturate_index(stmt)
 
     bodies = map(rhs->i"$lhs <$op>=$rhs", rhss)
 
-    #here, we only treat the second argument because we already did a bunch of churning earlier to consider different orders
-
     precompute = PrewalkStep(ChainStep([
         (x-> if @ex@capture x i"~Ai <~~f>= ~a"p
             bs = FixpointStep(PassThroughStep(@ex@rule i"(~g)(~~b)"p => ~~b))(a)

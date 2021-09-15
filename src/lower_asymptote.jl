@@ -181,17 +181,17 @@ function coiterate_cases(root, ctx, node)
             (reduce(Wedge, guards), operation(node)(bodies...))
         end
     else
-        [(guard(ctx), node),]
+        [(true, node),]
     end
 end
 function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SparseFiberRelation})
-    single = [(guard(ctx), stmt),]
+    single = [(true, stmt),]
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
     stmt.tns.format[i] === coiter || return single
     stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
-    return [(pred, stmt), (guard(ctx), stmt′),]
+    return [(pred, stmt), (true, stmt′),]
 end
 
 function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticContext, ::DefaultStyle)

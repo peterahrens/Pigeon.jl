@@ -269,17 +269,17 @@ simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Exists(~~i, false) => false),
     (@rule Exists(~p) => ~p),
     (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
-    (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
-        i′ = freshen.(~~i)
-        q′ = Postwalk(subex->get(Dict(Pair.(~~i, i′)...), subex, subex))(~q)
-        Exists(i′..., Wedge(~~p..., q′, ~~r...))
-    end),
+    #(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
+    #    i′ = freshen.(~~i)
+    #    q′ = Postwalk(subex->get(Dict(Pair.(~~i, i′)...), subex, subex))(~q)
+    #    Exists(i′..., Wedge(~~p..., q′, ~~r...))
+    #end),
     (@rule Exists(~~i, ~p) => if !isempty(setdiff(~~i, indices(~p)))
         Exists(intersect(~~i, indices(~p))..., ~p)
     end),
 
     (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
-        Vee(Exists(~~i, ~p), Exists(~~i, Vee(~q, ~~r)))),
+        Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
 ])))
 
 mutable struct PointQuery
@@ -300,6 +300,6 @@ end
 function Base.setindex!(q::PointQuery, p, idxs...)
     d = Dict(reverse.(enumerate(map(getname, idxs))))
     rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
-    q.points = Vee(q.points, Postwalk(rename)(p))
+    q.points = simplify_asymptote(Vee(q.points, Postwalk(rename)(p)))
     q[idxs...]
 end

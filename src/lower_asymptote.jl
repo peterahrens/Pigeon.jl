@@ -203,3 +203,21 @@ end
 function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end
+
+function filter_pareto(kernels)
+    pareto = []
+    asymptotes = map(kernel->simplify_asymptote(asymptote(kernel)), kernels)
+    for (a, asy_a) in zip(kernels, asymptotes)
+        keep = true
+        for (b, asy_b) in zip(kernels, asymptotes)
+            if (isdominated(asy_b, asy_a)) && !(isdominated(asy_a, asy_b))
+                keep = false
+                break
+            end
+        end
+        if keep
+            push!(pareto, a)
+        end
+    end
+    return pareto
+end

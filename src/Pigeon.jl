@@ -25,6 +25,10 @@ export Fiber, coiter, locate
 
 export saturate_index
 export normalize_index
+export asymptote
+export filter_pareto
+export simplify_asymptote
+export supersimplify_asymptote
 
 include("utils.jl")
 include("index.jl")

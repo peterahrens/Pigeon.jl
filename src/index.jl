@@ -43,7 +43,13 @@ function postorder(f, node::IndexNode)
 end
 
 Base.isless(a::IndexNode, b::IndexNode) = hash(a) < hash(b)
-Base.hash(a::IndexNode, h::UInt) = hash(operation(a), hash(arguments(a), h))
+function Base.hash(a::IndexNode, h::UInt)
+    if istree(a)
+        hash(operation(a), hash(arguments(a), h))
+    else
+        invoke(hash, Tuple{Any, UInt}, a, h)
+    end
+end
 
 #=
 function Base.:(==)(a::T, b::T) with {T <: IndexNode}

@@ -59,19 +59,19 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
     Given abstract set expressions a and b, return true when b dominates a.
     ArgumentError if the answer cannot be determined.
 """
-function isdominated(a, b)
+function isdominated(a, b; sunk_costs = [], assumptions = [])
     function canonicalize(q)
         q = normalize_asymptote(Cup(q))
         err = ArgumentError("unrecognized query form: $q")
         (@capture q Cup(~~q_queries)) || throw(err)
         return q_queries
     end
-    a_queries = canonicalize(a)
-    b_queries = canonicalize(b)
+    a_queries = canonicalize(Cup(a, sunk_costs...))
+    b_queries = canonicalize(Cup(b, sunk_costs...))
     for a_query in a_queries
         covered = false
         for b_query in b_queries
-            if _isdominated(a_query, b_query)
+            if _isdominated(a_query, b_query, assumptions)
                 covered = true
                 continue
             end
@@ -83,7 +83,7 @@ function isdominated(a, b)
     return true
 end
 
-function _isdominated(a, b)
+function _isdominated(a, b, assumptions)
     head_op = gensym(:head)
 
     function canonicalize(q)
@@ -101,7 +101,7 @@ function _isdominated(a, b)
     #bindings. I'm just not ready to write that code today. AFAICT, what we want
     #to do is not equivalent to implication testing, and we would need the homomorphism
     #to go "backwards" for the head variables. Something to consider in the future.
-    a_prop = Wedge(Predicate(head_op, a_heads...), a_that)
+    a_prop = Wedge(Predicate(head_op, a_heads...), a_that, assumptions...)
     for b_head_set in combinations(b_heads, length(a_heads))
         for b_head_order in permutations(b_head_set)
             b_prop = Exists(b_heads..., Wedge(Predicate(head_op, b_head_order...), b_that))
@@ -224,8 +224,8 @@ Postwalk(Chain([
     end),
 ]))]))
 
-function asymptote_equal(a, b)
-    a = simplify_asymptote(a)
-    b = simplify_asymptote(b)
-    return isdominated(a, b) && isdominated(b, a)
+function asymptote_equal(a, b, assumptions=[], sunk_costs=[])
+    a = simplify_asymptote(Cup(a, sunk_costs))
+    b = simplify_asymptote(Cup(b, sunk_costs))
+    return isdominated(a, b, assumptions=assumptions) && isdominated(b, a, assumptions=assumptions)
 end

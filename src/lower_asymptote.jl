@@ -16,7 +16,6 @@ Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
 SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, Literal(0))
 SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, false)
 
-
 getname(tns::SparseFiberRelation) = tns.name
 rename(tns::SparseFiberRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
 
@@ -24,6 +23,7 @@ const Fiber = SparseFiberRelation
 
 initialize(tns::SparseFiberRelation) = (tns.data = PointQuery(false))
 implicitize(tns::SparseFiberRelation) = (tns = copy(tns); tns.implicit = true; tns)
+isimplicit(tns::SparseFiberRelation) = tns.implicit
 
 struct CoiterateRelator end
 struct LocateRelator end
@@ -51,12 +51,22 @@ AsymptoticContext() = AsymptoticContext(Empty(), [], [true], Dict(), Dimensions(
 
 getdims(ctx::AsymptoticContext) = ctx.dims
 
-function asymptote(prgm)
+function asymptote(prgm, ctx = AsymptoticContext())
     #TODO messy
     prgm = transform_ssa(prgm)
-    ctx = AsymptoticContext()
     lower!(prgm, ctx)
     return ctx.itrs
+end
+
+function read_cost(tns::SparseFiberRelation, ctx = AsymptoticContext())
+    idxs = [gensym() for _ in tns.format]
+    pred = Wedge(Predicate.(tns.dims, idxs)..., getdata(tns, ctx)[Name.(idxs)...])
+    return Such(Times(idxs...), pred)
+end
+
+function assume_nonempty(tns::SparseFiberRelation)
+    idxs = [gensym() for _ in tns.format]
+    return Exists(idxs..., Predicate(getname(tns), idxs...))
 end
 
 iterate!(ctx) = iterate!(ctx, true)
@@ -204,13 +214,16 @@ function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end
 
-function filter_pareto(kernels)
+function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
-    asymptotes = map(kernel->simplify_asymptote(asymptote(kernel)), kernels)
+    println(:hello)
+    asymptotes = map(kernel->simplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
+    println(:goodbye)
+    foreach(display, asymptotes)
     for (a, asy_a) in zip(kernels, asymptotes)
         keep = true
         for (b, asy_b) in zip(kernels, asymptotes)
-            if (isdominated(asy_b, asy_a)) && !(isdominated(asy_a, asy_b))
+            if (isdominated(asy_b, asy_a, assumptions=assumptions)) && !(isdominated(asy_a, asy_b, assumptions=assumptions))
                 keep = false
                 break
             end

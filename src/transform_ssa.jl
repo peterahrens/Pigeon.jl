@@ -69,7 +69,7 @@ end
 function transform_ssa!(root::Assign, renames)
     lhs = transform_ssa!(root.lhs, renames)
     pushrename!(renames, getname(getresult(root.lhs)))
-    op = root.op === nothing ? transform_ssa!(root.op, renames) : root.op
+    op = root.op === nothing ? root.op : transform_ssa!(root.op, renames)
     rhs = transform_ssa!(root.rhs, renames)
     return Assign(lhs, op, rhs)
 end

@@ -13,7 +13,7 @@ Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
     tns.implicit)
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
-SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, Literal(0))
+SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, 0)
 SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, false)
 
 getname(tns::SparseFiberRelation) = tns.name
@@ -123,35 +123,36 @@ combine_style(a::DimensionalizeStyle, b::DimensionalizeStyle) = DimensionalizeSt
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Postwalk(Chain([
-    (@ex@rule i"(~f)(~~a)"p => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
-    (@ex@rule i"+(~~a, +(~~b), ~~c)"p => i"+(~~a, ~~b, ~~c)"c),
-    (@ex@rule i"+(~~a)"p => if any(isliteral, ~~a) i"+($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...))))"c end),
-    (@ex@rule i"+(~~a, 0, ~~b)"p => i"+(~~a, ~~b)"c),
+    (@ex@rule @i((~f)(~~a)) => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
+    (@ex@rule @i((~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
+    (@ex@rule @i(+(~~a)) => if any(isliteral, ~~a) @i +($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...)))) end),
+    (@ex@rule @i(+(~~a, 0, ~~b)) => @i +(~~a, ~~b)),
 
-    (@ex@rule i"*(~~a, *(~~b), ~~c)"p => i"*(~~a, ~~b, ~~c)"c),
-    (@ex@rule i"*(~~a)"p => if any(isliteral, ~~a) i"*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))"c end),
-    (@ex@rule i"*(~~a, 1, ~~b)"p => i"*(~~a, ~~b)"c),
-    (@ex@rule i"*(~~a, 0, ~~b)"p => Literal(0)),
+    (@ex@rule @i(*(~~a, *(~~b), ~~c)) => @i *(~~a, ~~b, ~~c)),
+    (@ex@rule @i(*(~~a)) => if any(isliteral, ~~a) @i(*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))) end),
+    (@ex@rule @i(*(~~a, 1, ~~b)) => @i *(~~a, ~~b)),
+    (@ex@rule @i(*(~~a, 0, ~~b)) => (println("hi"); 0)),
 
-    (@ex@rule i"+(~a)"p => ~a),
-    (@ex@rule i"~a - ~b"p => i"~a + - ~b"c),
-    (@ex@rule i"- (- ~a)"p => ~a),
-    (@ex@rule i"- +(~a, ~~b)"p => i"+(- ~a, - +(~~b))"c),
-    (@ex@rule i"*(~a)"p => ~a),
-    (@ex@rule i"*(~~a, - ~b, ~~c)"p => i"-(*(~~a, ~b, ~~c))"c),
+    (@ex@rule @i(+(~a)) => ~a),
+    (@ex@rule @i(~a - ~b) => @i ~a + - ~b),
+    (@ex@rule @i(- (- ~a)) => ~a),
+    (@ex@rule @i(- +(~a, ~~b)) => @i +(- ~a, - +(~~b))),
+    (@ex@rule @i(*(~a)) => ~a),
+    (@ex@rule @i(*(~~a, - ~b, ~~c)) => @i -(*(~~a, ~b, ~~c))),
 
-    #(@ex@rule i"+(~~a)" => if !issorted(~~a) i"+($(sort(~~a)))" end)
-    #(@ex@rule i"*(~~a)" => if !issorted(~~a) i"*($(sort(~~a)))" end)
+    #(@ex@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
+    #(@ex@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
 
-    (@ex@rule i"(~a)[~~i] = 0"p => Pass()), #TODO this is only valid when the default of A is 0
-    (@ex@rule i"(~a)[~~i] += 0"p => Pass()),
-    (@ex@rule i"(~a)[~~i] *= 1"p => Pass()),
+    (@ex@rule @i((~a)[~~i] = 0) => pass), #TODO this is only valid when the default of A is 0
+    (@ex@rule @i((~a)[~~i] += 0) => pass),
+    (@ex@rule @i((~a)[~~i] *= 1) => pass),
 
-    (@ex@rule i"(~a)[~~i] *= ~b"p => if isimplicit(~a) && (~a).default == Literal(0) Pass() end),
-    (@ex@rule i"(~a)[~~i] = ~b"p => if isimplicit(~a) && (~a).default == ~b Pass() end),
+    (@ex@rule @i((~a)[~~i] *= ~b) => if isimplicit(~a) && (~a).default == 0 pass end),
+    (@ex@rule @i((~a)[~~i] = ~b) => if isimplicit(~a) && (~a).default == ~b pass end),
+    ((a) -> if a isa Literal && isliteral(value(a)) value(a) end), #only quote when necessary
 
-    (@ex@rule i"∀ (~~i) $(Pass())"p => Pass()),
-    (@ex@rule i"$(Pass()) with $(Pass())"p => Pass()),
+    (@ex@rule @i(@loop (~~i) pass) => pass),
+    (@ex@rule @i(pass where pass) => pass),
 ])))
 
 function lower!(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)

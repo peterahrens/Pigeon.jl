@@ -4,7 +4,7 @@ A = Fiber(:A, [locate, locate], [:I, :J])
 B = Fiber(:B, [coiter, coiter], [:K, :I])
 C = Fiber(:C, [coiter, coiter], [:K, :J])
 
-ex = i"∀ k, j, i A[i,j] += B[k, i] * C[k, j]"
+ex = @i @loop k j i A[i,j] += B[k, i] * C[k, j]
 
 schedules = saturate_index(ex)
 

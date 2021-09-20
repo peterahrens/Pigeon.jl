@@ -6,7 +6,7 @@
     B = Fiber(:B, [locate, coiter], [:J, :K])
     C = Fiber(:C, [locate, coiter], [:I, :K])
 
-    a = Pigeon.asymptote(i" ∀ i, j, k A[i, j] += B[j, k] * C[i, k]")
+    a = Pigeon.asymptote(@i @loop i j k A[i, j] += B[j, k] * C[i, k])
     a_ref = Cup(
         Such(Times(:i, :j, :k), Wedge(
             Predicate(:I, :i),
@@ -21,12 +21,14 @@
             Predicate(:C, :i, :k)
         )),
     )
+    display(Pigeon.simplify_asymptote(a))
+    println()
     @test Pigeon.asymptote_equal(a, a_ref)
 
     D = Fiber(:D, [locate], [:I])
     E = Fiber(:E, [coiter], [:I])
     F = Fiber(:F, [locate], [:I])
-    a = Pigeon.asymptote(i" ∀ i D[i] += E[i] * F[i]")
+    a = Pigeon.asymptote(@i @loop i D[i] += E[i] * F[i])
     a_ref = Cup(
         Such(Times(:i), Wedge(
             Predicate(:I, :i),
@@ -41,7 +43,7 @@
     D = Fiber(:D, [coiter], [:I])
     w = Fiber(:w, [coiter], [:I])
     w′ = Fiber(:w, [locate], [:I])
-    a = Pigeon.asymptote(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j] * D[j]")
+    a = Pigeon.asymptote(@i (@loop i A[i] += B[i] * w[i]) where (@loop j w′[j] += C[j] * D[j]))
     a_ref = Cup(
         Such(Times(:i), Wedge(
             Predicate(:I, :i),
@@ -58,7 +60,7 @@
     )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    a = Pigeon.asymptote(i"∀ i,j A[i] += B[i] * w[j] with ∀ i w′[i] += C[i] * D[i]")
+    a = Pigeon.asymptote(@i (@loop i j A[i] += B[i] * w[j]) where (@loop i w′[i] += C[i] * D[i]))
     a_ref = Cup(
         Such(Times(:i), Wedge(
             Predicate(:I, :i),
@@ -84,7 +86,7 @@
 
     A = Fiber(:A, [coiter], [:J])
     B = Fiber(:B, [locate, coiter], [:I, :J])
-    a = Pigeon.asymptote(i"∀ i, j A[j] += B[i, j]")
+    a = Pigeon.asymptote(@i @loop i j A[j] += B[i, j])
 
     a_ref = Cup(
         Such(Times(:i, :j), Wedge(

@@ -67,19 +67,23 @@ function postorder(f, node::SymbolicUtils.Term)
 end
 Base.map(f, node::IndexNode) = postorder(f, node)
 
-#termify(node::SymbolicUtils.Term) = node
-#function termify(node::IndexNode)
-#    if istree(node)
-#        return term(operation(node), map(termify, arguments(node))...)
-#    else
-#        return node
-#    end
-#end
-#
-#determify(node) = node
-#determify(node::SymbolicUtils.Term) = operation(node)(map(determify, arguments(node))...)
+struct Literal <: IndexTerminal
+    val
+end
+
+value(ex) = ex
+value(ex::Literal) = ex.val
+isliteral(ex::Literal) = true
+isliteral(ex) = true
+isliteral(ex::IndexNode) = false
+
+TermInterface.istree(::Type{<:Literal}) = false
+Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
+
+show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
 struct Pass <: IndexStatement end
+const pass = Pass()
 
 TermInterface.istree(::Type{<:Pass}) = false
 
@@ -109,19 +113,6 @@ Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 getname(ex::Name) = ex.name
-
-struct Literal <: IndexTerminal
-    val
-end
-
-value(ex::Literal) = ex.val
-isliteral(ex::Literal) = true
-isliteral(ex) = false
-
-TermInterface.istree(::Type{<:Literal}) = false
-Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
-
-show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
 struct With <: IndexStatement
 	cons::Any

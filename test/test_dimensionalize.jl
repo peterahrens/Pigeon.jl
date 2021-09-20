@@ -15,9 +15,9 @@
     A = TestDimensionalizeTensor(:A, [1, 10, 12])
     B = TestDimensionalizeTensor(:B, [3, 1, 10])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    Pigeon.lower!(Pigeon.transform_ssa(i"""
-        ∀ i, j, k, l A[i, j, k] += B[l, i, j]
-    """), ctx, Pigeon.DimensionalizeStyle())
+    Pigeon.lower!(Pigeon.transform_ssa(@i(
+        @loop i j k l A[i, j, k] += B[l, i, j]
+    )), ctx, Pigeon.DimensionalizeStyle())
     @test ctx.dims[:i] == 1
     @test ctx.dims[:j] == 10
     @test ctx.dims[:k] == 12
@@ -26,9 +26,9 @@
     A = TestDimensionalizeTensor(:A, [1,])
     B = TestDimensionalizeTensor(:B, [3])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    @test_throws AssertionError Pigeon.lower!(Pigeon.transform_ssa(i"""
-        ∀ i A[i,] += B[i,]
-    """), ctx, Pigeon.DimensionalizeStyle())
+    @test_throws AssertionError Pigeon.lower!(Pigeon.transform_ssa(@i(
+        @loop i A[i,] += B[i,]
+    )), ctx, Pigeon.DimensionalizeStyle())
 
     A = TestDimensionalizeTensor(:A, [2])
     B = TestDimensionalizeTensor(:B, [2])
@@ -36,7 +36,9 @@
     w = TestDimensionalizeTensor(:w, [2])
     w′ = TestDimensionalizeTensor(:w, [2])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    Pigeon.lower!(i"∀ i A[i] += B[i] * w[i] with ∀ j w′[j] += C[j]", ctx, Pigeon.DimensionalizeStyle())
+    Pigeon.lower!(@i(
+        (@loop i A[i] += B[i] * w[i]) where (@loop j w′[j] += C[j])
+    ), ctx, Pigeon.DimensionalizeStyle())
     @test ctx.dims[:i] == 2
     @test ctx.dims[:j] == 2
 end

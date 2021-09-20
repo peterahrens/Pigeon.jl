@@ -11,7 +11,7 @@ using Combinatorics
 using DataStructures
 
 
-export @i_str
+export @i
 export @capture
 export @name
 
@@ -44,19 +44,9 @@ include("lower_asymptote.jl")
 include("containment.jl")
 
 function snoop()
-    saturate_index(i"∀ i, j, k A[i] += B[j] * C[j] * D[k] * E[k]")
-    saturate_index(i"∀ i, j, k A[i, j] = B[i, k] * C[k, j] * x[j]")
-    saturate_index(i"∀ i, j A[i] = (-B[j]) * C[j] + D[k]")
-
-    i"f(B[i, k] * C[k, j]^3, 42)"
-
-    i"""
-        ∀ i (
-            ∀ j A[i, j] += w[j]
-        with
-            ∀ j, k w[j] += B[i, k] * C[k, j]
-        )
-    """
+    saturate_index(@i @loop i j k A[i] += B[j] * C[j] * D[k] * E[k])
+    saturate_index(@i @loop i j k A[i, j] = B[i, k] * C[k, j] * x[j])
+    saturate_index(@i @loop i j A[i] = (-B[j]) * C[j] + D[k])
 end
 
 macro name(args::Symbol...)

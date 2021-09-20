@@ -68,9 +68,11 @@ function isdominated(a, b; sunk_costs = [], assumptions = [])
     end
     a_queries = canonicalize(Cup(a, sunk_costs...))
     b_queries = canonicalize(Cup(b, sunk_costs...))
+    println((b, b_queries))
     for a_query in a_queries
         covered = false
         for b_query in b_queries
+
             if _isdominated(a_query, b_query, assumptions)
                 covered = true
                 continue

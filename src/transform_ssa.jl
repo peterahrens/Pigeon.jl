@@ -79,7 +79,11 @@ function transform_ssa!(root::Name, renames)
 end
 
 function transform_ssa!(root, renames)
-    rename(root, getrename!(renames, getname(root)))
+    if isliteral(root)
+        root
+    else
+        rename(root, getrename!(renames, getname(root)))
+    end
 end
 
 function rename end

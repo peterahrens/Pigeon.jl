@@ -52,7 +52,7 @@ TermInterface.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
 struct Exists <: AsymptotePredicate
     idxs::Vector{Any}
     arg::Any
-    Exists(args...) = (any(isequal([]), args) && error(); new(collect(args[1:end-1]), args[end]))
+    Exists(args...) = new(collect(args[1:end-1]), args[end])
 end
 
 TermInterface.istree(::Type{<:Exists}) = true

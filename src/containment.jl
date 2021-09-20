@@ -68,7 +68,6 @@ function isdominated(a, b; sunk_costs = [], assumptions = [])
     end
     a_queries = canonicalize(Cup(a, sunk_costs...))
     b_queries = canonicalize(Cup(b, sunk_costs...))
-    println((b, b_queries))
     for a_query in a_queries
         covered = false
         for b_query in b_queries
@@ -227,7 +226,7 @@ Postwalk(Chain([
 ]))]))
 
 function asymptote_equal(a, b, assumptions=[], sunk_costs=[])
-    a = simplify_asymptote(Cup(a, sunk_costs))
-    b = simplify_asymptote(Cup(b, sunk_costs))
+    a = simplify_asymptote(Cup(a, sunk_costs...))
+    b = simplify_asymptote(Cup(b, sunk_costs...))
     return isdominated(a, b, assumptions=assumptions) && isdominated(b, a, assumptions=assumptions)
 end

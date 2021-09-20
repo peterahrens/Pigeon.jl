@@ -88,8 +88,10 @@ function _isdominated(a, b, assumptions)
     head_op = gensym(:head)
 
     function canonicalize(q)
+        err = ArgumentError("unrecognized query form: $q")
         q = normalize_asymptote(Such(Times(q), Exists(Wedge(true))))
         (@capture q Such(Times(~~q_heads), ~q_that)) || throw(err)
+        all(q_head -> q_head isa Domain, q_heads) || throw(err)
         return(q_heads, q_that)
     end
     a_heads, a_that = canonicalize(a)
@@ -102,12 +104,26 @@ function _isdominated(a, b, assumptions)
     #bindings. I'm just not ready to write that code today. AFAICT, what we want
     #to do is not equivalent to implication testing, and we would need the homomorphism
     #to go "backwards" for the head variables. Something to consider in the future.
-    a_prop = Wedge(Predicate(head_op, a_heads...), a_that, assumptions...)
+
+    a_prop = Wedge(map(a_head->Predicate(a_head.rng, a_head.var), a_heads)..., a_that)
+    a_prop = Exists(map(a_head->a_head.var, a_heads)..., a_prop)
+
     for b_head_set in combinations(b_heads, length(a_heads))
         for b_head_order in permutations(b_head_set)
-            b_prop = Exists(b_heads..., Wedge(Predicate(head_op, b_head_order...), b_that))
-            if isimplied(a_prop, b_prop)
-                return true
+            b_prop = b_that
+            for (a_head, b_head) in zip(a_heads, b_head_order)
+                if a_head.rng == b_head.rng
+                    b_prop = Wedge(b_prop, Predicate(b_head.rng, b_head.var))
+                else
+                    b_prop = nothing
+                    break
+                end
+            end
+            if b_prop !== nothing
+                b_prop = Exists(map(b_head->b_head.var, b_heads)..., b_prop)
+                if isimplied(a_prop, b_prop)
+                    return true
+                end
             end
         end
     end
@@ -168,16 +184,14 @@ function isimplied(a, b)
         end
         empty!(bindings[depth])
         for (a_idx, b_idx) in zip(a_args, b_pred.args)
-            if b_idx in b_frees
                 if haskey(morph, b_idx)
                     if morph[b_idx] != a_idx
                         conflict = true
                         break
                     end
-                else
+            elseif b_idx in b_frees
                     push!(bindings[depth], b_idx)
                     morph[b_idx] = a_idx
-                end
             elseif b_idx != a_idx
                 conflict = true
                 break

@@ -60,8 +60,8 @@ end
 
 function read_cost(tns::SparseFiberRelation, ctx = AsymptoticContext())
     idxs = [gensym() for _ in tns.format]
-    pred = Wedge(Predicate.(tns.dims, idxs)..., getdata(tns, ctx)[Name.(idxs)...])
-    return Such(Times(idxs...), pred)
+    pred = getdata(tns, ctx)[Name.(idxs)...]
+    return Such(Times(Domain.(idxs, tns.dims)...), pred)
 end
 
 function assume_nonempty(tns::SparseFiberRelation)
@@ -71,8 +71,8 @@ end
 
 iterate!(ctx) = iterate!(ctx, true)
 function iterate!(ctx, cond)
-    axes_pred = Wedge(map(qnt->Predicate(ctx.dims[getname(qnt)], getname(qnt)), ctx.qnts)...)
-    ctx.itrs = Cup(ctx.itrs, Such(Times(getname.(ctx.qnts)...), Wedge(axes_pred, guard(ctx), cond)))
+    qnts = map(qnt->Domain(getname(qnt), ctx.dims[getname(qnt)]), ctx.qnts)
+    ctx.itrs = Cup(ctx.itrs, Such(Times(qnts...), Wedge(guard(ctx), cond)))
 end
 
 quantify(f, ctx, var) = (push!(ctx.qnts, var); f(); pop!(ctx.qnts))

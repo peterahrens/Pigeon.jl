@@ -70,7 +70,7 @@ end
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::QuantifierAsymptote)
     op(::Forall) = "∀ "
     op(::Exists) = "∃ "
-    print(op(ex))
+    print(io, op(ex))
     for idx in ex.idxs[1:end-1]
         show_asymptote(io, mime, idx)
         print(io, ", ")
@@ -80,6 +80,21 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex::QuantifierAsymptote)
     end
     print(io, " | ")
     show_asymptote_undelimited(io, mime, ex.arg)
+end
+
+struct Domain <: AsymptoteSet
+    var
+    rng
+end
+
+bases(ex::Domain) = [ex.var]
+
+TermInterface.istree(::Type{<:Domain}) = false
+
+function show_asymptote(io::IO, mime::MIME"text/plain", ex::Domain)
+    show_asymptote(io, mime, ex.var)
+    print(" ∈ ")
+    show_asymptote(io, mime, ex.rng)
 end
 
 struct Times <: AsymptoteSet
@@ -194,7 +209,6 @@ end
 struct Such <: AsymptoteSet
     tgt
     prd
-    Such(tgt, prd) = new(tgt, prd)
 end
 
 bases(ex::Predicate) = bases(ex.prd)

@@ -21,8 +21,6 @@
             Predicate(:C, :i, :k)
         )),
     )
-    display(Pigeon.simplify_asymptote(a))
-    println()
     @test Pigeon.asymptote_equal(a, a_ref)
 
     D = Fiber(:D, [locate], [:I])
@@ -35,6 +33,8 @@
             Predicate(:E, :i)
         )),
     )
+    display(a)
+    println()
     @test Pigeon.asymptote_equal(a, a_ref)
 
     A = Fiber(:A, [locate], [:I])

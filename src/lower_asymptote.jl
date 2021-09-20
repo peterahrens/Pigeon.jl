@@ -122,16 +122,16 @@ combine_style(a::DefaultStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
 combine_style(a::DimensionalizeStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
 
 #TODO generalize the interface to annihilation analysis
-annihilate_index = Fixpoint(Postwalk(Chain([
+annihilate_index = Fixpoint(Prewalk(Chain([
     (@ex@rule @i((~f)(~~a)) => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
     (@ex@rule @i((~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
-    (@ex@rule @i(+(~~a)) => if any(isliteral, ~~a) @i +($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...)))) end),
+    (@ex@rule @i(+(~~a)) => if count(isliteral, ~~a) >= 2 @i +($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...)))) end),
     (@ex@rule @i(+(~~a, 0, ~~b)) => @i +(~~a, ~~b)),
 
     (@ex@rule @i(*(~~a, *(~~b), ~~c)) => @i *(~~a, ~~b, ~~c)),
-    (@ex@rule @i(*(~~a)) => if any(isliteral, ~~a) @i(*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))) end),
+    (@ex@rule @i(*(~~a)) => if count(isliteral, ~~a) >= 2 @i(*($(filter(!isliteral, ~~a)), $(Literal(*(value.(filter(isliteral, ~~a))...))))) end),
     (@ex@rule @i(*(~~a, 1, ~~b)) => @i *(~~a, ~~b)),
-    (@ex@rule @i(*(~~a, 0, ~~b)) => (println("hi"); 0)),
+    (@ex@rule @i(*(~~a, 0, ~~b)) => 0),
 
     (@ex@rule @i(+(~a)) => ~a),
     (@ex@rule @i(~a - ~b) => @i ~a + - ~b),
@@ -218,7 +218,7 @@ end
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
     println(:hello)
-    asymptotes = map(kernel->simplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
+    asymptotes = map(kernel->supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
     println(:goodbye)
     foreach(display, asymptotes)
     for (a, asy_a) in zip(kernels, asymptotes)

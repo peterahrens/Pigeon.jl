@@ -107,6 +107,7 @@ function _isdominated(a, b, assumptions)
 
     a_prop = Wedge(map(a_head->Predicate(a_head.rng, a_head.var), a_heads)..., a_that)
     a_prop = Exists(map(a_head->a_head.var, a_heads)..., a_prop)
+    a_prop = Wedge(a_prop, assumptions...) #This feels wrong TODO are these variables right?
 
     for b_head_set in combinations(b_heads, length(a_heads))
         for b_head_order in permutations(b_head_set)

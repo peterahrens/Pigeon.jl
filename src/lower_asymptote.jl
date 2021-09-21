@@ -135,6 +135,7 @@ end
 function lower!(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
     isempty(stmt.idxs) && return lower!(stmt.body, ctx)
     quantify(ctx, stmt.idxs[1]) do
+        iterate!(ctx)
         lower!(Loop(stmt.idxs[2:end], stmt.body), ctx)
     end
 end

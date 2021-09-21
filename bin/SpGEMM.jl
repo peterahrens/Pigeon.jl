@@ -20,7 +20,13 @@ Pigeon.Exists(:k, Pigeon.Predicate(:K, :k)),
 =#
 
 #frontier = filter_pareto(schedules)
-#frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [Fiber(:C, [coiter, coiter], [:K, :J]), Fiber(:B, [coiter, coiter], [:K, :I])]))#, assumptions=[map(Pigeon.assume_nonempty, [B, C])..., dimassumes...])
-frontier = filter_pareto(schedules, assumptions=map(Pigeon.assume_nonempty, [B, C]))
+frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [Fiber(:C, [coiter, coiter], [:K, :J]), Fiber(:B, [coiter, coiter], [:K, :I])]))#, assumptions=[map(Pigeon.assume_nonempty, [B, C])..., dimassumes...])
+#frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [Fiber(:C, [coiter, coiter], [:K, :J]), Fiber(:B, [coiter, coiter], [:K, :I])]), assumptions=map(Pigeon.assume_nonempty, [B, C]))
+
+B = Fiber(:B, [locate, coiter], [:K, :I])
+C = Fiber(:C, [locate, coiter], [:K, :J])
+
+#display(Pigeon.supersimplify_asymptote(Pigeon.asymptote(@i @loop k j i A[i,j] += B[k, i] * C[k, j])))
+
 
 foreach(display, frontier)

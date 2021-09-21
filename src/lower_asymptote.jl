@@ -3,6 +3,7 @@ mutable struct SparseFiberRelation
     format
     dims
     default
+    perm
     implicit
 end
 Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
@@ -10,11 +11,27 @@ Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
     tns.format,
     tns.dims,
     tns.default,
+    tns.perm,
     tns.implicit)
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
 SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, 0)
-SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, false)
+SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, collect(1:length(dims)), false)
+
+#=
+function retranspose(acc::Access{<:SparseFiberRelation}, σ)
+    return Access(tns, acc.mode, acc.idxs[σ])
+end
+
+function concordize()
+=#
+
+function retranspose(tns::SparseFiberRelation, σ)
+    tns = copy(tns)
+    tns.perm = tns.perm[σ]
+    tns.format = tns.format[σ]
+    tns.dims = tns.dims[σ]
+end
 
 getname(tns::SparseFiberRelation) = tns.name
 rename(tns::SparseFiberRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)

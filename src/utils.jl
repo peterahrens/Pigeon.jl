@@ -117,3 +117,20 @@ macro capture(ex, lhs)
         end
     end
 end
+
+function sympermutations(v)
+    σs = []
+    for groups in product(map(i->permutations(findall(i, v)), unique(v))...)
+        σ = collect(1:length(v))
+        for group in groups
+            for (i, j) in zip(sort(group), group)
+                σ[i] = j
+            end
+        end
+        push!(σs, σ)
+    end
+end
+
+function sympermutations(u, v)
+    return map(σ -> u[σ], sympermutations(v))
+end

@@ -18,6 +18,17 @@ Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
 SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, 0)
 SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, collect(1:length(dims)), false)
 
+function show_expression(io, mime, ex::SparseFiberRelation)
+    print(io, ex.name)
+    print(io, "{")
+    if length(ex.format) >= 1
+        for lvl in ex.format
+            show_expression(io, mime, lvl)
+        end
+    end
+    print(io, "}")
+end
+
 #=
 function retranspose(acc::Access{<:SparseFiberRelation}, σ)
     return Access(tns, acc.mode, acc.idxs[σ])
@@ -31,10 +42,21 @@ function retranspose(tns::SparseFiberRelation, σ)
     tns.perm = tns.perm[σ]
     tns.format = tns.format[σ]
     tns.dims = tns.dims[σ]
+    return (tns, σ)
 end
 
 getname(tns::SparseFiberRelation) = tns.name
 rename(tns::SparseFiberRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
+
+function saturate_formats(tns::SparseFiberRelation)
+    result = []
+    for format in product(tns.format...)
+        tns′ = copy(tns)
+        tns′.format = collect(format)
+        push!(result, tns′)
+    end
+    result
+end
 
 const Fiber = SparseFiberRelation
 
@@ -48,6 +70,13 @@ struct LocateRelator end
 const coiter = CoiterateRelator()
 const locate = LocateRelator()
 
+function show_expression(io, mime, ex::CoiterateRelator)
+    print(io, "c")
+end
+function show_expression(io, mime, ex::LocateRelator)
+    print(io, "l")
+end
+
 mutable struct AsymptoticContext
     itrs::Any
     qnts::Vector{Any}
@@ -57,7 +86,7 @@ mutable struct AsymptoticContext
 end
 
 function getdata(tns::SparseFiberRelation, ctx::AsymptoticContext)
-    default = PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in 1:length(tns.format)]...))
+    default = PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
     get!(ctx.state, getname(tns), default)
 end
 
@@ -234,10 +263,8 @@ end
 
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
-    println(:hello)
     asymptotes = map(kernel->supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
-    println(:goodbye)
-    foreach(display, asymptotes)
+    #foreach(display, asymptotes)
     for (a, asy_a) in zip(kernels, asymptotes)
         keep = true
         for (b, asy_b) in zip(kernels, asymptotes)

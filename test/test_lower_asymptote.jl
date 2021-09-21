@@ -101,4 +101,27 @@
         )),
     )
     @test Pigeon.asymptote_equal(a, a_ref)
+
+
+    A = Fiber(:A, [locate, locate], [:I, :J])
+    B = Fiber(:B, [coiter, coiter], [:J, :K])
+    C = Fiber(:C, [coiter, coiter], [:I, :K])
+
+    a = Pigeon.asymptote(concordize(@i @loop i j k A[i, j] += B[j, k] * C[i, k]))
+    display(a)
+
+
+
+julia> Pigeon.supersimplify_asymptote(a)
+"{:i ∈ :I × :j ∈ :J × :k ∈ :K | ∃ k_2138, k_2139 | (:C[:i, k_2139] ∧ :B[:j, :k])} ∪ 
+{:i ∈ :I × :j ∈ :J × :k ∈ :K | ∃ k_2141, k_2142 | (:B[:j, k_2141] ∧ :C[:i, :k])} ∪ 
+{:i ∈ :I | ∃ k_2135 | (:C[:i, k_2135])}"
+
+
+julia> a = Pigeon.asymptote(Pigeon.concordize(@i @loop k i j A[i, j] += B[j, k] * C[i, k]))
+
+julia> Pigeon.supersimplify_asymptote(a)
+"{:k ∈ :K × :i ∈ :I × :j ∈ :J | ∃ i_3197, j_3198 | (:C[:i, :k] ∧ :B[:j, :k])} ∪ 
+{:k ∈ :K | ∃ j_3187 | (:B[j_3187, :k])} ∪ 
+{:k ∈ :K | ∃ i_3188 | (:C[i_3188, :k])}"
 end

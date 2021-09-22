@@ -21,7 +21,7 @@ export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
-export Fiber, coiter, locate
+export Dense, Fiber, coiter, locate
 
 export saturate_index
 export normalize_index

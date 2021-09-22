@@ -15,7 +15,7 @@ dimensionalize!(node, ctx) = nothing
 function dimensionalize!(node::Access, ctx)
     dims = getdims(ctx)
     if !istree(node.tns)
-        for (n, (idx, lowered_axis)) in enumerate(zip(getname.(node.idxs), lower_axes(node.tns, ctx)))
+        for (idx, lowered_axis, n) in zip(getname.(node.idxs), lower_axes(node.tns, ctx), lower_sites(node.tns))
             site = (getname(node.tns), n)
             if !haskey(dims, site)
                 push!(dims.labels, site)
@@ -27,7 +27,10 @@ function dimensionalize!(node::Access, ctx)
                 dims.lowered_axes[union!(dims.labels, site, idx)] = site_axis
             elseif !in_same_set(dims.labels, idx, site)
                 idx_axis = dims[idx]
-                dims.lowered_axes[union!(dims.labels, site, idx)] = lower_axis_merge(ctx, idx_axis, site_axis)
+                dims.lowered_axes[union!(dims.labels, site, idx)] =
+                    site_axis === nothing ? idx_axis :
+                    idx_axis === nothing ? site_axis :
+                    lower_axis_merge(ctx, idx_axis, site_axis)
             end
         end
     end
@@ -37,6 +40,8 @@ struct Dimensions
     labels
     lowered_axes
 end
+
+getdims(dims::Dimensions) = dims
 
 Dimensions() = Dimensions(DisjointSets{Any}(), Dict())
 

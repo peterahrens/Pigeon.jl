@@ -29,6 +29,23 @@ function show_expression(io, mime, ex::SparseFiberRelation)
     print(io, "}")
 end
 
+mutable struct DenseRelation
+    name
+    dims
+    perm
+end
+Base.copy(tns::DenseRelation) = DenseRelation(
+    tns.name,
+    tns.dims,
+    tns.perm)
+
+#TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
+DenseRelation(name, dims) = DenseRelation(name, dims, collect(1:length(dims)))
+
+function show_expression(io, mime, ex::DenseRelation)
+    print(io, ex.name)
+end
+
 #=
 function retranspose(acc::Access{<:SparseFiberRelation}, σ)
     return Access(tns, acc.mode, acc.idxs[σ])
@@ -45,8 +62,18 @@ function retranspose(tns::SparseFiberRelation, σ)
     return (tns, σ)
 end
 
+function retranspose(tns::DenseRelation, σ)
+    tns = copy(tns)
+    tns.perm = tns.perm[σ]
+    tns.dims = tns.dims[σ]
+    return (tns, σ)
+end
+
 getname(tns::SparseFiberRelation) = tns.name
 rename(tns::SparseFiberRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
+
+getname(tns::DenseRelation) = tns.name
+rename(tns::DenseRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
 
 function saturate_formats(tns::SparseFiberRelation)
     result = []
@@ -59,6 +86,7 @@ function saturate_formats(tns::SparseFiberRelation)
 end
 
 const Fiber = SparseFiberRelation
+const Dense = DenseRelation
 
 initialize(tns::SparseFiberRelation) = (tns.data = PointQuery(false))
 implicitize(tns::SparseFiberRelation) = (tns = copy(tns); tns.implicit = true; tns)
@@ -91,7 +119,13 @@ function getdata(tns::SparseFiberRelation, ctx::AsymptoticContext)
 end
 
 lower_axes(tns::SparseFiberRelation, ::AsymptoticContext) = tns.dims
+lower_axes(tns::SparseFiberRelation, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
+lower_sites(tns::SparseFiberRelation) = tns.perm
+lower_axes(tns::DenseRelation, ::AsymptoticContext) = tns.dims
+lower_axes(tns::DenseRelation, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
+lower_sites(tns::DenseRelation) = tns.perm
 lower_axis_merge(::AsymptoticContext, a, b) = (@assert a == b; b)
+lower_axis_merge(::DimensionalizeWorkspaceContext{AsymptoticContext}, a, b) = (@assert a == b; b)
 
 AsymptoticContext() = AsymptoticContext(Empty(), [], [true], Dict(), Dimensions())
 

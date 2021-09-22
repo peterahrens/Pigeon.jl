@@ -14,18 +14,42 @@ reducer(stmt::With) = reducer(stmt.cons)
 w₀ = Workspace(0)
 w₁ = Workspace(1)
 w₊ = Postwalk(node -> node isa Workspace ? Workspace(node.n + 1) : node)
-w₋(_w) = Postwalk(node -> node isa Workspace ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node)
+w₋(_w) = Postwalk(node -> (node isa Workspace && node.n isa Integer) ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node)
 
 function name_workspaces(prgm)
 	w_n = 1
 	Postwalk(PassThrough((node) -> if node isa With
-	    w = access(Name(Symbol("w_$w_n")), Update(), intersect(indices(node.prod), indices(node.cons)))
+        idxs = intersect(indices(node.prod), indices(node.cons))
+	    w = access(Workspace(Symbol("w_$w_n")), Update(), idxs)
 	    w_n += 1
 	    return w₋(w)(node)
 	end))(prgm)
 end
 
-function saturate_index(stmt)
+getname(w::Workspace) = w.n
+
+struct DimensionalizeWorkspaceContext{Ctx}
+    dims
+end
+
+function format_workspaces(prgm, Ctx, workspacer)
+    ctx = DimensionalizeWorkspaceContext{Ctx}(Dimensions())
+    prgm = transform_ssa(prgm)
+    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
+    dims = ctx.dims
+	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
+        name = Name(node.tns)
+        tns = workspacer(name, map(idx->dims[getname(idx)], node.idxs))
+	    return access(tns, node.mode, node.idxs)
+	end))(prgm)
+end
+
+
+getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
+lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
+lower_sites(::Workspace) = Base.Iterators.countfrom()
+
+function saturate_index(stmt, Ctx; workspacer=(name, dims)->name)
     normalize = Fixpoint(Postwalk(Chain([
         (@ex@rule @i(@loop (~~i) @loop (~~j) ~s) => @i @loop (~~i) (~~j) ~s),
     ])))
@@ -35,14 +59,14 @@ function saturate_index(stmt)
         throw(ArgumentError("expecting statement in index notation"))
 
     splay = Fixpoint(Postwalk(Chain([
-        (@ex@rule @i(+(~a, ~b, ~c, ~~d)) => @i ~a + +(~b, ~c, ~~d)g),
+        (@ex@rule @i(+(~a, ~b, ~c, ~~d)) => @i ~a + +(~b, ~c, ~~d)),
         (@ex@rule @i(+(~a)) => ~a),
-        (@ex@rule @i(*(~a, ~b, ~c, ~~d)) => @i ~a * *(~b, ~c, ~~d)g),
+        (@ex@rule @i(*(~a, ~b, ~c, ~~d)) => @i ~a * *(~b, ~c, ~~d)),
         (@ex@rule @i(*(~a)) => ~a),
-        (@ex@rule @i(~a - ~b) => @i ~a + (- ~b)g),
+        (@ex@rule @i(~a - ~b) => @i ~a + (- ~b)),
         (@ex@rule @i(- (- ~a)) => ~a),
-        (@ex@rule @i(- +(~a, ~~b)) => @i +(- ~a, - +(~~b))g),
-        (@ex@rule @i(*(~~a, - ~b, ~~c)) => @i -(*(~~a, ~b, ~~c))g),
+        (@ex@rule @i(- +(~a, ~~b)) => @i +(- ~a, - +(~~b))),
+        (@ex@rule @i(*(~~a, - ~b, ~~c)) => @i -(*(~~a, ~b, ~~c))),
     ])))
     rhs = splay(rhs)
 
@@ -141,7 +165,9 @@ function saturate_index(stmt)
         @ex@rule @i(@loop ~~is ~s) => map(js -> @i(@loop $js ~s), collect(permutations(~~is))[2:end])
     ))
 
-    return map(name_workspaces, mapreduce(reorder, vcat, prgms))
+    prgms = mapreduce(reorder, vcat, prgms)
+    prgms = map(name_workspaces, prgms)
+    return map(node->format_workspaces(node, Ctx, workspacer), prgms)
 end
 
 concordize(node) = concordize(node, [])

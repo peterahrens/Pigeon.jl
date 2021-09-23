@@ -82,12 +82,24 @@ Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
 
-struct Pass <: IndexStatement end
-const pass = Pass()
+struct Pass <: IndexStatement
+	tns::Any
+end
+Base.:(==)(a::Pass, b::Pass) = a.tns == b.tns
 
-TermInterface.istree(::Type{<:Pass}) = false
+pass(args...) = pass!(vcat(args...))
+pass!(args) = Pass(args[1])
 
-show_statement(io, mime, stmt::Pass, level) = print(io, tab^level * "()")
+TermInterface.istree(::Type{<:Pass}) = true
+TermInterface.operation(stmt::Pass) = pass
+TermInterface.arguments(stmt::Pass) = Any[stmt.tns]
+TermInterface.similarterm(::IndexNode, ::typeof(pass), args, T...) = pass!(args)
+
+function show_statement(io, mime, stmt::Pass, level)
+    print(io, tab^level * "(")
+    show_expression(io, mime, stmt.tns)
+    print(io, ")")
+end
 
 struct Workspace <: IndexTerminal
     n
@@ -268,4 +280,5 @@ getresult(stmt::Assign) = getresult(stmt.lhs)
 getresult(stmt::Access) = getresult(stmt.tns)
 getresult(stmt::Loop) = getresult(stmt.body)
 getresult(stmt::With) = getresult(stmt.cons)
+getresult(stmt::Pass) = getresult(stmt.tns)
 getresult(arg) = arg

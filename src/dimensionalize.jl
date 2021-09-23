@@ -51,9 +51,11 @@ Dimensions() = Dimensions(DisjointSets{Any}(), Dict())
 Base.getindex(dims::Dimensions, idx) = dims.lowered_axes[find_root!(dims.labels, idx)]
 Base.haskey(dims::Dimensions, idx) = idx in dims.labels
 function isdimensionalized(dims::Dimensions, node::Access)
-    for (n, idx) in enumerate(getname.(node.idxs))
-        site = (getname(node.tns), n)
-        (haskey(dims, idx) && haskey(dims, site) && in_same_set(dims.labels, idx, site)) || return false
+    if !istree(node.tns)
+        for (n, idx) in zip(lower_sites(node.tns), getname.(node.idxs))
+            site = (getname(node.tns), n)
+            (haskey(dims, idx) && haskey(dims, site) && in_same_set(dims.labels, idx, site)) || return false
+        end
     end
     return true
 end

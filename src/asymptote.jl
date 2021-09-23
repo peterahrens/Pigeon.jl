@@ -17,6 +17,14 @@ function Base.:(==)(a::T, b::T) where {T <: AsymptoteNode}
     end
 end
 
+function Base.hash(a::AsymptoteNode, h::UInt)
+    if istree(a)
+        hash(operation(a), hash(arguments(a), h))
+    else
+        invoke(hash, Tuple{Any, UInt}, a, h)
+    end
+end
+
 function Base.show(io::IO, ex::AsymptoteNode)
     if istree(ex)
         print(io, operation(ex))
@@ -229,6 +237,7 @@ function show_asymptote(io::IO, mime::MIME"text/plain", ex)
     show(io, ex)
 end
 
+indices(node) = istree(node) ? mapreduce(indices, union, push!(arguments(node), nothing)) : []
 function indices(x::AsymptoteNode)
     return mapreduce(indices, union, arguments(x))
 end
@@ -243,12 +252,10 @@ simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Such($(Empty()), ~p) => Empty()),
 
     (@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
-    (@rule Wedge(~~p, true, ~q, ~~r) => Wedge(~~p..., ~q, ~r...)),
-    (@rule Wedge(~~p, ~q, true, ~~r) => Wedge(~~p..., ~q, ~r...)),
+    (@rule Wedge(~~p, true, ~~q) => Wedge(~~p..., ~q...)),
     (@rule Wedge(true) => true),
-    (@rule Wedge(~~p, false, ~q, ~~r) => false),
-    (@rule Wedge(~~p, ~q, false, ~~r) => false),
-    (@rule Wedge(~~p, ~q, ~~r, ~q, ~~s) => Wedge(~~p..., ~q, ~~r..., ~~s...)),
+    (@rule Wedge(~~p, false, ~~r) => false),
+    (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
 
     (@rule Vee(~p) => ~p),
 
@@ -259,7 +266,7 @@ simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Cup(~~s, ~t, $(Empty()), ~~u) => Cup(~~s..., ~t, ~~u...)),
     (@rule Cup($(Empty())) => Empty()),
     (@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
-    (@rule Cup(~~s, ~t, ~~u, ~t, ~~v) => Cup(~~s..., ~t, ~~u..., ~~v...)),
+    (@rule Cup(~~s) => Cup(unique(~~s)...)),
 
     (@rule Cap(~~s, $(Empty()), ~~u) => Empty()),
     (@rule Cap(~s) => ~s),

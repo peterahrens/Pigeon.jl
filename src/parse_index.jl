@@ -1,8 +1,9 @@
 function capture_index(ex; ctx...)
     incs = Dict(:+= => :+, :*= => :*, :/= => :/, :^= => :^)
 
-    if ex isa Symbol && ex == :pass
-        return pass
+    if ex isa Expr && ex.head == :macrocall && length(ex.args) >= 2 && ex.args[1] == Symbol("@pass")
+        args = map(arg -> capture_index(arg; ctx..., namify=true), ex.args[3:end])
+        return :(pass($(args...)))
     elseif ex isa Expr && ex.head == :macrocall && length(ex.args) >= 3 && ex.args[1] == Symbol("@loop")
         idxs = map(arg -> capture_index(arg; ctx..., namify=true), ex.args[3:end-1])
         body = capture_index(ex.args[end]; ctx...)

@@ -189,6 +189,11 @@ function make_style(root, ctx::AsymptoticContext, node::Access{SparseFiberRelati
     return DefaultStyle()
 end
 
+function make_style(root, ctx::AsymptoticContext, node::Access{DenseRelation})
+    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
+    return DefaultStyle()
+end
+
 function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     isempty(root.idxs) && return DefaultStyle()
@@ -224,16 +229,17 @@ annihilate_index = Fixpoint(Prewalk(Chain([
     #(@ex@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
     #(@ex@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
 
-    (@ex@rule @i((~a)[~~i] = 0) => pass), #TODO this is only valid when the default of A is 0
-    (@ex@rule @i((~a)[~~i] += 0) => pass),
-    (@ex@rule @i((~a)[~~i] *= 1) => pass),
+    (@ex@rule @i((~a)[~~i] = 0) => pass(~a)), #TODO this is only valid when the default of A is 0
+    (@ex@rule @i((~a)[~~i] += 0) => pass(~a)),
+    (@ex@rule @i((~a)[~~i] *= 1) => pass(~a)),
 
-    (@ex@rule @i((~a)[~~i] *= ~b) => if isimplicit(~a) && (~a).default == 0 pass end),
-    (@ex@rule @i((~a)[~~i] = ~b) => if isimplicit(~a) && (~a).default == ~b pass end),
+    (@ex@rule @i((~a)[~~i] *= ~b) => if isimplicit(~a) && (~a).default == 0 pass(~a) end),
+    (@ex@rule @i((~a)[~~i] = ~b) => if isimplicit(~a) && (~a).default == ~b pass(~a) end),
     ((a) -> if a isa Literal && isliteral(value(a)) value(a) end), #only quote when necessary
 
-    (@ex@rule @i(@loop (~~i) pass) => pass),
-    (@ex@rule @i(pass where pass) => pass),
+    (@ex@rule @i(@loop (~~i) @pass(~~a)) => pass(~~a)),
+    (@ex@rule @i(@pass(~~a) where ~x) => pass(~~a)),
+    #(@ex@rule @i(~x where @pass(~~a)) => ~x), #can't do this bc produced tensors won't get initialized
 ])))
 
 function lower!(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)
@@ -298,9 +304,9 @@ end
 
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
-    asymptotes = map(kernel->supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
+    asymptotes = @showprogress 1 "analysis..." map(kernel->supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
     #foreach(display, asymptotes)
-    for (a, asy_a) in zip(kernels, asymptotes)
+    @showprogress 1 "filtering..." for (a, asy_a) in zip(kernels, asymptotes)
         keep = true
         for (b, asy_b) in zip(kernels, asymptotes)
             if (isdominated(asy_b, asy_a, assumptions=assumptions)) && !(isdominated(asy_a, asy_b, assumptions=assumptions))

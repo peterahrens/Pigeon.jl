@@ -3,9 +3,11 @@ distributes(a::IndexNode, b::IndexNode) = distributes(value(a), value(b))
 distributes(a::typeof(+), b::typeof(*)) = true
 distributes(a::typeof(+), b::typeof(-)) = true #should use a special operator here to mean "negation"
 
-indices(stmt::Access) = collect(stmt.idxs)
-indices(stmt::Loop) = union(indices(stmt.body), stmt.idxs)
-indices(node) = istree(node) ? mapreduce(indices, union, push!(arguments(node), nothing)) : []
+loopindices(stmt::Loop) = union(loopindices(stmt.body), stmt.idxs)
+loopindices(node) = istree(node) ? mapreduce(loopindices, union, push!(arguments(node), nothing)) : []
+
+accessindices(stmt::Access) = collect(stmt.idxs)
+accessindices(node) = istree(node) ? mapreduce(accessindices, union, push!(arguments(node), nothing)) : []
 
 reducer(stmt::Assign) = stmt.op
 reducer(stmt::Loop) = reducer(stmt.body)
@@ -19,7 +21,7 @@ w₋(_w) = Postwalk(node -> (node isa Workspace && node.n isa Integer) ? (node.n
 function name_workspaces(prgm)
 	w_n = 1
 	Postwalk(PassThrough((node) -> if node isa With
-        idxs = intersect(indices(node.prod), indices(node.cons))
+        idxs = intersect(loopindices(node), accessindices(node.prod), accessindices(node.cons))
 	    w = access(Workspace(Symbol("w_$w_n")), Update(), idxs)
 	    w_n += 1
 	    return w₋(w)(node)
@@ -38,7 +40,7 @@ function format_workspaces(prgm, Ctx, workspacer)
     Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
     dims = ctx.dims
 	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
-        name = Name(node.tns)
+        name = getname(node.tns)
         tns = workspacer(name, map(idx->dims[getname(idx)], node.idxs))
 	    return access(tns, node.mode, node.idxs)
 	end))(prgm)
@@ -140,17 +142,17 @@ function saturate_index(stmt, Ctx; workspacer=(name, dims)->name)
     internalize = PrewalkStep(PassThroughStep(
         (x) -> if @ex @capture x @i @loop ~~is (~c where ~p)
             if reducer(p) != nothing
-                return map(combinations(intersect(is, indices(x)))) do js
+                return map(combinations(intersect(is, accessindices(x)))) do js
                     @i @loop $(setdiff(is, js)) (
-                        @loop $(intersect(js, indices(c))) $c
+                        @loop $(intersect(js, accessindices(c))) $c
                     ) where (
-                        @loop $(intersect(js, indices(p))) $p
+                        @loop $(intersect(js, accessindices(p))) $p
                     )
                 end
             else
-                return map(combinations(intersect(is, indices(p)))) do js
+                return map(combinations(intersect(is, accessindices(p)))) do js
                     @i @loop $(setdiff(is, js)) (
-                        @loop $(intersect(js, indices(c))) $c
+                        @loop $(intersect(js, accessindices(c))) $c
                     ) where (
                         @loop $js $p
                     )

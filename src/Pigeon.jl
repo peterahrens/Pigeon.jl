@@ -9,6 +9,7 @@ using SymbolicUtils: @rule
 using Base.Iterators: product
 using Combinatorics
 using DataStructures
+using ProgressMeter
 
 
 export @i

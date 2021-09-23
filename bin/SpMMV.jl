@@ -9,16 +9,33 @@ d = Dense(:d, [:K])
 
 ex = @i @loop k j i a[i] += B[i, j] * C[j, k] * d[k]
 
-#workspacer(name, dims) = Fiber(Pigeon.getname(name), map(_->[locate, coiter], dims), dims)
-workspacer(name, dims) = Fiber(Pigeon.getname(name), map(_->[coiter], dims), dims)
+#workspacer(name, dims) = Fiber(name, map(_->[locate, coiter], dims), dims)
+workspacer(name, dims) = Fiber(name, map(_->[coiter], dims), dims)
 
 schedules = saturate_index(ex, Pigeon.AsymptoticContext, workspacer=workspacer)
 
-
-schedules = map(prg->(display(prg); Pigeon.concordize), schedules)
+schedules = map(Pigeon.concordize, schedules)
 schedules = mapreduce(Pigeon.PrewalkStep(Pigeon.saturate_formats), vcat, schedules)
 
-display(length(schedules))
+#foreach(display, schedules)
+
+#display(length(schedules))
+
+#=
+a = Dense(:a, [:I])
+B = Fiber(:B, [coiter, coiter], [:J, :I])
+C = Fiber(:C, [coiter, coiter], [:K, :J])
+B.perm = [2,1]
+C.perm = [2,1]
+d = Dense(:d, [:K])
+w = Fiber(:w, [coiter], [:J])
+ex = @i @loop k j i ((a[i] += *(B[j, i], w[j])) where (w[j] = *(C[k, j], d[k])))
+
+display(Pigeon.simplify_asymptote(asymptote(ex)))
+exit()
+=#
+#display(Pigeon.supersimplify_asymptote(asymptote(ex)))
+#exit()
 
 #=
 dimassumes = [

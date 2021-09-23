@@ -53,7 +53,6 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
         Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
 ])))
 
-
 """
     isdominated(a, b)
     Given abstract set expressions a and b, return true when b dominates a.
@@ -213,7 +212,7 @@ function isimplied(a, b)
     return false
 end
 
-supersimplify_asymptote = Fixpoint(Chain([normalize_asymptote, 
+supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote, 
     #(@rule ~p => display(~p)),
 Postwalk(Chain([
     (@rule Such(~t, Wedge(~~p, ~q, ~~r)) => begin

@@ -13,6 +13,10 @@ reducer(stmt::Assign) = stmt.op
 reducer(stmt::Loop) = reducer(stmt.body)
 reducer(stmt::With) = reducer(stmt.cons)
 
+assigner(stmt::Assign) = stmt
+assigner(stmt::Loop) = assigner(stmt.body)
+assigner(stmt::With) = assigner(stmt.cons)
+
 w₀ = Workspace(0)
 w₁ = Workspace(1)
 w₊ = Postwalk(node -> node isa Workspace ? Workspace(node.n + 1) : node)
@@ -22,9 +26,10 @@ function name_workspaces(prgm)
 	w_n = 1
 	Postwalk(PassThrough((node) -> if node isa With
         idxs = intersect(loopindices(node), accessindices(node.prod), accessindices(node.cons))
-	    w = access(Workspace(Symbol("w_$w_n")), Update(), idxs)
+	    w_prod = access(Workspace(Symbol("w_$w_n")), reducer(node.prod) === nothing ? Write() : Update(), idxs)
+	    w_cons = access(Workspace(Symbol("w_$w_n")), Read(), idxs)
 	    w_n += 1
-	    return w₋(w)(node)
+	    return With(w₋(w_cons)(node.cons), w₋(w_prod)(node.prod)) #TODO we make a lot of assumptions here. It would be cleaner to insert read/write properties when the with is created.
 	end))(prgm)
 end
 
@@ -41,7 +46,7 @@ function format_workspaces(prgm, Ctx, workspacer)
     dims = ctx.dims
 	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
         name = getname(node.tns)
-        tns = workspacer(name, map(idx->dims[getname(idx)], node.idxs))
+        tns = workspacer(name, node.mode, map(idx->dims[getname(idx)], node.idxs))
 	    return access(tns, node.mode, node.idxs)
 	end))(prgm)
 end
@@ -51,7 +56,7 @@ getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
 lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
 lower_sites(::Workspace) = Base.Iterators.countfrom()
 
-function saturate_index(stmt, Ctx; workspacer=(name, dims)->name)
+function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
     normalize = Fixpoint(Postwalk(Chain([
         (@ex@rule @i(@loop (~~i) @loop (~~j) ~s) => @i @loop (~~i) (~~j) ~s),
     ])))
@@ -141,6 +146,7 @@ function saturate_index(stmt, Ctx; workspacer=(name, dims)->name)
 
     internalize = PrewalkStep(PassThroughStep(
         (x) -> if @ex @capture x @i @loop ~~is (~c where ~p)
+            #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
             if reducer(p) != nothing
                 return map(combinations(intersect(is, accessindices(x)))) do js
                     @i @loop $(setdiff(is, js)) (
@@ -149,14 +155,17 @@ function saturate_index(stmt, Ctx; workspacer=(name, dims)->name)
                         @loop $(intersect(js, accessindices(p))) $p
                     )
                 end
+            #=
+            this is broken. I'm not sure how to fix it. TODO. This is a mess. I think it's right, but it doesn't work with name_workspaces.
             else
-                return map(combinations(intersect(is, accessindices(p)))) do js
+                return map(combinations(intersect(is, accessindices(x)))) do js
                     @i @loop $(setdiff(is, js)) (
-                        @loop $(intersect(js, accessindices(c))) $c
+                        @loop $js $c
                     ) where (
                         @loop $js $p
                     )
                 end
+            =#
             end
         end
     ))

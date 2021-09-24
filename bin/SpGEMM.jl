@@ -6,7 +6,7 @@ C = Fiber(:C, [[locate, coiter], [locate, coiter]], [:K, :J])
 
 ex = @i @loop k j i A[i,j] += B[k, i] * C[k, j]
 
-schedules = saturate_index(ex)
+schedules = saturate_index(ex, Pigeon.AsymptoticContext)
 
 schedules = map(Pigeon.concordize, schedules)
 schedules = mapreduce(Pigeon.PrewalkStep(Pigeon.saturate_formats), vcat, schedules)

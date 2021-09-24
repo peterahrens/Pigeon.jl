@@ -10,7 +10,8 @@ d = Dense(:d, [:K])
 ex = @i @loop k j i a[i] += B[i, j] * C[j, k] * d[k]
 
 #workspacer(name, dims) = Fiber(name, map(_->[locate, coiter], dims), dims)
-workspacer(name, dims) = Fiber(name, map(_->[coiter], dims), dims)
+workspacer(name, ::Pigeon.Read, dims) = Fiber(name, map(_->[coiter], dims), dims)
+workspacer(name, mode, dims) = Fiber(name, map(_->[locate], dims), dims)
 
 schedules = saturate_index(ex, Pigeon.AsymptoticContext, workspacer=workspacer)
 
@@ -19,7 +20,7 @@ schedules = mapreduce(Pigeon.PrewalkStep(Pigeon.saturate_formats), vcat, schedul
 
 #foreach(display, schedules)
 
-#display(length(schedules))
+println(length(schedules))
 
 #=
 a = Dense(:a, [:I])

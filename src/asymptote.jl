@@ -253,9 +253,15 @@ simplify_asymptote = Fixpoint(Postwalk(Chain([
 
     (@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
     (@rule Wedge(~~p, true, ~~q) => Wedge(~~p..., ~q...)),
-    (@rule Wedge(true) => true),
     (@rule Wedge(~~p, false, ~~r) => false),
     (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
+
+    (@rule Wedge(~p) => ~p),
+
+    (@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
+    (@rule Vee(~~p, false, ~~q) => Vee(~~p..., ~q...)),
+    (@rule Vee(~~p, true, ~~r) => true),
+    (@rule Vee(~~p) => Vee(unique(~~p)...)),
 
     (@rule Vee(~p) => ~p),
 
@@ -317,6 +323,8 @@ function Base.getindex(q::PointQuery, idxs...)
     rename(x) = x
     Postwalk(rename)(q.points)
 end
+
+nnodes(x) = istree(x) ? mapreduce(nnodes, +, arguments(x)) : 1
 
 function Base.setindex!(q::PointQuery, p, idxs...)
     d = Dict(reverse.(enumerate(map(getname, idxs))))

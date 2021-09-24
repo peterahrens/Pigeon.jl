@@ -144,6 +144,11 @@ function read_cost(tns::SparseFiberRelation, ctx = AsymptoticContext())
     return Such(Times(Domain.(idxs, tns.dims)...), pred)
 end
 
+function read_cost(tns::DenseRelation, ctx = AsymptoticContext())
+    idxs = [gensym() for _ in tns.dims]
+    return Times(Domain.(idxs, tns.dims)...)
+end
+
 function assume_nonempty(tns::SparseFiberRelation)
     idxs = [gensym() for _ in tns.format]
     return Exists(idxs..., Predicate(getname(tns), idxs...))

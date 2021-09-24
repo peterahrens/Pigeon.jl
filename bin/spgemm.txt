@@ -1,0 +1,32 @@
+"""
+∀ k, j, i 
+  A{ll}[j, i] += *(B{cc}[k, i], C{lc}[k, j])
+"""
+"""
+∀ k, j, i 
+  A{ll}[j, i] += *(B{lc}[k, i], C{cc}[k, j])
+"""
+"""
+∀ k, j, i 
+  A{ll}[j, i] += *(B{cc}[k, i], C{cc}[k, j])
+"""
+"""
+∀ k, i, j 
+  A{ll}[i, j] += *(B{cc}[k, i], C{lc}[k, j])
+"""
+"""
+∀ k, i, j 
+  A{ll}[i, j] += *(B{lc}[k, i], C{cc}[k, j])
+"""
+"""
+∀ k, i, j 
+  A{ll}[i, j] += *(B{cc}[k, i], C{cc}[k, j])
+"""
+"""
+∀ j, k, i 
+  A{ll}[j, i] += *(B{lc}[k, i], C{cc}[j, k])
+"""
+"""
+∀ i, k, j 
+  A{ll}[i, j] += *(B{cc}[i, k], C{lc}[k, j])
+"""

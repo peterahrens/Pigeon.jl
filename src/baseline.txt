@@ -1,8 +1,6 @@
-lower_time: 30.19282846499999
-simplify_time: 398.3353734519998
-dominance: 74.0
-
-with sympermutations (not much change):
-lower_time: 28.973062848000012
-simplify_time: 373.729342935
-dominance: 94.0
+┌ Info: breakdown
+│   lower_time = 28.172123984000002
+│   supersimplify_time = 414.85702836800016
+│   filter_time = 79.73949011099997
+│   simplify_time = 22.249273971000022
+└   normalize_time = 451.08159533799164

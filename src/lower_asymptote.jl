@@ -310,28 +310,32 @@ end
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
     lower_time = 0
-    simplify_time = 0
+    supersimplify_time = 0
+    filter_time = 0
+    global simplify_time = 0
     global normalize_time = 0
     asymptotes = @showprogress 0.1 "analysis..." map(kernel->begin
         #supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...))
         lower_time += @elapsed a = asymptote(kernel)
-        simplify_time += @elapsed a = supersimplify_asymptote(Cup(a, sunk_costs...))
+        supersimplify_time += @elapsed a = supersimplify_asymptote(Cup(a, sunk_costs...))
         a;
     end, kernels)
     #foreach(display, asymptotes)
     @showprogress 1 "filtering..." for (a, asy_a) in zip(kernels, asymptotes)
-        keep = true
-        for (b, asy_b) in zip(kernels, asymptotes)
-            if (isdominated(asy_b, asy_a, assumptions=assumptions)) && !(isdominated(asy_a, asy_b, assumptions=assumptions))
-                keep = false
-                break
+        filter_time += @elapsed begin
+            keep = true
+            for (b, asy_b) in zip(kernels, asymptotes)
+                if (isdominated(asy_b, asy_a, assumptions=assumptions)) && !(isdominated(asy_a, asy_b, assumptions=assumptions))
+                    keep = false
+                    break
+                end
             end
-        end
-        if keep
-            push!(pareto, a)
+            if keep
+                push!(pareto, a)
+            end
         end
     end
 
-    @info "breakdown" lower_time simplify_time normalize_time
+    @info "breakdown" lower_time supersimplify_time filter_time simplify_time normalize_time
     return pareto
 end

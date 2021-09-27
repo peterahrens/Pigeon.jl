@@ -10,6 +10,7 @@
     Pigeon.getdims(ctx::TestDimensionalizeContext) = ctx.dims
     Pigeon.getname(tns::TestDimensionalizeTensor) = tns.name
     Pigeon.lower_axes(tns::TestDimensionalizeTensor, ::TestDimensionalizeContext) = tns.dims
+    Pigeon.lower_sites(tns::TestDimensionalizeTensor) = 1:length(tns.dims)
     Pigeon.lower_axis_merge(::TestDimensionalizeContext, a, b) = (@assert a == b; a)
     Pigeon.rename(tns::TestDimensionalizeTensor, name) = TestDimensionalizeTensor(name, tns.dims)
     A = TestDimensionalizeTensor(:A, [1, 10, 12])

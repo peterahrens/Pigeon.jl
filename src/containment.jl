@@ -1,8 +1,11 @@
 #A few notes:
 #Cup() is equivalent to Empty()
 #Wedge() is equivalent to true
+normalize_time = 0
 
-normalize_asymptote = Fixpoint(Postwalk(Chain([
+normalize_asymptote = (x) -> begin
+    global normalize_time += @elapsed y = begin
+    Fixpoint(Postwalk(Chain([
     (@rule $(Empty()) => Cup()),
 
     (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
@@ -51,7 +54,10 @@ normalize_asymptote = Fixpoint(Postwalk(Chain([
 
     (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
         Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
-])))
+])))(x)
+end
+return y
+end
 
 """
     isdominated(a, b)
@@ -108,23 +114,14 @@ function _isdominated(a, b, assumptions)
     a_prop = Exists(map(a_head->a_head.var, a_heads)..., a_prop)
     a_prop = Wedge(a_prop, assumptions...) #This feels wrong TODO are these variables right?
 
-    for b_head_set in combinations(b_heads, length(a_heads))
-        for b_head_order in permutations(b_head_set)
-            b_prop = b_that
-            for (a_head, b_head) in zip(a_heads, b_head_order)
-                if a_head.rng == b_head.rng
-                    b_prop = Wedge(b_prop, Predicate(b_head.rng, b_head.var))
-                else
-                    b_prop = nothing
-                    break
-                end
-            end
-            if b_prop !== nothing
-                b_prop = Exists(map(b_head->b_head.var, b_heads)..., b_prop)
-                if isimplied(a_prop, b_prop)
-                    return true
-                end
-            end
+    for σ in sympermutations(map(b_head->b_head.rng, b_heads), map(a_head->a_head.rng, a_heads))
+        b_prop = b_that
+        for (a_head, b_head) in zip(a_heads, b_heads[σ])
+            b_prop = Wedge(b_prop, Predicate(b_head.rng, b_head.var))
+        end
+        b_prop = Exists(map(b_head->b_head.var, b_heads)..., b_prop)
+        if isimplied(a_prop, b_prop)
+            return true
         end
     end
     return false

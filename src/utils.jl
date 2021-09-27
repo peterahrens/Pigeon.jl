@@ -118,19 +118,30 @@ macro capture(ex, lhs)
     end
 end
 
-function sympermutations(v)
+
+"""
+sympermutations(v)
+
+Generate all σ such that v[σ] == v and isunique(σ).
+"""
+sympermutations(v) = sympermutations(v, v)
+
+"""
+sympermutations(u, v)
+
+Generate all σ such that u[σ] == v and isunique(σ).
+"""
+function sympermutations(u, v)
     σs = []
-    for groups in product(map(i->permutations(findall(i, v)), unique(v))...)
+    uu = unique(v)
+    for groups in product(map(k->(permutations(findall(isequal(k), u), count(isequal(k), v))), uu)...)
         σ = collect(1:length(v))
-        for group in groups
-            for (i, j) in zip(sort(group), group)
+        for (group, k) in zip(groups, uu)
+            for (i, j) in zip(findall(isequal(k), v), group)
                 σ[i] = j
             end
         end
         push!(σs, σ)
     end
-end
-
-function sympermutations(u, v)
-    return map(σ -> u[σ], sympermutations(v))
+    return σs 
 end

@@ -309,7 +309,15 @@ end
 
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
-    asymptotes = @showprogress 0.1 "analysis..." map(kernel->supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...)), kernels)
+    lower_time = 0
+    simplify_time = 0
+    global normalize_time = 0
+    asymptotes = @showprogress 0.1 "analysis..." map(kernel->begin
+        #supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...))
+        lower_time += @elapsed a = asymptote(kernel)
+        simplify_time += @elapsed a = supersimplify_asymptote(Cup(a, sunk_costs...))
+        a;
+    end, kernels)
     #foreach(display, asymptotes)
     @showprogress 1 "filtering..." for (a, asy_a) in zip(kernels, asymptotes)
         keep = true
@@ -323,5 +331,7 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
             push!(pareto, a)
         end
     end
+
+    @info "breakdown" lower_time simplify_time normalize_time
     return pareto
 end

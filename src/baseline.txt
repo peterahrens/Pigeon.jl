@@ -1,0 +1,8 @@
+lower_time: 30.19282846499999
+simplify_time: 398.3353734519998
+dominance: 74.0
+
+with sympermutations (not much change):
+lower_time: 28.973062848000012
+simplify_time: 373.729342935
+dominance: 94.0

@@ -16,7 +16,7 @@ workspacer(name, mode, dims) = Fiber(name, map(_->[locate], dims), dims)
 schedules = saturate_index(ex, Pigeon.AsymptoticContext, workspacer=workspacer)
 
 schedules = map(Pigeon.concordize, schedules)
-schedules = mapreduce(Pigeon.PrewalkStep(Pigeon.saturate_formats), vcat, schedules)
+schedules = mapreduce(Pigeon.PrewalkSaturate(Pigeon.saturate_formats), vcat, schedules)
 
 #foreach(display, schedules)
 

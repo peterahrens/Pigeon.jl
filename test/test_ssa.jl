@@ -6,7 +6,11 @@
                 @loop j (
                         A[i, j] += A[i] * C[i, j]
                     ) where (
-                        A[i] += D[j]
+                        (
+                            A[i] += C[j]
+                        ) where (
+                            C[j] += D[j]
+                        )
                     )
             )
         )
@@ -14,9 +18,13 @@
         @loop i (
             @loop j (
                 @loop ~j_1 (
-                        A[i, ~j_1] += (~A_1)[i] * C[i, ~j_1]
+                        (~A_1)[i, ~j_1] += (~A_1)[i] * (~C_1)[i, ~j_1]
                     ) where (
-                        (~A_1)[i] += D[~j_1]
+                        (
+                            A[i] += C[~j_1]
+                        ) where (
+                            C[~j_1] += D[~j_1]
+                        )
                     )
             )
         )

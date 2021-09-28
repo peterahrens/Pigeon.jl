@@ -23,17 +23,17 @@ variproduct(args) = map(collect, product(args...))
 #    end
 #end
 
-struct PassThroughStep{C}
+struct PassThroughSaturate{C}
     rw::C
 end
 
-(p::PassThroughStep{C})(x) where {C} = (y=p.rw(x); y === nothing ? [x] : [x; y])
+(p::PassThroughSaturate{C})(x) where {C} = (y=p.rw(x); y === nothing ? [x] : [x; y])
 
-struct ChainStep{C}
+struct ChainSaturate{C}
     rws::C
 end
 
-function (p::ChainStep{C})(x) where {C}
+function (p::ChainSaturate{C})(x) where {C}
     terms = Any[x]
     for rw in p.rws
         y = rw(x)
@@ -44,11 +44,11 @@ function (p::ChainStep{C})(x) where {C}
     return terms
 end
 
-struct PostwalkStep{C}
+struct PostwalkSaturate{C}
     rw::C
 end
 
-function (p::PostwalkStep{C})(x) where {C}
+function (p::PostwalkSaturate{C})(x) where {C}
     if istree(x)
         terms = []
         for args in variproduct(map(p, arguments(x)))
@@ -60,29 +60,29 @@ function (p::PostwalkStep{C})(x) where {C}
     end
 end
 
-struct PrewalkStep{C}
+struct PrewalkSaturate{C}
     rw::C
 end
 
-function (p::PrewalkStep{C})(x) where {C}
-    if istree(x)
-        terms = []
-        for y in p.rw(x)
+function (p::PrewalkSaturate{C})(x) where {C}
+    terms = []
+    for y in p.rw(x)
+        if istree(y)
             for args in variproduct(map(p, arguments(y)))
                 push!(terms, similarterm(y, operation(y), args))
             end
+        else
+            push!(terms, y)
         end
-        return terms
-    else
-        return p.rw(x)
     end
+    return terms
 end
 
-struct FixpointStep{C}
+struct FixpointSaturate{C}
     rw::C
 end
 
-function (p::FixpointStep{C})(x) where {C}
+function (p::FixpointSaturate{C})(x) where {C}
     n = 1
     terms = Set(collect(p.rw(x)))
     result = collect(terms)
@@ -94,6 +94,23 @@ function (p::FixpointStep{C})(x) where {C}
         end
     end
     return result
+end
+
+struct Prestep{C}
+    rw::C
+end
+
+function (p::Prestep{C})(x) where {C}
+    y = p.rw(x)
+    if y !== nothing
+        if istree(y)
+            return similarterm(y, operation(y), map(p, arguments(y)))
+        else
+            return y
+        end
+    else
+        return x
+    end
 end
 
 macro capture(ex, lhs)

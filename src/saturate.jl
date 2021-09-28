@@ -77,7 +77,7 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
     ])))
     rhs = splay(rhs)
 
-    churn = FixpointStep(PostwalkStep(ChainStep([
+    churn = FixpointSaturate(PostwalkSaturate(ChainSaturate([
         (@ex@rule @i(~a + (~b + ~c)) => [@i (~a + ~b) + ~c]),
         (@ex@rule @i(~a + ~b) => [@i ~b + ~a]),
         #(@ex@rule @i(- ~a + (- ~b)) => [@i -(~b + ~a)]),
@@ -99,9 +99,9 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
 
     bodies = map(rhs->@i($lhs <$op>=$rhs), rhss)
 
-    precompute = PrewalkStep(ChainStep([
+    precompute = PrewalkSaturate(ChainSaturate([
         (x-> if @ex@capture x @i(~Ai <~~f>= ~a)
-            bs = FixpointStep(PassThroughStep(@ex@rule @i((~g)(~~b)) => ~~b))(a)
+            bs = FixpointSaturate(PassThroughSaturate(@ex@rule @i((~g)(~~b)) => ~~b))(a)
             ys = []
             for b in bs
                 if b != a && @ex @capture b @i((~h)(~~c))
@@ -112,7 +112,7 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
             return ys
         end),
         (x-> if @ex@capture x @i(~Ai <~f>= ~a)
-            bs = FixpointStep(PassThroughStep(@ex@rule @i((~g)(~~b)) =>
+            bs = FixpointSaturate(PassThroughSaturate(@ex@rule @i((~g)(~~b)) =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
@@ -144,7 +144,7 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
 
     #absorb = PassThrough(@ex@rule @i(∀ ~i ∀ ~~j ~s) => @i ∀ $(sort([~i; ~~j])) ~s)
 
-    internalize = PrewalkStep(PassThroughStep(
+    internalize = PrewalkSaturate(PassThroughSaturate(
         (x) -> if @ex @capture x @i @loop ~~is (~c where ~p)
             #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
             if reducer(p) != nothing
@@ -172,7 +172,7 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
     prgms = mapreduce(internalize, vcat, prgms)
     prgms = map(Postwalk(PassThrough(@ex@rule @i(@loop ~s) => ~s)), prgms)
 
-    reorder = PrewalkStep(PassThroughStep(
+    reorder = PrewalkSaturate(PassThroughSaturate(
         @ex@rule @i(@loop ~~is ~s) => map(js -> @i(@loop $js ~s), collect(permutations(~~is))[2:end])
     ))
 

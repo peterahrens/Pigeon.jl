@@ -14,76 +14,89 @@ fresh_num = 0
 freshen(ex::Symbol) = Freshie(ex, global fresh_num += 1)
 freshen(ex::Freshie) = Freshie(ex.name, global fresh_num += 1)
 
-function transform_ssa(prgm)
-    renames = Dict()
-    transform_ssa!(prgm, renames)
+struct Namespace
+    renames
+    binds
 end
 
-poprename!(renames, name) = pop!(renames[name])
+Namespace() = Namespace(Dict(), [])
 
-function pushrename!(renames, name)
-    if haskey(renames, name)
-        push!(renames[name], freshen(name))
+function resolvename!(root, ctx::Namespace)
+    name = getname(root)
+    if haskey(ctx.renames, name)
+        if isempty(ctx.renames[name]) #redefining global name
+            name′ = freshen(name)
+            push!(ctx.renames[name], name′)
+            return rename(root, name′)
+        else
+            return rename(root, ctx.renames[name][end])
+        end
     else
-        renames[name] = Any[name]
-        name
+        ctx.renames[name] = Any[name]
+        return rename(root, name)
     end
 end
 
-function getrename!(renames, name)
-    if haskey(renames, name) && !isempty(renames[name])
-        return renames[name][end]
+function definename!(root, ctx::Namespace)
+    name = getname(root)
+    push!(ctx.binds, name)
+    if haskey(ctx.renames, name)
+        name′ = freshen(name)
+        push!(ctx.renames[name], name′)
+        return rename(root, name′)
     else
-        renames[name] = Any[name]
-        name
+        ctx.renames[name] = Any[name]
+        return rename(root, name)
     end
 end
-        
-function transform_ssa!(root::Loop, renames)
-    for idx in root.idxs
-        pushrename!(renames, getname(idx))
-    end
-    res = _transform_ssa!(root, renames)
-    for idx in root.idxs
-        poprename!(renames, getname(idx))
+
+function scope(f::F, ctx::Namespace) where {F}
+    binds′ = []
+    res = f(Namespace(ctx.renames, binds′))
+    for name in binds′
+        pop!(ctx.renames[name])
     end
     return res
 end
 
-function transform_ssa!(root::With, renames)
-    cons = transform_ssa!(root.cons, renames)
-    prod = transform_ssa!(root.prod, renames)
-    poprename!(renames, getname(getresult(root.prod)))
-    return With(cons, prod)
+function transform_ssa(prgm)
+    transform_ssa!(prgm, Namespace())
 end
 
-transform_ssa!(root::IndexNode, renames) = _transform_ssa!(root, renames)
-function _transform_ssa!(root::IndexNode, renames)
+function transform_ssa!(root::Name, ctx)
+    resolvename!(root, ctx)
+end
+
+function transform_ssa!(root::Loop, ctx)
+    scope(ctx) do ctx′
+        idxs = map(idx->definename!(idx, ctx′), root.idxs)
+        body = transform_ssa!(root.body, ctx)
+        return loop(idxs, body)
+    end
+end
+
+function transform_ssa!(root::With, ctx)
+    scope(ctx) do ctx′
+        prod = transform_ssa!(root.prod, ctx′)
+        cons = transform_ssa!(root.cons, ctx)
+        return with(cons, prod)
+    end
+end
+
+transform_ssa!(root, ctx) = _transform_ssa!(root, ctx)
+function _transform_ssa!(root, ctx)
     if istree(root)
-        return similarterm(root, operation(root), map(arg->transform_ssa!(arg, renames), arguments(root)))
+        return similarterm(root, operation(root), map(arg->transform_ssa!(arg, ctx), arguments(root)))
     else
         return root
     end
 end
 
-function transform_ssa!(root::Assign, renames)
-    lhs = transform_ssa!(root.lhs, renames)
-    pushrename!(renames, getname(getresult(root.lhs)))
-    op = root.op === nothing ? root.op : transform_ssa!(root.op, renames)
-    rhs = transform_ssa!(root.rhs, renames)
-    return Assign(lhs, op, rhs)
-end
-
-function transform_ssa!(root::Name, renames)
-    Name(getrename!(renames, getname(root)))
-end
-
-function transform_ssa!(root, renames)
-    if isliteral(root)
-        root
+function transform_ssa!(root::Access, ctx)
+    if root.mode != Read()
+        tns = definename!(root.tns, ctx)
     else
-        rename(root, getrename!(renames, getname(root)))
+        tns = resolvename!(root.tns, ctx)
     end
+    return Access(tns, root.mode, map(idx->transform_ssa!(idx, ctx), root.idxs))
 end
-
-function rename end

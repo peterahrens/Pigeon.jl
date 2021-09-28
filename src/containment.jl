@@ -3,6 +3,73 @@
 #Wedge() is equivalent to true
 normalize_time = 0
 
+#Cup > Such > Times > Vee > Exists > Wedge > Rename
+
+#cap->Wedge
+#Vee->Cup
+
+#Can only swap two nodes in one pass!
+
+#We are given an expression such that (cup, such, times) > (vee, exists, wedge)
+
+#thus, we do an inital pass to turn bring Vee to the top, Vee into Cup, and Cup to the top, then we have
+# cup > (such, times) > (exists, wedge)
+#At this point, we can bring such up, and collapse such, and push wedge down and collapse wedge
+
+#Postwalks can bring things up, prewalks push down
+# vee needs to be postwalked
+
+#=
+Postwalk(Chain([
+    (@rule Such(Cup(), ~p) => Cup()),
+    Prestep(@rule Such(Cup(~s, ~~t), ~p) => Cup(Such(~s, ~p), Such(Cup(~~t...), ~p))),
+
+    (@rule Times(~~s, Cup(), ~~u) => Cup()),
+    Prestep(@rule Times(~~s, Cup(~t, ~~u), ~~v) => Cup(Times(~~s..., ~t, ~~v...), Times(~~s..., Cup(~~u...), ~~v...))),
+
+    (@rule Exists(~~i, Vee()) => Vee()),
+    Prestep(@rule Exists(~~i, Vee(~p, ~~q)) => Vee(Exists(~~i..., ~p), Exists(~~i..., ~~q...))),
+
+    @rule Wedge(~~p, Vee(), ~~s) => Vee(),
+    Prestep(@rule Wedge(~~p, Vee(~q, ~~r), ~~s) => Vee(Wedge(~~p..., ~q, ~~r...), Wedge(~~p..., Vee(~~r...), ~~s...))),
+
+    (@rule Such(~s, Vee()) => Cup()),
+    Prestep(@rule Such(~s, Vee(~p, ~~q)) => Cup(Such(~s, ~p), Such(~s, ~~q))),
+
+    Fixpoint(@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
+
+    Fixpoint(@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
+]))
+
+Postwalk(Chain([
+    Prestep(@rule Times(~~s, Such(~t, ~p), ~~u) => begin
+        subs = Dict(bases(~t) .=> freshen.(bases(~t)))
+        Such(Times(~~s..., Rename(~t, subs), ~~u...), Rename(~p, subs))
+    end),
+    Fixpoint(@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
+]))
+
+rename()
+
+Postwalk(Chain([
+    Fixpoint(@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
+    Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
+    Prestep(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
+        i′ = freshen.(i)  
+        subs = Dict(i .=> i′)
+        Exists(i′..., Wedge(~~p..., Rename(~q, subs), ~~r...))
+    end), 
+    Fixpoint(@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
+]))
+
+rename()
+
+collapse_asymptote_sets = Postwalk(Chain([
+    (@rule $(Empty()) => Cup()),
+    (@rule true => Wedge()),
+    (@rule false => Vee()),
+=#
+
 normalize_asymptote = (x) -> begin
     global normalize_time += @elapsed y = begin
     Fixpoint(Postwalk(Chain([
@@ -48,7 +115,8 @@ normalize_asymptote = (x) -> begin
     (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
     (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
         i′ = freshen.(~~i)
-        q′ = Postwalk(subex->get(Dict(Pair.(~~i, i′)...), subex, subex))(~q)
+        subs = Dict(Pair.(~~i, i′)...)
+        q′ = Postwalk(subex->get(subs, subex, subex))(~q)
         Exists(i′..., Wedge(~~p..., q′, ~~r...))
     end),
 

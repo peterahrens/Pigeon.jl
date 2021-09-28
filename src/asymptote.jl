@@ -95,9 +95,14 @@ struct Domain <: AsymptoteSet
     rng
 end
 
+getname(ex::Domain) = ex.var
+rename(ex::Domain, name) = Domain(name, ex.rng)
+
 bases(ex::Domain) = [ex.var]
 
-TermInterface.istree(::Type{<:Domain}) = false
+TermInterface.istree(::Type{<:Domain}) = true
+TermInterface.operation(ex::Domain) = Domain
+TermInterface.arguments(ex::Domain) = [ex.var, ex.rng]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Domain)
     show_asymptote(io, mime, ex.var)

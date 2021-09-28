@@ -108,6 +108,8 @@ end
 TermInterface.istree(::Type{<:Workspace}) = false
 Base.hash(ex::Workspace, h::UInt) = hash((Workspace, ex.n), h)
 
+rename(tns::Workspace, name) = Workspace(name)
+
 function show_expression(io, ex::Workspace)
     print(io, "{")
     show_expression(io, mime, ex.n)

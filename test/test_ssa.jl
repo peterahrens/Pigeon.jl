@@ -29,4 +29,12 @@
             )
         )
     )
+
+    using Pigeon: Such, Times, Domain, Wedge, Exists, Predicate
+
+    @test Pigeon.@ex Pigeon.@capture Pigeon.transform_ssa(
+        Times(Domain(:k, :J), Domain(:l, :J), Such(Times(Domain(:i, :I), Domain(:j, :J)), Wedge(Exists(:i, Predicate(:A, :i, :j)), Predicate(:A, :i, :j))))
+    ) (
+        Times(Domain(:k, :J), Domain(:l, :J), Such(Times(Domain(:i, :I), Domain(:j, :J)), Wedge(Exists(~i_1, Predicate(:A, ~i_1, :j)), Predicate(:A, :i, :j))))
+    )
 end

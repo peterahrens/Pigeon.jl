@@ -14,6 +14,9 @@ fresh_num = 0
 freshen(ex::Symbol) = Freshie(ex, global fresh_num += 1)
 freshen(ex::Freshie) = Freshie(ex.name, global fresh_num += 1)
 
+getname(ex::Union{Symbol, Freshie}) = ex
+rename(ex::Union{Symbol, Freshie}, name) = name
+
 struct Namespace
     renames
     binds
@@ -102,53 +105,23 @@ function transform_ssa!(root::Access, ctx)
     return Access(tns, root.mode, map(idx->transform_ssa!(idx, ctx), root.idxs))
 end
 
-
-function transform_ssa!(root, ctx)
-    resolvename!(root, ctx)
-end
-
-function transform_ssa!(root::Loop, ctx)
-    scope(ctx) do ctx′
-        idxs = map(idx->definename!(idx, ctx′), root.idxs)
-        body = transform_ssa!(root.body, ctx)
-        return loop(idxs, body)
-    end
-end
-
-function transform_ssa!(root::With, ctx)
-    scope(ctx) do ctx′
-        prod = transform_ssa!(root.prod, ctx′)
-        cons = transform_ssa!(root.cons, ctx)
-        return with(cons, prod)
-    end
-end
-
-transform_ssa!(root, ctx) = _transform_ssa!(root, ctx)
-function _transform_ssa!(root, ctx)
-    if istree(root)
-        return similarterm(root, operation(root), map(arg->transform_ssa!(arg, ctx), arguments(root)))
-    else
-        return root
-    end
-end
-
 function transform_ssa!(root::Predicate, ctx)
-    return Predicate(root.op, map(arg->resolvename!(arg, ctx), root.args))
+    return Predicate(root.op, map(arg->resolvename!(arg, ctx), root.args)...)
 end
 
 function transform_ssa!(root::Exists, ctx)
     scope(ctx) do ctx′
-        args = map(arg->definename!(arg, ctx′), root.args)
-        body = transform_ssa!(root.body, ctx′)
-        return Exists(args, body)
+        idxs = map(idx->definename!(idx, ctx′), root.idxs)
+        arg = transform_ssa!(root.arg, ctx′)
+        return Exists(idxs..., arg)
     end
 end
 
 function transform_ssa!(root::Forall, ctx)
     scope(ctx) do ctx′
-        args = map(arg->definename!(arg, ctx′), root.args)
-        body = transform_ssa!(root.body, ctx′)
-        return Exists(args, body)
+        idxs = map(idx->definename!(idx, ctx′), root.idxs)
+        arg = transform_ssa!(root.arg, ctx′)
+        return Forall(idxs..., arg)
     end
 end
 

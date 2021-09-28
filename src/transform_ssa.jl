@@ -61,6 +61,7 @@ end
 
 function transform_ssa(prgm)
     transform_ssa!(prgm, Namespace())
+    #globals are binds and nonempty keys of rename
 end
 
 function transform_ssa!(root::Name, ctx)
@@ -99,4 +100,66 @@ function transform_ssa!(root::Access, ctx)
         tns = resolvename!(root.tns, ctx)
     end
     return Access(tns, root.mode, map(idx->transform_ssa!(idx, ctx), root.idxs))
+end
+
+
+function transform_ssa!(root, ctx)
+    resolvename!(root, ctx)
+end
+
+function transform_ssa!(root::Loop, ctx)
+    scope(ctx) do ctx′
+        idxs = map(idx->definename!(idx, ctx′), root.idxs)
+        body = transform_ssa!(root.body, ctx)
+        return loop(idxs, body)
+    end
+end
+
+function transform_ssa!(root::With, ctx)
+    scope(ctx) do ctx′
+        prod = transform_ssa!(root.prod, ctx′)
+        cons = transform_ssa!(root.cons, ctx)
+        return with(cons, prod)
+    end
+end
+
+transform_ssa!(root, ctx) = _transform_ssa!(root, ctx)
+function _transform_ssa!(root, ctx)
+    if istree(root)
+        return similarterm(root, operation(root), map(arg->transform_ssa!(arg, ctx), arguments(root)))
+    else
+        return root
+    end
+end
+
+function transform_ssa!(root::Predicate, ctx)
+    return Predicate(root.op, map(arg->resolvename!(arg, ctx), root.args))
+end
+
+function transform_ssa!(root::Exists, ctx)
+    scope(ctx) do ctx′
+        args = map(arg->definename!(arg, ctx′), root.args)
+        body = transform_ssa!(root.body, ctx′)
+        return Exists(args, body)
+    end
+end
+
+function transform_ssa!(root::Forall, ctx)
+    scope(ctx) do ctx′
+        args = map(arg->definename!(arg, ctx′), root.args)
+        body = transform_ssa!(root.body, ctx′)
+        return Exists(args, body)
+    end
+end
+
+function transform_ssa!(root::Such, ctx)
+    scope(ctx) do ctx′
+        tgt = transform_ssa!(root.tgt, ctx′)
+        prd = transform_ssa!(root.prd, ctx′)
+        return Such(tgt, prd)
+    end
+end
+
+function transform_ssa!(root::Domain, ctx)
+    definename!(root, ctx)
 end

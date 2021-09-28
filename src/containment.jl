@@ -133,6 +133,7 @@ end
     ArgumentError if the answer cannot be determined.
 """
 function isdominated(a, b; sunk_costs = [], assumptions = [])
+    println(a)
     function canonicalize(q)
         q = normalize_asymptote(Cup(q))
         err = ArgumentError("unrecognized query form: $q")

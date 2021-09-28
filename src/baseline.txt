@@ -4,3 +4,11 @@
 │   filter_time = 79.73949011099997
 │   simplify_time = 22.249273971000022
 └   normalize_time = 451.08159533799164
+
+After normalize improvements
+┌ Info: breakdown
+│   lower_time = 35.194579059
+│   supersimplify_time = 266.886031721
+│   filter_time = 67.07089637900002
+│   simplify_time = 32.04553087500001
+└   normalize_time = 276.07391173299965

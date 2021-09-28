@@ -113,6 +113,24 @@ function (p::Prestep{C})(x) where {C}
     end
 end
 
+struct Link{C}
+    rws::C
+end
+
+function (p::Link{C})(x) where {C}
+    trigger = false
+    for rw in p.rws
+        y = rw(x)
+        if y !== nothing
+            trigger = true
+            x = y
+        end
+    end
+    if trigger
+        return x
+    end
+end
+
 macro capture(ex, lhs)
     keys = Symbol[]
     lhs_term = SymbolicUtils.makepattern(lhs, keys)

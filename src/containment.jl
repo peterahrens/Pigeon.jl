@@ -2,6 +2,7 @@
 #Cup() is equivalent to Empty()
 #Wedge() is equivalent to true
 normalize_time = 0
+normalize_calls = 0
 
 #Cup > Such > Times > Vee > Exists > Wedge > Rename
 
@@ -35,6 +36,18 @@ function normalize_asymptote_2(ex)
         (@rule Wedge(~~p, Vee(), ~~s) => Vee()),
 
         (@rule Such(~s, Vee()) => Cup()),
+
+        #=
+        Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)), 
+        (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
+
+        Fixpoint(@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
+        (@rule Cup(~~p) => Cup(unique(~~p)...)),
+
+        Fixpoint(@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
+        (@rule Vee(~~p) => Vee(unique(~~p)...)),
+        (@rule Vee(~p) => ~p),
+        =#
     ]))(ex)
 
     ex = transform_ssa(ex)
@@ -84,12 +97,14 @@ function normalize_asymptote_2(ex)
 
     ex = Postwalk(Chain([
         Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)), 
+        (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
+        (@rule Cup(~~p) => Cup(unique(~~p)...)),
     ]))(ex)
 
     return ex
 end
 
-normalize_asymptote = (x) -> begin
+function normalize_asymptote(x)
 #=
     global normalize_time += @elapsed y = begin
     Fixpoint(Postwalk(Chain([
@@ -147,8 +162,10 @@ normalize_asymptote = (x) -> begin
 ])))(x)
 end
 =#
-global normalize_time += @elapsed y = normalize_asymptote_2(x)
-return y
+    global normalize_time += @elapsed y = normalize_asymptote_2(x)
+    global normalize_calls
+    normalize_calls += 1
+    return y
 end
 
 """
@@ -157,6 +174,8 @@ end
     ArgumentError if the answer cannot be determined.
 """
 function isdominated(a, b; sunk_costs = [], assumptions = [])
+    global dominate_calls
+    dominate_calls += 1
     function canonicalize(q)
         q = normalize_asymptote(Cup(q))
         err = ArgumentError("unrecognized query form: $q")

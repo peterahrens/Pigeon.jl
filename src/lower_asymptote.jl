@@ -314,6 +314,8 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     filter_time = 0
     global simplify_time = 0
     global normalize_time = 0
+    global normalize_calls = 0
+    global dominate_calls = 0
     asymptotes = @showprogress 0.1 "analysis..." map(kernel->begin
         #supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...))
         lower_time += @elapsed a = asymptote(kernel)
@@ -336,6 +338,6 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
         end
     end
 
-    @info "breakdown" lower_time supersimplify_time filter_time simplify_time normalize_time
+    @info "breakdown" lower_time supersimplify_time filter_time simplify_time normalize_time normalize_calls normalize_time/normalize_calls dominate_calls
     return pareto
 end

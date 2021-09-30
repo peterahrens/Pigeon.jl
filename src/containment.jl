@@ -105,64 +105,14 @@ function normalize_asymptote_2(ex)
 end
 
 function normalize_asymptote(x)
-#=
-    global normalize_time += @elapsed y = begin
-    Fixpoint(Postwalk(Chain([
-    (@rule $(Empty()) => Cup()),
-    (@rule true => Wedge()),
-    (@rule false => Vee()),
-
-    (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
-
-    (@rule Such(~s, false) => Cup()),
-    (@rule Such(Cup(), ~p) => Cup()),
-
-    (@rule Wedge(~~p, true, ~~q) => Wedge(~~p..., ~~q...)),
-    (@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)),
-    (@rule Wedge(~~p, false, ~~q) => false),
-    (@rule Wedge(~~p, ~q, ~~r, ~q, ~~s) => Wedge(~~p..., ~q, ~~r..., ~~s...)),
-
-    (@rule Vee(~p) => ~p),
-
-    (@rule Wedge(~~p, Vee(~q, ~r, ~~s), ~~t) => 
-        Vee(Wedge(~~p..., ~q, ~~t...), Wedge(~~p..., Vee(~r, ~~s...), ~~t...))),
-
-    (@rule Cup(~~s, Cup(), ~~t) => Cup(~~s..., ~~t...)),
-    (@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
-    (@rule Cup(~~s, ~t, ~~u, ~t, ~~v) => Cup(~~s..., ~t, ~~u..., ~~v...)),
-
-    (@rule Cap(~~s, $(Cup()), ~~u) => Cup()),
-    (@rule Cap(~s) => ~s),
-
-    (@rule Times(~~s, $(Cup()), ~~u) => Cup()),
-    (@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
-    (@rule Times(Such(~s, ~p), ~~t) => Such(Times(~s, ~~t...), ~p)),
-    (@rule Times(Cup(~s, ~t, ~~u), ~~v) => Cup(Times(~s, ~~v...), Times(Cup(~t, ~~u...), ~~v...))),
-    (@rule Times(Cup(~s), ~~t) => Cup(Times(~s), ~~t...)),
-
-    (@rule Such(~t, Vee(~p, ~q)) => 
-        Cup(Such(~t, ~p), Such(~t, ~q))),
-    (@rule Such(Cup(~s, ~t, ~~u), ~p) => 
-        Cup(Such(~s, ~p), Such(Cup(~t, ~~u...), ~p))),
-    (@rule Such(Cup(~s), ~p) => Cup(Such(~s, ~p))),
-    (@rule Cap(~~s, Such(~t, ~p), ~~u, Such(~t, ~q), ~~v) =>
-        Cap(~~s..., Such(~t, Wedge(~p, ~q)), ~~u..., ~~v...)),
-
-    (@rule Exists(~~i, false) => false),
-    (@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
-    (@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => begin
-        i′ = freshen.(~~i)
-        subs = Dict(Pair.(~~i, i′)...)
-        q′ = Postwalk(subex->get(subs, subex, subex))(~q)
-        Exists(i′..., Wedge(~~p..., q′, ~~r...))
-    end),
-
-    (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
-        Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
-])))(x)
+    global normalize_time += @elapsed y = normalize_asymptote_2(Such(x, Exists(Wedge())))
+    global normalize_calls
+    normalize_calls += 1
+    return y
 end
-=#
-    global normalize_time += @elapsed y = normalize_asymptote_2(x)
+
+function normalize_proposition(x)
+    global normalize_time += @elapsed y = normalize_asymptote_2(Exists(Wedge(x)))
     global normalize_calls
     normalize_calls += 1
     return y
@@ -173,22 +123,25 @@ end
     Given abstract set expressions a and b, return true when b dominates a.
     ArgumentError if the answer cannot be determined.
 """
-function isdominated(a, b; sunk_costs = [], assumptions = [])
+function isdominated(a, b; sunk_costs = [], assumptions = [], normal=false)
     global dominate_calls
     dominate_calls += 1
+    normal &= isempty(sunk_costs) && isempty(assumptions)
     function canonicalize(q)
-        q = normalize_asymptote(Cup(q))
+        if !normal
+            q = normalize_asymptote(Such(Cup(q, sunk_costs...), Wedge(assumptions...)))
+        end
         err = ArgumentError("unrecognized query form: $q")
         (@capture q Cup(~~q_queries)) || throw(err)
         return q_queries
     end
-    a_queries = canonicalize(Cup(a, sunk_costs...))
-    b_queries = canonicalize(Cup(b, sunk_costs...))
+    a_queries = canonicalize(a)
+    b_queries = canonicalize(b)
     for a_query in a_queries
         covered = false
         for b_query in b_queries
 
-            if _isdominated(a_query, b_query, assumptions)
+            if _isdominated(a_query, b_query)
                 covered = true
                 continue
             end
@@ -200,18 +153,17 @@ function isdominated(a, b; sunk_costs = [], assumptions = [])
     return true
 end
 
-function _isdominated(a, b, assumptions)
+function _isdominated(a, b)
     head_op = gensym(:head)
 
     function canonicalize(q)
         err = ArgumentError("unrecognized query form: $q")
-        q = normalize_asymptote(Such(Times(q), Exists(Wedge(true))))
-        (@capture q Such(Times(~~q_heads), ~q_that)) || throw(err)
+        (@capture q Such(Times(~~q_heads), Exists(~~q_frees, Wedge(~~q_preds)))) || throw(err)
         all(q_head -> q_head isa Domain, q_heads) || throw(err)
-        return(q_heads, q_that)
+        return (q_heads, q_frees, q_preds)
     end
-    a_heads, a_that = canonicalize(a)
-    b_heads, b_that = canonicalize(b)
+    (a_heads, a_frees, a_preds) = canonicalize(a)
+    (b_heads, b_frees, b_preds) = canonicalize(b)
 
     #at some point we should check that predicate arity is consistent
 
@@ -221,17 +173,18 @@ function _isdominated(a, b, assumptions)
     #to do is not equivalent to implication testing, and we would need the homomorphism
     #to go "backwards" for the head variables. Something to consider in the future.
 
-    a_prop = Wedge(map(a_head->Predicate(a_head.rng, a_head.var), a_heads)..., a_that)
-    a_prop = Exists(map(a_head->a_head.var, a_heads)..., a_prop)
-    a_prop = Wedge(a_prop, assumptions...) #This feels wrong TODO are these variables right?
+    a_frees = vcat(a_frees, map(a_head->a_head.var, a_heads))
+    b_frees = vcat(b_frees, map(b_head->b_head.var, b_heads))
 
     for σ in sympermutations(map(b_head->b_head.rng, b_heads), map(a_head->a_head.rng, a_heads))
-        b_prop = b_that
+        a_head_preds = []
+        b_head_preds = []
         for (a_head, b_head) in zip(a_heads, b_heads[σ])
-            b_prop = Wedge(b_prop, Predicate(b_head.rng, b_head.var))
+            op = gensym(:op)
+            push!(a_head_preds, Predicate(op, a_head.var))
+            push!(b_head_preds, Predicate(op, b_head.var))
         end
-        b_prop = Exists(map(b_head->b_head.var, b_heads)..., b_prop)
-        if isimplied(a_prop, b_prop)
+        if isimplied(Exists(a_frees..., Wedge(vcat(a_head_preds, a_preds)...)), Exists(b_frees..., Wedge(vcat(b_head_preds, b_preds)...)), normal=true)
             return true
         end
     end
@@ -243,10 +196,13 @@ end
     Given abstract predicate expressions a and b, return true when b implies a.
     ArgumentError if the answer cannot be determined.
 """
-function isimplied(a, b)
+function isimplied(a, b; assumptions = [], normal=false)
+    normal &= isempty(assumptions)
     function canonicalize(p)
         err = ArgumentError("unrecognized proposition: $p")
-        p = normalize_asymptote(Exists(Wedge(p)))
+        if !normal
+            p = normalize_asymptote(Exists(Wedge(p, assumptions...)))
+        end
         (@capture p Exists(~~p_frees, Wedge(~~p_preds))) || throw(err)
         p_op_args = Dict()
         for p_pred in p_preds

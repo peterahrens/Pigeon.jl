@@ -12,3 +12,14 @@ After normalize improvements
 │   filter_time = 67.07089637900002
 │   simplify_time = 32.04553087500001
 └   normalize_time = 276.07391173299965
+
+After reducing spurious normalizations in isdominated
+┌ Info: breakdown
+│   lower_time = 28.858784562
+│   supersimplify_time = 124.95685040700008
+│   filter_time = 7.163559126999997
+│   simplify_time = 27.287195963999984
+│   normalize_time = 76.45778817800019
+│   normalize_calls = 22246
+│   normalize_time / normalize_calls = 0.0034369229604423353
+└   dominate_calls = 11123

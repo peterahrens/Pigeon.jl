@@ -309,6 +309,8 @@ end
 
 using Random
 
+dominate_calls = 0
+
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
     lower_time = 0

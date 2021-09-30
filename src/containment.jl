@@ -65,7 +65,7 @@ function normalize_asymptote_2(ex)
 
         Prestep(Link([
             (@rule Exists(~~i, Vee()) => Vee()),
-            (@rule Exists(~~i, Vee(~p, ~~q)) => Vee(Exists(~~i..., ~p), Exists(~~i..., ~~q...))),
+            (@rule Exists(~~i, Vee(~p, ~~q)) => Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~~q...)))),
         ])),
 
         Prestep(Link([
@@ -320,7 +320,7 @@ function isimplied(a, b)
     return false
 end
 
-supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote, 
+supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote,#This should be normalize_asymptote 
     #(@rule ~p => display(~p)),
 Postwalk(Chain([
     (@rule Such(~t, Wedge(~~p, ~q, ~~r)) => begin

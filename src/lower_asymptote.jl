@@ -307,6 +307,8 @@ function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end
 
+using Random
+
 function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     pareto = []
     lower_time = 0
@@ -320,24 +322,30 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
         #supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...))
         lower_time += @elapsed a = asymptote(kernel)
         supersimplify_time += @elapsed a = supersimplify_asymptote(Cup(a, sunk_costs...))
+        #supersimplify_time += @elapsed a = normalize_asymptote(Cup(a, sunk_costs...))
         a;
     end, kernels)
     #foreach(display, asymptotes)
-    @showprogress 1 "filtering..." for (a, asy_a) in zip(kernels, asymptotes)
+    @showprogress 1 "filtering..." for (a, asy_a) in collect(zip(kernels, asymptotes))[randperm(end)]
+        pareto′ = Any[(a, asy_a)]
         filter_time += @elapsed begin
             keep = true
-            for (b, asy_b) in zip(kernels, asymptotes)
-                if (isdominated(asy_b, asy_a, assumptions=assumptions)) && !(isdominated(asy_a, asy_b, assumptions=assumptions))
+            for (b, asy_b) in pareto
+                dom_a = isdominated(asy_a, asy_b, assumptions=assumptions)
+                dom_b = isdominated(asy_b, asy_a, assumptions=assumptions)
+                if dom_b && !dom_a
                     keep = false
                     break
+                elseif !(dom_a && !dom_b)
+                    push!(pareto′, (b, asy_b))
                 end
             end
             if keep
-                push!(pareto, a)
+                pareto = pareto′
             end
         end
     end
 
     @info "breakdown" lower_time supersimplify_time filter_time simplify_time normalize_time normalize_calls normalize_time/normalize_calls dominate_calls
-    return pareto
+    return first.(pareto)
 end

@@ -55,3 +55,6 @@ C = Fiber(:C, [locate, coiter], [:K, :J])
 
 
 foreach(display, frontier)
+
+
+frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [a, B, C, d]), assumptions=map(Pigeon.assume_nonempty, [B, C]))

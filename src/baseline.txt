@@ -23,3 +23,13 @@ After reducing spurious normalizations in isdominated
 │   normalize_calls = 22246
 │   normalize_time / normalize_calls = 0.0034369229604423353
 └   dominate_calls = 11123
+
+After reducing spurious normalizations in supersimplifier
+│   lower_time = 30.200333466
+│   supersimplify_time = 37.68461442900003
+│   filter_time = 0.9908671579999998
+│   simplify_time = 0
+│   normalize_time = 29.016316803000002
+│   normalize_calls = 137
+│   normalize_time / normalize_calls = 0.21179793286861315
+└   dominate_calls = 280

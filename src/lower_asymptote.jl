@@ -323,7 +323,8 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
     asymptotes = @showprogress 0.1 "analysis..." map(kernel->begin
         #supersimplify_asymptote(Cup(asymptote(kernel), sunk_costs...))
         lower_time += @elapsed a = asymptote(kernel)
-        supersimplify_time += @elapsed a = supersimplify_asymptote(Cup(a, sunk_costs...))
+        a = Such(Cup(a, sunk_costs...), Wedge(assumptions...))
+        supersimplify_time += @elapsed a = supersimplify_asymptote(a)
         #supersimplify_time += @elapsed a = normalize_asymptote(Cup(a, sunk_costs...))
         a;
     end, kernels)
@@ -333,8 +334,8 @@ function filter_pareto(kernels; sunk_costs=[], assumptions=[])
         filter_time += @elapsed begin
             keep = true
             for (b, asy_b) in pareto
-                dom_a = isdominated(asy_a, asy_b, assumptions=assumptions)
-                dom_b = isdominated(asy_b, asy_a, assumptions=assumptions)
+                dom_a = isdominated(asy_a, asy_b, normal=true)
+                dom_b = isdominated(asy_b, asy_a, normal=true)
                 if dom_b && !dom_a
                     keep = false
                     break

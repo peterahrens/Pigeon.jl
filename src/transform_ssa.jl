@@ -126,7 +126,7 @@ function transform_ssa!(root::Forall, ctx)
 end
 
 function transform_ssa!(root::Such, ctx)
-    scope(ctx) do ctx′
+    scope(ctx) do ctx′ #maybe don't introduce a scope here TODO i think that might be extraneous
         tgt = transform_ssa!(root.tgt, ctx′)
         prd = transform_ssa!(root.prd, ctx′)
         return Such(tgt, prd)

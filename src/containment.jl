@@ -29,29 +29,26 @@ function normalize_asymptote_2(ex)
 
         (@rule Such(Cup(), ~p) => Cup()),
 
-        (@rule Times(~~s, Cup(), ~~u) => Cup()),
+        (@rule Times(~~s, Cup(), ~~t) => Cup()),
 
         (@rule Exists(~~i, Vee()) => Vee()),
 
-        (@rule Wedge(~~p, Vee(), ~~s) => Vee()),
+        (@rule Wedge(~~p, Vee(), ~~q) => Vee()),
 
         (@rule Such(~s, Vee()) => Cup()),
 
-        #=
         Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)), 
-        (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
+        #(@rule Wedge(~~p) => Wedge(unique(~~p)...)),
 
         Fixpoint(@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
-        (@rule Cup(~~p) => Cup(unique(~~p)...)),
+        #(@rule Cup(~~p) => Cup(unique(~~p)...)),
 
         Fixpoint(@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
-        (@rule Vee(~~p) => Vee(unique(~~p)...)),
-        (@rule Vee(~p) => ~p),
-        =#
+        #(@rule Vee(~~p) => Vee(unique(~~p)...)),
+        #(@rule Vee(~p) => ~p),
     ]))(ex)
 
     ex = transform_ssa(ex)
-
     ex = Postwalk(Chain([
         Prestep(Link([
             (@rule Such(Cup(), ~p) => Cup()),
@@ -59,7 +56,7 @@ function normalize_asymptote_2(ex)
         ])),
 
         Prestep(Link([
-            (@rule Times(~~s, Cup(), ~~u) => Cup()),
+            (@rule Times(~~s, Cup(), ~~t) => Cup()),
             (@rule Times(~~s, Cup(~t, ~~u), ~~v) => Cup(Times(~~s..., ~t, ~~v...), Times(~~s..., Cup(~~u...), ~~v...))),
         ])),
 
@@ -69,8 +66,8 @@ function normalize_asymptote_2(ex)
         ])),
 
         Prestep(Link([
-            (@rule Wedge(~~p, Vee(), ~~s) => Vee()),
-            (@rule Wedge(~~p, Vee(~q, ~~r), ~~s) => Vee(Wedge(~~p..., ~q, ~~r...), Wedge(~~p..., Vee(~~r...), ~~s...))),
+            (@rule Wedge(~~p, Vee(), ~~q) => Vee()),
+            (@rule Wedge(~~p, Vee(~q, ~~r), ~~s) => Vee(Wedge(~~p..., ~q, ~~s...), Wedge(~~p..., Vee(~~r...), ~~s...))),
         ])),
 
         Prestep(Link([
@@ -84,7 +81,7 @@ function normalize_asymptote_2(ex)
     ]))(ex)
 
     ex = Postwalk(Chain([
-        Prestep(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa
+        Prestep(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa #not really
         Fixpoint(@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
     ]))(ex)
 
@@ -201,7 +198,7 @@ function isimplied(a, b; assumptions = [], normal=false)
     function canonicalize(p)
         err = ArgumentError("unrecognized proposition: $p")
         if !normal
-            p = normalize_asymptote(Exists(Wedge(p, assumptions...)))
+            p = normalize_proposition(Exists(Wedge(p, assumptions...)))
         end
         (@capture p Exists(~~p_frees, Wedge(~~p_preds))) || throw(err)
         p_op_args = Dict()
@@ -276,6 +273,7 @@ function isimplied(a, b; assumptions = [], normal=false)
     return false
 end
 
+#=
 supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote,#This should be normalize_asymptote 
     #(@rule ~p => display(~p)),
 Postwalk(Chain([
@@ -302,6 +300,61 @@ Postwalk(Chain([
         end
     end),
 ]))]))
+=#
+
+function supersimplify_asymptote(a; normal = false)
+    if !normal
+        a = normalize_asymptote(a)
+    end
+    err = ArgumentError("unrecognized asymptote form: $a")
+    (@capture a Cup(~~a_queries)) || throw(err)
+
+    a_queries = map(a_queries) do q
+        (@capture q Such(Times(~~q_heads), ~q_that)) || throw(err)
+        all(q_head -> q_head isa Domain, q_heads) || throw(err)
+        Such(Times(q_heads...), supersimplify_proposition(q_that, normal = true))
+    end
+
+    b_queries = []
+    for a_query in a_queries[randperm(end)]
+        b_queries′ = Any[a_query]
+        keep = true
+        for b_query in b_queries
+            dom_a = _isdominated(a_query, b_query)
+            dom_b = _isdominated(b_query, a_query)
+            if dom_a
+                keep = false
+                break
+            elseif !dom_b
+                push!(b_queries′, b_query)
+            end
+        end
+        if keep
+            b_queries = b_queries′
+        end
+    end
+
+    return Cup(b_queries...)
+end
+
+function supersimplify_proposition(p; normal = false)
+    err = ArgumentError("unrecognized proposition: $p")
+    if !normal
+        p = normalize_proposition(p)
+    end
+    (@capture p Exists(~~p_frees, Wedge(~~p_preds))) || throw(err)
+    i = 1
+    while i <= length(p_preds)
+        q_preds = collect(p_preds)
+        popat!(q_preds, i)
+        if isimplied(Exists(p_frees..., Wedge(q_preds...)), Exists(p_frees..., Wedge(p_preds...)), normal=true)
+            p_preds = q_preds
+        else
+            i += 1
+        end
+    end
+    return Exists(p_frees..., Wedge(p_preds...))
+end
 
 function asymptote_equal(a, b, assumptions=[], sunk_costs=[])
     a = simplify_asymptote(Cup(a, sunk_costs...))

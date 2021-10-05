@@ -25,8 +25,13 @@ w₋(_w) = Postwalk(node -> (node isa Workspace && node.n isa Integer) ? (node.n
 function name_workspaces(prgm)
 	w_n = 1
 	Postwalk(PassThrough((node) -> if node isa With
-        idxs = intersect(loopindices(node), accessindices(node.prod), accessindices(node.cons))
-	    w_prod = access(Workspace(Symbol("w_$w_n")), reducer(node.prod) === nothing ? Write() : Update(), idxs)
+        if reducer(node.prod) === nothing
+            idxs = intersect(loopindices(node), accessindices(node.prod))
+            w_prod = access(Workspace(Symbol("w_$w_n")), Write(), idxs)
+        else
+            idxs = intersect(loopindices(node), accessindices(node.prod), accessindices(node.cons))
+            w_prod = access(Workspace(Symbol("w_$w_n")), Update(), idxs)
+        end
 	    w_cons = access(Workspace(Symbol("w_$w_n")), Read(), idxs)
 	    w_n += 1
 	    return With(w₋(w_cons)(node.cons), w₋(w_prod)(node.prod)) #TODO we make a lot of assumptions here. It would be cleaner to insert read/write properties when the with is created.
@@ -155,17 +160,14 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
                         @loop $(intersect(js, accessindices(p))) $p
                     )
                 end
-            #=
-            this is broken. I'm not sure how to fix it. TODO. This is a mess. I think it's right, but it doesn't work with name_workspaces.
             else
                 return map(combinations(intersect(is, accessindices(x)))) do js
                     @i @loop $(setdiff(is, js)) (
                         @loop $js $c
                     ) where (
-                        @loop $js $p
+                        @loop $(intersect(js, accessindices(p))) $p
                     )
                 end
-            =#
             end
         end
     ))

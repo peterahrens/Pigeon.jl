@@ -146,7 +146,7 @@ TermInterface.similarterm(::IndexNode, ::typeof(with), args, T...) = with!(args)
 function show_statement(io, mime, stmt::With, level)
     print(io, tab^level * "(\n")
     show_statement(io, mime, stmt.cons, level + 1)
-    print(io, "\n" * tab^level * "with\n")
+    print(io, tab^level * ") where (\n")
     show_statement(io, mime, stmt.prod, level + 1)
     print(io, tab^level * ")\n")
 end
@@ -166,16 +166,17 @@ TermInterface.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
 TermInterface.similarterm(::IndexNode, ::typeof(loop), args, T...) = loop!(args)
 
 function show_statement(io, mime, stmt::Loop, level)
-    print(io, tab^level * "∀ ")
+    print(io, tab^level * "@∀ ")
     if !isempty(stmt.idxs)
         show_expression(io, mime, stmt.idxs[1])
         for idx in stmt.idxs[2:end]
-            print(io,", ")
+            print(io," ")
             show_expression(io, mime, idx)
         end
     end
-    print(io," \n")
+    print(io," (\n")
     show_statement(io, mime, stmt.body, level + 1)
+    print(io, tab^level * ")\n")
 end
 
 struct Assign{Lhs} <: IndexStatement

@@ -126,7 +126,7 @@ function isdominated(a, b; sunk_costs = [], assumptions = [], normal=false)
     normal &= isempty(sunk_costs) && isempty(assumptions)
     function canonicalize(q)
         if !normal
-            q = normalize_asymptote(Such(Cup(q, sunk_costs...), Wedge(assumptions...)))
+            q = normalize_asymptote(Such(Cup(Times(q), sunk_costs...), Exists(Wedge(assumptions...))))
         end
         err = ArgumentError("unrecognized query form: $q")
         (@capture q Cup(~~q_queries)) || throw(err)

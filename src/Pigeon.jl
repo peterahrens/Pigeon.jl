@@ -4,7 +4,7 @@ using SymbolicUtils
 using TermInterface
 using TermInterface: arguments, operation, istree, similarterm
 using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
-using SymbolicUtils: @rule
+using SymbolicUtils: @rule, @capture
 
 using Base.Iterators: product
 using Combinatorics
@@ -13,7 +13,6 @@ using ProgressMeter
 
 
 export @i
-export @capture
 export @name
 
 export IndexNode, IndexStatement, IndexExpression

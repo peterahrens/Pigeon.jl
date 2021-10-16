@@ -14,18 +14,74 @@
 ∀ k, i, j 
   A{ll}[i, j] += *(B{cc}[k, i], C{lc}[k, j])
 """
+
+
 """
 ∀ j, k, i 
   A{ll}[j, i] += *(B{lc}[k, i], C{cc}[j, k])
 """
 """
+  ∀ i j
+    A{ll}[i, j] += w2[j, i]
+where
+  ∀ j
+      ∀ i 
+        w2{ll}[j, i] += w1[i]
+    where
+      ∀ k, i 
+        w1[i] += *(B'{lc}[k, i], C'{cc}[j, k])
+where 
+  ∀ i, k 
+    B'[j, i] = B[i, k]
+where 
+  ∀ k, j 
+    C'[j, k] = C[k, j]
+"""
+"""
+  ∀ i j
+    A{ll}[i, j] += w2[j, i]
+where
+  ∀ j
+      ∀ k, i 
+        w2[j, i] += *(B'{lc}[k, i], C'{cc}[j, k])
+where 
+  ∀ i, k 
+    B'[k, i] = B[i, k]
+where 
+  ∀ k, j 
+    C'[j, k] = C[k, j]
+"""
+
+
+"""
 ∀ i, k, j 
   A{ll}[i, j] += *(B{cc}[i, k], C{lc}[k, j])
 """
 """
+∀ i 
+  ∀ j 
+    A{lc}[i, j] += w{c}[j]
+  ∀ k, j 
+    w{l}[j] += *(B{cc}[i, k], C{lc}[k, j])
+"""
+
+
+"""
 ∀ k, i, j 
   A{ll}[i, j] += *(B{cc}[k, i], C{cc}[k, j])
 """
+"""
+∀ i, j 
+  A{ll}[i, j] = w2[i, j]
+where
+∀ k, i, j 
+  w[i, j] += *(w{k, i}[k, i], C{cc}[k, j])
+where
+∀ k, i 
+  w{l,l}[k, i] = *(B{cc}[i, k])
+"""
+
+
 """
 ∀ k, j, i 
   A{ll}[j, i] += *(B{lc}[k, i], C{cc}[k, j])

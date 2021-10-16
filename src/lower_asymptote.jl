@@ -1,3 +1,7 @@
+struct Implicit{T}
+    tns::T
+end
+
 mutable struct SparseFiberRelation
     name
     format

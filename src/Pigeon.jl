@@ -35,6 +35,8 @@ include("index.jl")
 include("parse_index.jl")
 include("asymptote.jl")
 
+include("tensor.jl")
+
 include("style.jl")
 include("saturate.jl")
 include("transform_normalize.jl")

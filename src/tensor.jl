@@ -1,4 +1,5 @@
-mutable struct SymbolicHollowTensor
+abstract type AbstractSymbolicHollowTensor end
+mutable struct SymbolicHollowTensor <: AbstractSymbolicHollowTensor
     name
     format
     dims
@@ -20,6 +21,8 @@ SymbolicHollowTensor(name, format, dims, default) = SymbolicHollowTensor(name, f
 
 getname(tns::SymbolicHollowTensor) = tns.name
 rename(tns::SymbolicHollowTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
+
+getformat(tns::SymbolicHollowTensor) = tns.format
 
 function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)

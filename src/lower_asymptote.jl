@@ -1,8 +1,8 @@
-function saturate_formats(tns::SymbolicHollowTensor)
+function saturate_formats(tns::AbstractSymbolicHollowTensor)
     result = []
-    for format in product(tns.format...)
+    for format in product(tns.format...) #TODO
         tns′ = copy(tns)
-        tns′.format = collect(format)
+        tns′.format = collect(format) #TODO
         push!(result, tns′)
     end
     result
@@ -11,7 +11,6 @@ end
 const Fiber = SymbolicHollowTensor
 const Dense = SymbolicSolidTensor
 
-initialize(tns::SymbolicHollowTensor) = (tns.data = PointQuery(false))
 implicitize(tns::SymbolicHollowTensor) = (tns = copy(tns); tns.implicit = true; tns)
 isimplicit(tns::SymbolicHollowTensor) = tns.implicit
 
@@ -36,9 +35,12 @@ mutable struct AsymptoticContext
     dims
 end
 
-function getdata(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
-    default = PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
-    get!(ctx.state, getname(tns), default)
+function getdata(tns::AbstractSymbolicHollowTensor, ctx::AsymptoticContext)
+    get!(ctx.state, getname(tns), getdatadefault(tns, ctx))
+end
+
+function getdatadefault(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
+    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
 end
 
 lower_axes(tns::SymbolicHollowTensor, ::AsymptoticContext) = tns.dims
@@ -61,7 +63,7 @@ function asymptote(prgm, ctx = AsymptoticContext())
     return ctx.itrs
 end
 
-function read_cost(tns::SymbolicHollowTensor, ctx = AsymptoticContext())
+function read_cost(tns::AbstractSymbolicHollowTensor, ctx = AsymptoticContext())
     idxs = [gensym() for _ in tns.format]
     pred = getdata(tns, ctx)[Name.(idxs)...]
     return Such(Times(Domain.(idxs, tns.dims)...), pred)
@@ -72,7 +74,7 @@ function read_cost(tns::SymbolicSolidTensor, ctx = AsymptoticContext())
     return Times(Domain.(idxs, tns.dims)...)
 end
 
-function assume_nonempty(tns::SymbolicHollowTensor)
+function assume_nonempty(tns::AbstractSymbolicHollowTensor)
     idxs = [gensym() for _ in tns.format]
     return Exists(idxs..., Predicate(getname(tns), idxs...))
 end
@@ -112,7 +114,7 @@ struct CoiterateStyle
 end
 
 #TODO handle children of access?
-function make_style(root, ctx::AsymptoticContext, node::Access{SymbolicHollowTensor})
+function make_style(root, ctx::AsymptoticContext, node::Access{<:AbstractSymbolicHollowTensor})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     return DefaultStyle()
 end
@@ -122,12 +124,12 @@ function make_style(root, ctx::AsymptoticContext, node::Access{SymbolicSolidTens
     return DefaultStyle()
 end
 
-function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SymbolicHollowTensor})
+function make_style(root::Loop, ctx::AsymptoticContext, node::Access{<:AbstractSymbolicHollowTensor})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     isempty(root.idxs) && return DefaultStyle()
     i = findfirst(isequal(root.idxs[1]), node.idxs)
     (i !== nothing && node.idxs[1:i-1] ⊆ ctx.qnts) || return DefaultStyle()
-    node.tns.format[i] === coiter || return DefaultStyle()
+    getformat(node.tns)[i] === coiter || return DefaultStyle()
     return CoiterateStyle()
 end
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
@@ -192,10 +194,10 @@ function coiterate_asymptote!(root, ctx, node)
     end
 end
 
-function coiterate_asymptote!(root, ctx, stmt::Access{SymbolicHollowTensor})
+function coiterate_asymptote!(root, ctx, stmt::Access{<:AbstractSymbolicHollowTensor})
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return Empty()
-    stmt.tns.format[i] === coiter || return Empty() #TODO this line isn't extensible
+    getformat(stmt.tns)[i] === coiter || return Empty() #TODO this line isn't extensible
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
     return iterate!(ctx, pred)
 end
@@ -210,17 +212,17 @@ function coiterate_cases(root, ctx, node)
         [(true, node),]
     end
 end
-function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SymbolicHollowTensor})
+function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{<:AbstractSymbolicHollowTensor})
     single = [(true, stmt),]
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
-    stmt.tns.format[i] === coiter || return single
+    getformat(stmt.tns)[i] === coiter || return single
     stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
     return [(pred, stmt), (true, stmt′),]
 end
 
-function lower!(root::Assign{<:Access{SymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
+function lower!(root::Assign{<:Access{<:AbstractSymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
     pred = Exists(getname.(setdiff(ctx.qnts, root.lhs.idxs))..., guard(ctx))
     getdata(root.lhs.tns, ctx)[root.lhs.idxs...] = pred

@@ -1,32 +1,3 @@
-#=
-function retranspose(acc::Access{<:SymbolicHollowTensor}, σ)
-    return Access(tns, acc.mode, acc.idxs[σ])
-end
-
-function concordize()
-=#
-
-function retranspose(tns::SymbolicHollowTensor, σ)
-    tns = copy(tns)
-    tns.perm = tns.perm[σ]
-    tns.format = tns.format[σ]
-    tns.dims = tns.dims[σ]
-    return (tns, σ)
-end
-
-function retranspose(tns::SymbolicSolidTensor, σ)
-    tns = copy(tns)
-    tns.perm = tns.perm[σ]
-    tns.dims = tns.dims[σ]
-    return (tns, σ)
-end
-
-getname(tns::SymbolicHollowTensor) = tns.name
-rename(tns::SymbolicHollowTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
-
-getname(tns::SymbolicSolidTensor) = tns.name
-rename(tns::SymbolicSolidTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
-
 function saturate_formats(tns::SymbolicHollowTensor)
     result = []
     for format in product(tns.format...)

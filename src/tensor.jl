@@ -18,6 +18,9 @@ Base.copy(tns::SymbolicHollowTensor) = SymbolicHollowTensor(
 SymbolicHollowTensor(name, format, dims) = SymbolicHollowTensor(name, format, dims, 0)
 SymbolicHollowTensor(name, format, dims, default) = SymbolicHollowTensor(name, format, dims, default, collect(1:length(dims)), false)
 
+getname(tns::SymbolicHollowTensor) = tns.name
+rename(tns::SymbolicHollowTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
+
 function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)
     print(io, "{")
@@ -41,6 +44,9 @@ Base.copy(tns::SymbolicSolidTensor) = SymbolicSolidTensor(
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
 SymbolicSolidTensor(name, dims) = SymbolicSolidTensor(name, dims, collect(1:length(dims)))
+
+getname(tns::SymbolicSolidTensor) = tns.name
+rename(tns::SymbolicSolidTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
 
 function show_expression(io, mime, ex::SymbolicSolidTensor)
     print(io, ex.name)

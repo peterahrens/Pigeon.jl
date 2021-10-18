@@ -39,6 +39,7 @@ include("tensor.jl")
 
 include("style.jl")
 include("saturate.jl")
+include("transform_concordize.jl")
 include("transform_normalize.jl")
 include("transform_ssa.jl")
 include("dimensionalize.jl")

@@ -1,7 +1,7 @@
 struct ReformContext
 end
 
-function reform(acc::Access{SparseFiberRelation, Update}, ctx)
+function reform(acc::Access{SymbolicHollowTensor, Update}, ctx)
     qnts = ctx.qnts[ctx.nest(getname(acc.tns)) : end] #only want qnts since tensor was initialized
 
     l_ins = findfirst(l->qnts[l] != acc.idx[l], 1 : length(acc.idx))
@@ -9,7 +9,7 @@ function reform(acc::Access{SparseFiberRelation, Update}, ctx)
     if l_ins != nothing
         name′ = freshen(getname(tns))
         idxs′ = intersect(qnts[l_ins : end], acc.idxs)
-        tns′ = SparseFiberRelation(
+        tns′ = SymbolicHollowTensor(
             name,
             [locate for _ in idxs′],
             [dims[]]
@@ -63,7 +63,7 @@ return CoiterateStyle()
 
 #Observation: This transformation applies to tensors at their "initialization point"
 
-function reform(acc::Access{SparseFiberRelation, Update}, ctx)
+function reform(acc::Access{SymbolicHollowTensor, Update}, ctx)
     qnts = ctx.qnts[ctx.nest(getname(acc.tns)) : end] #qnts is only qnts since tensor was initialized
 
     l_prm = findfirst(l->tns.perm[l] != l, 1 : length(tns.prm))

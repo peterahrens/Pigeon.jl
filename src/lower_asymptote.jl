@@ -2,7 +2,7 @@ struct Implicit{T}
     tns::T
 end
 
-mutable struct SparseFiberRelation
+mutable struct SymbolicHollowTensor
     name
     format
     dims
@@ -10,7 +10,7 @@ mutable struct SparseFiberRelation
     perm
     implicit
 end
-Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
+Base.copy(tns::SymbolicHollowTensor) = SymbolicHollowTensor(
     tns.name,
     tns.format,
     tns.dims,
@@ -19,10 +19,10 @@ Base.copy(tns::SparseFiberRelation) = SparseFiberRelation(
     tns.implicit)
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
-SparseFiberRelation(name, format, dims) = SparseFiberRelation(name, format, dims, 0)
-SparseFiberRelation(name, format, dims, default) = SparseFiberRelation(name, format, dims, default, collect(1:length(dims)), false)
+SymbolicHollowTensor(name, format, dims) = SymbolicHollowTensor(name, format, dims, 0)
+SymbolicHollowTensor(name, format, dims, default) = SymbolicHollowTensor(name, format, dims, default, collect(1:length(dims)), false)
 
-function show_expression(io, mime, ex::SparseFiberRelation)
+function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)
     print(io, "{")
     if length(ex.format) >= 1
@@ -33,32 +33,32 @@ function show_expression(io, mime, ex::SparseFiberRelation)
     print(io, "}")
 end
 
-mutable struct DenseRelation
+mutable struct SymbolicSolidTensor
     name
     dims
     perm
 end
-Base.copy(tns::DenseRelation) = DenseRelation(
+Base.copy(tns::SymbolicSolidTensor) = SymbolicSolidTensor(
     tns.name,
     tns.dims,
     tns.perm)
 
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
-DenseRelation(name, dims) = DenseRelation(name, dims, collect(1:length(dims)))
+SymbolicSolidTensor(name, dims) = SymbolicSolidTensor(name, dims, collect(1:length(dims)))
 
-function show_expression(io, mime, ex::DenseRelation)
+function show_expression(io, mime, ex::SymbolicSolidTensor)
     print(io, ex.name)
 end
 
 #=
-function retranspose(acc::Access{<:SparseFiberRelation}, σ)
+function retranspose(acc::Access{<:SymbolicHollowTensor}, σ)
     return Access(tns, acc.mode, acc.idxs[σ])
 end
 
 function concordize()
 =#
 
-function retranspose(tns::SparseFiberRelation, σ)
+function retranspose(tns::SymbolicHollowTensor, σ)
     tns = copy(tns)
     tns.perm = tns.perm[σ]
     tns.format = tns.format[σ]
@@ -66,20 +66,20 @@ function retranspose(tns::SparseFiberRelation, σ)
     return (tns, σ)
 end
 
-function retranspose(tns::DenseRelation, σ)
+function retranspose(tns::SymbolicSolidTensor, σ)
     tns = copy(tns)
     tns.perm = tns.perm[σ]
     tns.dims = tns.dims[σ]
     return (tns, σ)
 end
 
-getname(tns::SparseFiberRelation) = tns.name
-rename(tns::SparseFiberRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
+getname(tns::SymbolicHollowTensor) = tns.name
+rename(tns::SymbolicHollowTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
 
-getname(tns::DenseRelation) = tns.name
-rename(tns::DenseRelation, name) = (tns = Base.copy(tns); tns.name = name; tns)
+getname(tns::SymbolicSolidTensor) = tns.name
+rename(tns::SymbolicSolidTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
 
-function saturate_formats(tns::SparseFiberRelation)
+function saturate_formats(tns::SymbolicHollowTensor)
     result = []
     for format in product(tns.format...)
         tns′ = copy(tns)
@@ -89,12 +89,12 @@ function saturate_formats(tns::SparseFiberRelation)
     result
 end
 
-const Fiber = SparseFiberRelation
-const Dense = DenseRelation
+const Fiber = SymbolicHollowTensor
+const Dense = SymbolicSolidTensor
 
-initialize(tns::SparseFiberRelation) = (tns.data = PointQuery(false))
-implicitize(tns::SparseFiberRelation) = (tns = copy(tns); tns.implicit = true; tns)
-isimplicit(tns::SparseFiberRelation) = tns.implicit
+initialize(tns::SymbolicHollowTensor) = (tns.data = PointQuery(false))
+implicitize(tns::SymbolicHollowTensor) = (tns = copy(tns); tns.implicit = true; tns)
+isimplicit(tns::SymbolicHollowTensor) = tns.implicit
 
 struct CoiterateRelator end
 struct LocateRelator end
@@ -117,17 +117,17 @@ mutable struct AsymptoticContext
     dims
 end
 
-function getdata(tns::SparseFiberRelation, ctx::AsymptoticContext)
+function getdata(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
     default = PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
     get!(ctx.state, getname(tns), default)
 end
 
-lower_axes(tns::SparseFiberRelation, ::AsymptoticContext) = tns.dims
-lower_axes(tns::SparseFiberRelation, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
-lower_sites(tns::SparseFiberRelation) = tns.perm
-lower_axes(tns::DenseRelation, ::AsymptoticContext) = tns.dims
-lower_axes(tns::DenseRelation, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
-lower_sites(tns::DenseRelation) = tns.perm
+lower_axes(tns::SymbolicHollowTensor, ::AsymptoticContext) = tns.dims
+lower_axes(tns::SymbolicHollowTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
+lower_sites(tns::SymbolicHollowTensor) = tns.perm
+lower_axes(tns::SymbolicSolidTensor, ::AsymptoticContext) = tns.dims
+lower_axes(tns::SymbolicSolidTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
+lower_sites(tns::SymbolicSolidTensor) = tns.perm
 lower_axis_merge(::AsymptoticContext, a, b) = (@assert a == b; b)
 lower_axis_merge(::DimensionalizeWorkspaceContext{AsymptoticContext}, a, b) = (@assert a == b; b)
 
@@ -142,18 +142,18 @@ function asymptote(prgm, ctx = AsymptoticContext())
     return ctx.itrs
 end
 
-function read_cost(tns::SparseFiberRelation, ctx = AsymptoticContext())
+function read_cost(tns::SymbolicHollowTensor, ctx = AsymptoticContext())
     idxs = [gensym() for _ in tns.format]
     pred = getdata(tns, ctx)[Name.(idxs)...]
     return Such(Times(Domain.(idxs, tns.dims)...), pred)
 end
 
-function read_cost(tns::DenseRelation, ctx = AsymptoticContext())
+function read_cost(tns::SymbolicSolidTensor, ctx = AsymptoticContext())
     idxs = [gensym() for _ in tns.dims]
     return Times(Domain.(idxs, tns.dims)...)
 end
 
-function assume_nonempty(tns::SparseFiberRelation)
+function assume_nonempty(tns::SymbolicHollowTensor)
     idxs = [gensym() for _ in tns.format]
     return Exists(idxs..., Predicate(getname(tns), idxs...))
 end
@@ -193,17 +193,17 @@ struct CoiterateStyle
 end
 
 #TODO handle children of access?
-function make_style(root, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
+function make_style(root, ctx::AsymptoticContext, node::Access{SymbolicHollowTensor})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     return DefaultStyle()
 end
 
-function make_style(root, ctx::AsymptoticContext, node::Access{DenseRelation})
+function make_style(root, ctx::AsymptoticContext, node::Access{SymbolicSolidTensor})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     return DefaultStyle()
 end
 
-function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SparseFiberRelation})
+function make_style(root::Loop, ctx::AsymptoticContext, node::Access{SymbolicHollowTensor})
     isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     isempty(root.idxs) && return DefaultStyle()
     i = findfirst(isequal(root.idxs[1]), node.idxs)
@@ -273,7 +273,7 @@ function coiterate_asymptote!(root, ctx, node)
     end
 end
 
-function coiterate_asymptote!(root, ctx, stmt::Access{SparseFiberRelation})
+function coiterate_asymptote!(root, ctx, stmt::Access{SymbolicHollowTensor})
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return Empty()
     stmt.tns.format[i] === coiter || return Empty() #TODO this line isn't extensible
@@ -291,7 +291,7 @@ function coiterate_cases(root, ctx, node)
         [(true, node),]
     end
 end
-function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SparseFiberRelation})
+function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SymbolicHollowTensor})
     single = [(true, stmt),]
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
@@ -301,13 +301,13 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{SparseFiberR
     return [(pred, stmt), (true, stmt′),]
 end
 
-function lower!(root::Assign{<:Access{SparseFiberRelation}}, ctx::AsymptoticContext, ::DefaultStyle)
+function lower!(root::Assign{<:Access{SymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
     pred = Exists(getname.(setdiff(ctx.qnts, root.lhs.idxs))..., guard(ctx))
     getdata(root.lhs.tns, ctx)[root.lhs.idxs...] = pred
 end
 
-function initialize!(tns::SparseFiberRelation, ctx::AsymptoticContext)
+function initialize!(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end
 

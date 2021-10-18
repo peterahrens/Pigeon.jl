@@ -11,8 +11,19 @@ end
 const Fiber = SymbolicHollowTensor
 const Dense = SymbolicSolidTensor
 
-implicitize(tns::SymbolicHollowTensor) = (tns = copy(tns); tns.implicit = true; tns)
-isimplicit(tns::SymbolicHollowTensor) = tns.implicit
+struct ImplicitSymbolicHollowTensor <: AbstractSymbolicHollowTensor
+    tns
+end
+
+getname(tns::ImplicitSymbolicHollowTensor) = getname(tns.tns)
+getdatadefault(tns::ImplicitSymbolicHollowTensor, ctx) = getdatadefault(tns.tns, ctx)
+getformat(tns::ImplicitSymbolicHollowTensor) = getformat(tns.tns)
+getdefault(tns::ImplicitSymbolicHollowTensor) = getdefault(tns.tns)
+getsites(tns::ImplicitSymbolicHollowTensor) = getsites(tns.tns)
+lower_axes(tns::ImplicitSymbolicHollowTensor, ctx) = lower_axes(tns.tns, ctx)
+
+isimplicit(tns) = false
+isimplicit(::ImplicitSymbolicHollowTensor) = true
 
 struct CoiterateRelator end
 struct LocateRelator end
@@ -45,10 +56,8 @@ end
 
 lower_axes(tns::SymbolicHollowTensor, ::AsymptoticContext) = tns.dims
 lower_axes(tns::SymbolicHollowTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
-lower_sites(tns::SymbolicHollowTensor) = tns.perm
 lower_axes(tns::SymbolicSolidTensor, ::AsymptoticContext) = tns.dims
 lower_axes(tns::SymbolicSolidTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
-lower_sites(tns::SymbolicSolidTensor) = tns.perm
 lower_axis_merge(::AsymptoticContext, a, b) = (@assert a == b; b)
 lower_axis_merge(::DimensionalizeWorkspaceContext{AsymptoticContext}, a, b) = (@assert a == b; b)
 
@@ -163,8 +172,8 @@ annihilate_index = Fixpoint(Prewalk(Chain([
     (@ex@rule @i((~a)[~~i] += 0) => pass(~a)),
     (@ex@rule @i((~a)[~~i] *= 1) => pass(~a)),
 
-    (@ex@rule @i((~a)[~~i] *= ~b) => if isimplicit(~a) && (~a).default == 0 pass(~a) end),
-    (@ex@rule @i((~a)[~~i] = ~b) => if isimplicit(~a) && (~a).default == ~b pass(~a) end),
+    (@ex@rule @i((~a)[~~i] *= ~b) => if isimplicit(~a) && getdefault(~a) == 0 pass(~a) end),
+    (@ex@rule @i((~a)[~~i] = ~b) => if isimplicit(~a) && getdefault(~a) == ~b pass(~a) end),
     ((a) -> if a isa Literal && isliteral(value(a)) value(a) end), #only quote when necessary
 
     (@ex@rule @i(@loop (~~i) @pass(~~a)) => pass(~~a)),
@@ -217,7 +226,7 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{<:AbstractSy
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
     getformat(stmt.tns)[i] === coiter || return single
-    stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(implicitize(stmt.tns), stmt.mode, stmt.idxs)
+    stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(ImplicitSymbolicHollowTensor(stmt.tns), stmt.mode, stmt.idxs)
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
     return [(pred, stmt), (true, stmt′),]
 end

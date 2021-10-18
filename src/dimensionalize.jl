@@ -15,7 +15,7 @@ dimensionalize!(node, ctx) = nothing
 function dimensionalize!(node::Access, ctx)
     dims = getdims(ctx)
     if !istree(node.tns)
-        for (idx, lowered_axis, n) in zip(getname.(node.idxs), lower_axes(node.tns, ctx), lower_sites(node.tns))
+        for (idx, lowered_axis, n) in zip(getname.(node.idxs), lower_axes(node.tns, ctx), getsites(node.tns))
             site = (getname(node.tns), n)
             if !haskey(dims, site)
                 push!(dims.labels, site)
@@ -52,7 +52,7 @@ Base.getindex(dims::Dimensions, idx) = dims.lowered_axes[find_root!(dims.labels,
 Base.haskey(dims::Dimensions, idx) = idx in dims.labels
 function isdimensionalized(dims::Dimensions, node::Access)
     if !istree(node.tns)
-        for (n, idx) in zip(lower_sites(node.tns), getname.(node.idxs))
+        for (n, idx) in zip(getsites(node.tns), getname.(node.idxs))
             site = (getname(node.tns), n)
             (haskey(dims, idx) && haskey(dims, site) && in_same_set(dims.labels, idx, site)) || return false
         end

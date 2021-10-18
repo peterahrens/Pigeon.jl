@@ -59,7 +59,7 @@ end
 
 getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
 lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
-lower_sites(::Workspace) = Base.Iterators.countfrom()
+getsites(::Workspace) = Base.Iterators.countfrom()
 
 function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
     normalize = Fixpoint(Postwalk(Chain([

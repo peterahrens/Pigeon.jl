@@ -63,6 +63,13 @@ return CoiterateStyle()
 
 #Observation: This transformation applies to tensors at their "initialization point"
 
+#Options are either:
+#Keep a list of inputs and their names
+#Wrap inputs in some sort of "adaptor" type
+#Pros:
+#   Won't work if there are multiple inputs
+#   Convenience of having wrapped tensor available isn't useful in the read case, we already need to cross-reference tensor identity
+
 function reform(acc::Access{SymbolicHollowTensor, Update}, ctx)
     qnts = ctx.qnts[ctx.nest(getname(acc.tns)) : end] #qnts is only qnts since tensor was initialized
 

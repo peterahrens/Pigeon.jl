@@ -45,12 +45,14 @@ end
 
 function transform_reformat_collect(node::Access{<:AbstractSymbolicHollowTensor}, ctx)
     name = getname(node.tns)
-    format = getprotocol(node.tns)
+    protocol = getprotocol(node.tns)
+    format = getformat(node.tns)
     props = get!(ctx.needed, name, [Set() for _ in format])
-
-    for (i, mode) in enumerate(format)
+    for (i, mode) in enumerate(protocol)
         push!(props[i], accessstyle(mode))
     end
+    println(findfirst(i->ctx.qnt[i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))) #only insert a subtensor if we won't be recomputing that subtensor
+    okay, now like, do something with this information.
 end
 
 accessstyle(mode) = mode #needs fixing

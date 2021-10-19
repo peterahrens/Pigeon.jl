@@ -15,21 +15,39 @@
 
 #check if there is a tensor at or before your insertion location to see if we can widen that format instead.
 
+#assuming each tensor has one source is safe because we can try every combination of sources.
+
 struct ReformatContext
     needed
+    qnt
 end
 
+#assumes concordant, ssa, and a single permutation for each tensor
 function transform_reformat(root)
-    ctx = ReformatContext(Dict())
-    Postwalk(node->transform_reformat_collect(node, ctx))(root)
+    ctx = ReformatContext(Dict(), [])
+    transform_reformat_collect(root, ctx)
     return ctx.needed
 end
 
-transform_reformat_collect(node, ctx) = nothing
+function transform_reformat_collect(node::Loop, ctx)
+    append!(ctx.qnt, node.idxs)
+    transform_reformat_collect(node.body, ctx)
+    for idx in node.idxs pop!(ctx.qnt) end
+end
+
+function transform_reformat_collect(node, ctx)
+    if istree(node)
+        map(arg -> transform_reformat_collect(arg, ctx), arguments(node))
+    else
+        nothing
+    end
+end
+
 function transform_reformat_collect(node::Access{SymbolicHollowTensor}, ctx)
     name = getname(node.tns)
     format = getformat(node.tns)
     props = get!(ctx.needed, name, [Set() for _ in format])
+
     for (i, mode) in enumerate(format)
         push!(props[i], accessstyle(mode))
     end

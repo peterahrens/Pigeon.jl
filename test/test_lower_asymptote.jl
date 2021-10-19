@@ -6,7 +6,6 @@
 
     using Pigeon: Direct
 
-    #SDMMM tests
     A = Dense(:A, [:I, :J])
     B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:I, :J]), [StepProtocol(), StepProtocol()])
     w = Fiber(:w, [], [])

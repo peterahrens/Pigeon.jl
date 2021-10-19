@@ -1,8 +1,13 @@
 using Pigeon
+using Pigeon: ListFormat, ArrayFormat, HashFormat
+using Pigeon: StepProtocol, LocateProtocol, AppendProtocol, InsertProtocol
 
-A = Fiber(:A, [locate, locate], [:I, :J])
-B1 = Fiber(:B, [locate, coiter], [:I, :J])
-B2 = Fiber(:B, [locate, locate], [:I, :J])
+using Pigeon: Direct
+
+A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
+B1 = Direct(B, [LocateProtocol(), StepProtocol()])
+B2 = Direct(B, [LocateProtocol(), LocateProtocol()])
 
 prg = @i @∀ i (
 	@∀ j (

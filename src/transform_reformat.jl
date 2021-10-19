@@ -45,7 +45,7 @@ end
 
 function transform_reformat_collect(node::Access{SymbolicHollowTensor}, ctx)
     name = getname(node.tns)
-    format = getformat(node.tns)
+    format = getprotocol(node.tns)
     props = get!(ctx.needed, name, [Set() for _ in format])
 
     for (i, mode) in enumerate(format)

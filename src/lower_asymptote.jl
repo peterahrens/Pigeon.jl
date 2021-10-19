@@ -1,6 +1,6 @@
 function saturate_formats(tns::AbstractSymbolicHollowTensor)
     result = []
-    for format in product(tns.format...) #TODO
+    for format in product(tns.format...) #TODO (This isn't even covered in tests I don't think. Hmmm...)
         tns′ = copy(tns)
         tns′.format = collect(format) #TODO
         push!(result, tns′)
@@ -10,6 +10,7 @@ end
 
 const Fiber = SymbolicHollowTensor
 const Dense = SymbolicSolidTensor
+const Direct = SymbolicHollowDirector
 
 struct ImplicitSymbolicHollowTensor <: AbstractSymbolicHollowTensor
     tns
@@ -17,7 +18,7 @@ end
 
 getname(tns::ImplicitSymbolicHollowTensor) = getname(tns.tns)
 getdatadefault(tns::ImplicitSymbolicHollowTensor, ctx) = getdatadefault(tns.tns, ctx)
-getformat(tns::ImplicitSymbolicHollowTensor) = getformat(tns.tns)
+getprotocol(tns::ImplicitSymbolicHollowTensor) = getprotocol(tns.tns)
 getdefault(tns::ImplicitSymbolicHollowTensor) = getdefault(tns.tns)
 getsites(tns::ImplicitSymbolicHollowTensor) = getsites(tns.tns)
 lower_axes(tns::ImplicitSymbolicHollowTensor, ctx) = lower_axes(tns.tns, ctx)
@@ -25,16 +26,10 @@ lower_axes(tns::ImplicitSymbolicHollowTensor, ctx) = lower_axes(tns.tns, ctx)
 isimplicit(tns) = false
 isimplicit(::ImplicitSymbolicHollowTensor) = true
 
-struct CoiterateRelator end
-struct LocateRelator end
-
-const coiter = CoiterateRelator()
-const locate = LocateRelator()
-
-function show_expression(io, mime, ex::CoiterateRelator)
+function show_expression(io, mime, ex::StepProtocol)
     print(io, "c")
 end
-function show_expression(io, mime, ex::LocateRelator)
+function show_expression(io, mime, ex::LocateProtocol)
     print(io, "l")
 end
 
@@ -54,6 +49,11 @@ function getdatadefault(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
     PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
 end
 
+function getdatadefault(tns::SymbolicHollowDirector, ctx::AsymptoticContext)
+    getdatadefault(tns.tns, ctx)
+end
+
+lower_axes(tns::SymbolicHollowDirector, ctx) = lower_axes(tns.tns, ctx)[tns.perm]
 lower_axes(tns::SymbolicHollowTensor, ::AsymptoticContext) = tns.dims
 lower_axes(tns::SymbolicHollowTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
 lower_axes(tns::SymbolicSolidTensor, ::AsymptoticContext) = tns.dims
@@ -73,7 +73,7 @@ function asymptote(prgm, ctx = AsymptoticContext())
 end
 
 function read_cost(tns::AbstractSymbolicHollowTensor, ctx = AsymptoticContext())
-    idxs = [gensym() for _ in tns.format]
+    idxs = [gensym() for _ in getsites(tns)]
     pred = getdata(tns, ctx)[Name.(idxs)...]
     return Such(Times(Domain.(idxs, tns.dims)...), pred)
 end
@@ -84,7 +84,7 @@ function read_cost(tns::SymbolicSolidTensor, ctx = AsymptoticContext())
 end
 
 function assume_nonempty(tns::AbstractSymbolicHollowTensor)
-    idxs = [gensym() for _ in tns.format]
+    idxs = [gensym() for _ in getsites(tns)]
     return Exists(idxs..., Predicate(getname(tns), idxs...))
 end
 
@@ -138,9 +138,14 @@ function make_style(root::Loop, ctx::AsymptoticContext, node::Access{<:AbstractS
     isempty(root.idxs) && return DefaultStyle()
     i = findfirst(isequal(root.idxs[1]), node.idxs)
     (i !== nothing && node.idxs[1:i-1] ⊆ ctx.qnts) || return DefaultStyle()
-    getformat(node.tns)[i] === coiter || return DefaultStyle()
-    return CoiterateStyle()
+    return make_style_protocol(root, ctx, node, getprotocol(node.tns)[i])
 end
+
+make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::LocateProtocol) = DefaultStyle()
+make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::StepProtocol) = CoiterateStyle()
+make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::AppendProtocol) = DefaultStyle()
+make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::InsertProtocol) = DefaultStyle()
+
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
 combine_style(a::CoiterateStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
 combine_style(a::DefaultStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
@@ -206,7 +211,7 @@ end
 function coiterate_asymptote!(root, ctx, stmt::Access{<:AbstractSymbolicHollowTensor})
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return Empty()
-    getformat(stmt.tns)[i] === coiter || return Empty() #TODO this line isn't extensible
+    getprotocol(stmt.tns)[i] === coiter || return Empty() #TODO this line isn't extensible
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
     return iterate!(ctx, pred)
 end
@@ -225,8 +230,8 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{<:AbstractSy
     single = [(true, stmt),]
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
-    getformat(stmt.tns)[i] === coiter || return single
-    stmt′ = stmt.mode === Read() ? stmt.tns.default : Access(ImplicitSymbolicHollowTensor(stmt.tns), stmt.mode, stmt.idxs)
+    getprotocol(stmt.tns)[i] === coiter || return single
+    stmt′ = stmt.mode === Read() ? getdefault(stmt.tns) : Access(ImplicitSymbolicHollowTensor(stmt.tns), stmt.mode, stmt.idxs)
     pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
     return [(pred, stmt), (true, stmt′),]
 end
@@ -237,6 +242,9 @@ function lower!(root::Assign{<:Access{<:AbstractSymbolicHollowTensor}}, ctx::Asy
     getdata(root.lhs.tns, ctx)[root.lhs.idxs...] = pred
 end
 
+function initialize!(tns::SymbolicHollowDirector, ctx::AsymptoticContext)
+    initialize!(tns.tns, ctx)
+end
 function initialize!(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end

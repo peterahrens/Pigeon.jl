@@ -24,6 +24,12 @@ getformat(tns::SymbolicHollowTensor) = tns.format
 getdefault(tns::SymbolicHollowTensor) = tns.default
 getsites(tns::SymbolicHollowTensor) = tns.perm
 
+hasprotocol(fmt, proto) = false
+
+struct ArrayFormat end
+struct ListFormat end
+struct HashFormat end
+
 function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)
     print(io, "{")
@@ -34,6 +40,48 @@ function show_expression(io, mime, ex::SymbolicHollowTensor)
     end
     print(io, "}")
 end
+
+mutable struct SymbolicHollowDirector <: AbstractSymbolicHollowTensor
+    tns
+    protocol
+    perm
+end
+Base.copy(tns::SymbolicHollowDirector) = SymbolicHollowDirector(
+    tns.tns,
+    tns.protocol,
+    tns.perm)
+
+
+SymbolicHollowDirector(tns, protos) = SymbolicHollowDirector(tns, protos, collect(1:length(protos)))
+
+
+getname(tns::SymbolicHollowDirector) = getname(tns.tns)
+rename(tns::SymbolicHollowDirector, name) = (tns = Base.copy(tns); tns.tns = rename(tns.tns, name); tns)
+
+getformat(tns::SymbolicHollowDirector) = getformat(tns.tns)[tns.perm]
+getprotocol(tns::SymbolicHollowDirector) = tns.protocol
+getdefault(tns::SymbolicHollowDirector) = getdefault(tns.tns)
+getsites(tns::SymbolicHollowDirector) = getsites(tns.tns)[tns.perm]
+
+struct StepProtocol end
+struct LocateProtocol end
+struct AppendProtocol end
+struct InsertProtocol end
+
+const coiter = StepProtocol()
+const locate = LocateProtocol()
+
+hasprotocol(::ArrayFormat, ::LocateProtocol) = true
+hasprotocol(::ArrayFormat, ::AppendProtocol) = true #Not sure
+hasprotocol(::ArrayFormat, ::InsertProtocol) = true
+
+hasprotocol(::ListFormat, ::StepProtocol) = true
+hasprotocol(::ListFormat, ::AppendProtocol) = true
+
+hasprotocol(::HashFormat, ::LocateProtocol) = true
+hasprotocol(::HashFormat, ::StepProtocol) = true
+hasprotocol(::HashFormat, ::AppendProtocol) = true
+hasprotocol(::HashFormat, ::InsertProtocol) = true
 
 mutable struct SymbolicSolidTensor
     name

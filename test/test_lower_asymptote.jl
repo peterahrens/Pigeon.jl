@@ -1,10 +1,14 @@
 @testset "asymptote" begin
     using Pigeon: Such, Times, Wedge, Vee, Predicate, Cup, Cap, Empty, Exists
     using Pigeon: isdominated
+    using Pigeon: ListFormat, ArrayFormat, HashFormat
+    using Pigeon: StepProtocol, LocateProtocol, AppendProtocol, InsertProtocol
+
+    using Pigeon: Direct
 
     #SDMMM tests
     A = Dense(:A, [:I, :J])
-    B = Fiber(:B, [coiter, coiter], [:I, :J])
+    B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:I, :J]), [StepProtocol(), StepProtocol()])
     w = Fiber(:w, [], [])
     C = Dense(:C, [:I, :K])
     D = Dense(:D, [:J, :K])
@@ -31,9 +35,9 @@
             )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    D = Fiber(:D, [locate], [:I])
-    E = Fiber(:E, [coiter], [:I])
-    F = Fiber(:F, [locate], [:I])
+    D = Direct(Fiber(:D, [ArrayFormat()], [:I]), [LocateProtocol()])
+    E = Direct(Fiber(:E, [ListFormat()], [:I]), [StepProtocol()])
+    F = Direct(Fiber(:F, [ArrayFormat()], [:I]), [LocateProtocol()])
     a = Pigeon.asymptote(@i @loop i D[i] += E[i] * F[i])
     a_ref = Such(
         Times(Domain(:i, :I)),
@@ -43,13 +47,14 @@
     )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    A = Fiber(:A, [locate], [:I])
-    B = Fiber(:B, [coiter], [:I])
-    C = Fiber(:C, [coiter], [:I])
-    D = Fiber(:D, [coiter], [:I])
-    w = Fiber(:w, [coiter], [:I])
-    w′ = Fiber(:w, [locate], [:I])
-    a = Pigeon.asymptote(@i (@loop i A[i] += B[i] * w[i]) where (@loop j w′[j] += C[j] * D[j]))
+    A = Direct(Fiber(:A, [ArrayFormat()], [:I]), [InsertProtocol()])
+    B = Direct(Fiber(:B, [ListFormat()], [:I]), [StepProtocol()])
+    C = Direct(Fiber(:C, [ListFormat()], [:I]), [StepProtocol()])
+    D = Direct(Fiber(:D, [ListFormat()], [:I]), [StepProtocol()])
+    w = Fiber(:w, [HashFormat()], [:I])
+    w_r = Direct(w, [StepProtocol()])
+    w_w = Direct(w, [AppendProtocol()])
+    a = Pigeon.asymptote(@i (@loop i A[i] += B[i] * w_r[i]) where (@loop j w_w[j] += C[j] * D[j]))
     a_ref = Cup(
         Such(
             Times(Domain(:i, :I)),
@@ -72,7 +77,7 @@
     )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    a = Pigeon.asymptote(@i (@loop i j A[i] += B[i] * w[j]) where (@loop i w′[i] += C[i] * D[i]))
+    a = Pigeon.asymptote(@i (@loop i j A[i] += B[i] * w_r[j]) where (@loop i w_w[i] += C[i] * D[i]))
     a_ref = Cup(
         Such(
             Times(Domain(:i, :I)),
@@ -103,8 +108,9 @@
     )
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    A = Fiber(:A, [coiter], [:J])
-    B = Fiber(:B, [locate, coiter], [:I, :J])
+    #=
+    A = Direct(Fiber(:A, [HashFormat()], [:J]), [InsertProtocol()])
+    B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J]), [LocateProtocol(), StepProtocol()])
     a = Pigeon.asymptote(@i @loop i j A[j] += B[i, j])
 
     a_ref = Cup(
@@ -121,10 +127,11 @@
         ),
     )
     @test Pigeon.asymptote_equal(a, a_ref)
+    =#
 
-    A = Fiber(:A, [locate, locate], [:I, :J])
-    B = Fiber(:B, [locate, coiter], [:J, :K])
-    C = Fiber(:C, [locate, coiter], [:I, :K])
+    A = Direct(Fiber(:A, [ListFormat(), ListFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
+    B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:J, :K]), [LocateProtocol(), StepProtocol()])
+    C = Direct(Fiber(:C, [ArrayFormat(), ListFormat()], [:I, :K]), [LocateProtocol(), StepProtocol()])
 
     a = Pigeon.asymptote(@i @loop i j k A[i, j] += B[j, k] * C[i, k])
     a_ref = Cup(
@@ -143,9 +150,9 @@
 
     @test Pigeon.asymptote_equal(a, a_ref)
 
-    A = Fiber(:A, [locate, locate], [:I, :J])
-    B = Fiber(:B, [coiter, coiter], [:K, :J])
-    C = Fiber(:C, [coiter, coiter], [:K, :I])
+    A = Direct(Fiber(:A, [HashFormat(), HashFormat()], [:I, :J]), [InsertProtocol(), InsertProtocol()])
+    B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:K, :J]), [StepProtocol(), StepProtocol()])
+    C = Direct(Fiber(:C, [ListFormat(), ListFormat()], [:K, :I]), [StepProtocol(), StepProtocol()])
 
     a = Pigeon.asymptote(@i @loop k i j A[i, j] += B[k, j] * C[k, i])
     a_ref = Cup(

@@ -18,13 +18,21 @@
 #assuming each tensor has one source is safe because we can try every combination of sources.
 
 struct ReformatContext
-    needed
+    ops
+    nest
     qnt
+end
+
+struct ReformatOperation
+    name
+    idxs
+    qnts
+    protocols
 end
 
 #assumes concordant, ssa, and a single permutation for each tensor
 function transform_reformat(root)
-    ctx = ReformatContext(Dict(), [])
+    ctx = ReformatContext([], Dict(), [])
     transform_reformat_collect(root, ctx)
     return ctx.needed
 end
@@ -33,6 +41,13 @@ function transform_reformat_collect(node::Loop, ctx)
     append!(ctx.qnt, node.idxs)
     transform_reformat_collect(node.body, ctx)
     for idx in node.idxs pop!(ctx.qnt) end
+end
+
+function transform_reformat_collect(node::With, ctx)
+    transform_reformat_collect(node.prod, ctx)
+    ctx.nest[getresult(node.prod)] = length(ctx.qnts)
+    transform_reformat_collect(node.cons, ctx)
+    delete!(getresult(node.prod))
 end
 
 function transform_reformat_collect(node, ctx)
@@ -47,12 +62,11 @@ function transform_reformat_collect(node::Access{<:AbstractSymbolicHollowTensor}
     name = getname(node.tns)
     protocol = getprotocol(node.tns)
     format = getformat(node.tns)
-    props = get!(ctx.needed, name, [Set() for _ in format])
-    for (i, mode) in enumerate(protocol)
-        push!(props[i], accessstyle(mode))
-    end
-    println(findfirst(i->ctx.qnt[i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))) #only insert a subtensor if we won't be recomputing that subtensor
-    okay, now like, do something with this information.
+    top = get(ctx.nest, name, 0)
+    #push a tensor reformat as far down the nest as we can, without computing it redundantly
+    i = findfirst(i->ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
+    res = ReformatOperation(name, node.idxs, ctx.qnt[top + 1: top + i], protocol)
+    println(res)
 end
 
 accessstyle(mode) = mode #needs fixing

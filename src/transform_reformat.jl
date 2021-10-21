@@ -18,23 +18,47 @@
 #assuming each tensor has one source is safe because we can try every combination of sources.
 
 struct ReformatContext
-    ops
+    trns
     nest
     qnt
 end
 
-struct ReformatOperation
-    name
+struct ReformatTransform
+    tns
     idxs
-    qnts
-    protocols
+    qnt
+    protos
+end
+
+function transform_reformat_merge(a::ReformatTransform, b::ReformatTransform)
+    a.tns == b.tns || return nothing
+    a.idxs == b.idxs || return nothing
+    l = min(length(a.qnt), length(b.qnt))
+    a.qnt[1:l] == b.qnt[1:l] || return nothing
+    return ReformatTransform(a.name, a.idxs, a.qnt[1:l], vcat(a.protos, b.protos))
 end
 
 #assumes concordant, ssa, and a single permutation for each tensor
 function transform_reformat(root)
     ctx = ReformatContext([], Dict(), [])
     transform_reformat_collect(root, ctx)
-    return ctx.needed
+
+    trns = []
+    for a in ctx.trns
+        trns′ = []
+        for b in trns
+            a′ = transform_reformat_merge(a, b)
+            if a′ !== nothing
+                a = a′
+            else
+                push!(trns′, b)
+            end
+        end
+        push!(trns′, a)
+        trns = trns′
+    end
+
+    return trns
 end
 
 function transform_reformat_collect(node::Loop, ctx)
@@ -58,15 +82,53 @@ function transform_reformat_collect(node, ctx)
     end
 end
 
-function transform_reformat_collect(node::Access{<:AbstractSymbolicHollowTensor}, ctx)
+function transform_reformat_collect(node::Access{SymbolicHollowDirector}, ctx)
     name = getname(node.tns)
     protocol = getprotocol(node.tns)
     format = getformat(node.tns)
     top = get(ctx.nest, name, 0)
-    #push a tensor reformat as far down the nest as we can, without computing it redundantly
-    i = findfirst(i->ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
-    res = ReformatOperation(name, node.idxs, ctx.qnt[top + 1: top + i], protocol)
-    println(res)
+    if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
+        #push a tensor reformat as far down the nest as we can, without computing it redundantly
+        i = findfirst(i->ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
+        
+        res = ReformatTransform(name, node.idxs, top == 0, ctx.qnt[top + 1 : top + i], protocol)
+        push!(ctx.trns, res)
+    end
 end
 
-accessstyle(mode) = mode #needs fixing
+#=
+function transform_reformat_execute(node::Loop, ctx)
+    isempty(node.idxs) && return transform_reformat_collect(node.body)
+    push!(ctx.qnt, node.idxs[1])
+    #!isempty(trn.qnt) && subseteq(trn.qnt, ctx.qnt)
+    transform_reformat_collect(Loop(node.idxs[2:end], node.body), ctx)
+    pop!(ctx.qnt)
+end
+
+function transform_reformat_execute(node::With, ctx)
+    transform_reformat_execute(node.prod, ctx)
+    res = getresult(node.prod)
+    ctx.nest[res] = length(ctx.qnts)
+    #isempty(trn.qnt) && getname(trn.tns) == getname(res)
+    transform_reformat_execute(node.cons, ctx)
+    delete!(res)
+end
+
+function transform_reformat_execute(node, ctx)
+    if istree(node)
+        similarterm(node, map(arg -> transform_reformat_execute(arg, ctx), arguments(node)))
+    else
+        node
+    end
+end
+
+function transform_reformat_execute(node::Access{SymbolicHollowDirector}, ctx)
+    name = getname(node.tns)
+    protocol = getprotocol(node.tns)
+    format = getformat(node.tns)
+    top = get(ctx.nest, name, 0)
+    if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
+        
+    end
+end
+=#

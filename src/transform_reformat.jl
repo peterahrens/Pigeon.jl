@@ -40,7 +40,6 @@ end
 
 function transform_reformat_process(trn::ReformatRequest)
     protocol_groups = unzip(trn.protos)
-    println(protocol_groups)
     format = getformat(trn.tns)
     i = findfirst(i -> i >= trn.keep && !all(proto -> hasprotocol(format[i], proto), protocol_groups[i]), 1:length(format))
     format′ = map(j -> foldl(widenformat, protocol_groups[j], init=NoFormat()), i:length(format))
@@ -49,7 +48,7 @@ function transform_reformat_process(trn::ReformatRequest)
     tns′ = SymbolicHollowTensor(name′, format′, dims′, trn.tns.default)
     idxs′ = [Name(gensym()) for _ in format′]
     #for now, assume that a different pass will add "default" read/write protocols
-    prod′ = @i @loop $idxs′ $tns′[$idxs′] = $(trn.tns)[$(trn.qnt[end - length(format) + 1 + trn.keep : end]), $idxs′]
+    prod′ = @i @loop $idxs′ $tns′[$idxs′] = $(trn.tns)[$(trn.qnt), $idxs′]
     return ReformatResponse(trn.tns.name, tns′, prod′, trn.keep, trn.qnt)
 end
 
@@ -64,6 +63,9 @@ end
 #assumes concordant, ssa, and a single permutation for each tensor
 function transform_reformat(root)
     ctx = ReformatContext([], Dict(), [], Dict())
+    for name in getglobals(root)
+        ctx.nest[name] = 0
+    end
     transform_reformat_collect(root, ctx)
 
     trns = []
@@ -139,7 +141,6 @@ function transform_reformat_execute(node::Loop, ctx)
         end
     end
     ctx.trns = trns′
-    println(length(prods))
     body′ = transform_reformat_execute(Loop(node.idxs[2:end], node.body), ctx)
     pop!(ctx.qnt)
     for name in names

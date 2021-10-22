@@ -8,10 +8,19 @@ A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(
 B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
 B1 = Direct(B, [LocateProtocol(), StepProtocol()])
 B2 = Direct(B, [LocateProtocol(), LocateProtocol()])
+B3 = Direct(B, [StepProtocol(), LocateProtocol()])
 
 prg = @i @loop i (
 	@loop j (
 		A[i, j] += B1[i, j] * B2[i, j]
+    )
+)
+
+display(Pigeon.transform_reformat(prg))
+
+prg = @i @loop i (
+	@loop j (
+		A[i, j] += B3[i, j] * B1[i, j]
     )
 )
 

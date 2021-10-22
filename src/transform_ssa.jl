@@ -64,7 +64,13 @@ end
 
 function transform_ssa(prgm)
     transform_ssa!(prgm, Namespace())
-    #globals are binds and nonempty keys of rename
+end
+
+#globals are getglobals(prgm) and getresult(prgm)
+function getglobals(prgm)
+    spc = Namespace()
+    transform_ssa!(prgm, spc)
+    return filter(name -> !isempty(spc.renames[name]), keys(spc.renames))
 end
 
 function transform_ssa!(root::Name, ctx)

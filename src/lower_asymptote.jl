@@ -26,13 +26,6 @@ lower_axes(tns::ImplicitSymbolicHollowTensor, ctx) = lower_axes(tns.tns, ctx)
 isimplicit(tns) = false
 isimplicit(::ImplicitSymbolicHollowTensor) = true
 
-function show_expression(io, mime, ex::StepProtocol)
-    print(io, "c")
-end
-function show_expression(io, mime, ex::LocateProtocol)
-    print(io, "l")
-end
-
 mutable struct AsymptoticContext
     itrs::Any
     qnts::Vector{Any}

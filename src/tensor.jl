@@ -27,9 +27,13 @@ getsites(tns::SymbolicHollowTensor) = tns.perm
 hasprotocol(fmt, proto) = false
 
 struct ArrayFormat end
+show_expression(io, mime, ::ArrayFormat) = print(io, "u")
 struct ListFormat end
+show_expression(io, mime, ::ListFormat) = print(io, "c")
 struct HashFormat end
+show_expression(io, mime, ::HashFormat) = print(io, "h")
 struct NoFormat end
+show_expression(io, mime, ::NoFormat) = print(io, "0")
 
 function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)
@@ -55,6 +59,20 @@ Base.copy(tns::SymbolicHollowDirector) = SymbolicHollowDirector(
 
 SymbolicHollowDirector(tns, protos) = SymbolicHollowDirector(tns, protos, collect(1:length(protos)))
 
+function show_expression(io, mime, ex::SymbolicHollowDirector)
+    print(io, getname(ex.tns))
+    print(io, "{")
+    format = getformat(ex)
+    if length(format) >= 1
+        for (lvl, proto) in zip(format, getprotocol(ex))
+            show_expression(io, mime, proto)
+            print(io, "(")
+            show_expression(io, mime, lvl)
+            print(io, ")")
+        end
+    end
+    print(io, "}")
+end
 
 getname(tns::SymbolicHollowDirector) = getname(tns.tns)
 rename(tns::SymbolicHollowDirector, name) = (tns = Base.copy(tns); tns.tns = rename(tns.tns, name); tns)
@@ -65,9 +83,13 @@ getdefault(tns::SymbolicHollowDirector) = getdefault(tns.tns)
 getsites(tns::SymbolicHollowDirector) = getsites(tns.tns)[tns.perm]
 
 struct StepProtocol end
+show_expression(io, mime, ::StepProtocol) = print(io, "s")
 struct LocateProtocol end
+show_expression(io, mime, ::LocateProtocol) = print(io, "l")
 struct AppendProtocol end
+show_expression(io, mime, ::AppendProtocol) = print(io, "a")
 struct InsertProtocol end
+show_expression(io, mime, ::InsertProtocol) = print(io, "i")
 
 const coiter = StepProtocol()
 const locate = LocateProtocol()

@@ -127,17 +127,25 @@ function transform_reformat_execute(node::Loop, ctx)
     push!(ctx.qnt, node.idxs[1])
     prods = []
     tns = []
+    trns′ = []
+    names = []
     for trn in ctx.trns
         if !isempty(trn.qnt) && issubset(trn.qnt, ctx.qnt)
             push!(prods, trn.prod)
             ctx.tnss[trn.name] = trn.tns
+            push!(names, trn.name)
+        else
+            push!(trns′, trn)
         end
-        
     end
+    ctx.trns = trns′
     println(length(prods))
     body′ = transform_reformat_execute(Loop(node.idxs[2:end], node.body), ctx)
     pop!(ctx.qnt)
-    return foldl(with, prods, init=body′)
+    for name in names
+        delete!(ctx.tnss, name)
+    end
+    return Loop(Any[node.idxs[1]], foldl(with, prods, init=body′))
 end
 
 function transform_reformat_execute(node::With, ctx)

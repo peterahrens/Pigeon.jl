@@ -9,10 +9,10 @@ B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
 B1 = Direct(B, [LocateProtocol(), StepProtocol()])
 B2 = Direct(B, [LocateProtocol(), LocateProtocol()])
 
-prg = @i @∀ i (
-	@∀ j (
+prg = @i @loop i (
+	@loop j (
 		A[i, j] += B1[i, j] * B2[i, j]
     )
 )
 
-println(Pigeon.transform_reformat(prg))
+display(Pigeon.transform_reformat(prg))

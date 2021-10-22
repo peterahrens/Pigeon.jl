@@ -29,6 +29,7 @@ hasprotocol(fmt, proto) = false
 struct ArrayFormat end
 struct ListFormat end
 struct HashFormat end
+struct NoFormat end
 
 function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, ex.name)
@@ -82,6 +83,15 @@ hasprotocol(::HashFormat, ::LocateProtocol) = true
 hasprotocol(::HashFormat, ::StepProtocol) = true
 hasprotocol(::HashFormat, ::AppendProtocol) = true
 hasprotocol(::HashFormat, ::InsertProtocol) = true
+
+widenformat(fmt, proto) = hasprotocol(fmt, proto) ? fmt : error()
+
+widenformat(::NoFormat, ::LocateProtocol) = HashFormat()
+widenformat(::NoFormat, ::StepProtocol) = ListFormat()
+widenformat(::NoFormat, ::InsertProtocol) = HashFormat()
+widenformat(::NoFormat, ::AppendProtocol) = ListFormat()
+widenformat(::ListFormat, ::InsertProtocol) = HashFormat()
+widenformat(::ArrayFormat, ::StepProtocol) = HashFormat()
 
 mutable struct SymbolicSolidTensor
     name

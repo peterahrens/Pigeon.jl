@@ -17,30 +17,53 @@
 
 #assuming each tensor has one source is safe because we can try every combination of sources.
 
-struct ReformatContext
+mutable struct ReformatContext
     trns
     nest
     qnt
+    tnss
 end
 
-struct ReformatTransform
+struct ReformatRequest
     tns
-    idxs
+    keep
     qnt
     protos
 end
 
-function transform_reformat_merge(a::ReformatTransform, b::ReformatTransform)
+function transform_reformat_merge(a::ReformatRequest, b::ReformatRequest)
     a.tns == b.tns || return nothing
-    a.idxs == b.idxs || return nothing
     l = min(length(a.qnt), length(b.qnt))
     a.qnt[1:l] == b.qnt[1:l] || return nothing
-    return ReformatTransform(a.name, a.idxs, a.qnt[1:l], vcat(a.protos, b.protos))
+    return ReformatRequest(a.tns, min(a.keep, b.keep), a.qnt[1:l], vcat(a.protos, b.protos))
+end
+
+function transform_reformat_process(trn::ReformatRequest)
+    protocol_groups = unzip(trn.protos)
+    println(protocol_groups)
+    format = getformat(trn.tns)
+    i = findfirst(i -> i >= trn.keep && !all(proto -> hasprotocol(format[i], proto), protocol_groups[i]), 1:length(format))
+    format′ = map(j -> foldl(widenformat, protocol_groups[j], init=NoFormat()), i:length(format))
+    name′ = freshen(trn.tns.name)
+    dims′ = trn.tns.dims[i:length(format)]
+    tns′ = SymbolicHollowTensor(name′, format′, dims′, trn.tns.default)
+    idxs′ = [Name(gensym()) for _ in format′]
+    #for now, assume that a different pass will add "default" read/write protocols
+    prod′ = @i @loop $idxs′ $tns′[$idxs′] = $(trn.tns)[$(trn.qnt[end - length(format) + 1 + trn.keep : end]), $idxs′]
+    return ReformatResponse(trn.tns.name, tns′, prod′, trn.keep, trn.qnt)
+end
+
+struct ReformatResponse
+    name
+    tns
+    prod
+    keep
+    qnt
 end
 
 #assumes concordant, ssa, and a single permutation for each tensor
 function transform_reformat(root)
-    ctx = ReformatContext([], Dict(), [])
+    ctx = ReformatContext([], Dict(), [], Dict())
     transform_reformat_collect(root, ctx)
 
     trns = []
@@ -58,7 +81,10 @@ function transform_reformat(root)
         trns = trns′
     end
 
-    return trns
+    trns = map(transform_reformat_process, trns)
+    ctx.trns = trns
+
+    return transform_reformat_execute(root, ctx)
 end
 
 function transform_reformat_collect(node::Loop, ctx)
@@ -89,34 +115,43 @@ function transform_reformat_collect(node::Access{SymbolicHollowDirector}, ctx)
     top = get(ctx.nest, name, 0)
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
         #push a tensor reformat as far down the nest as we can, without computing it redundantly
-        i = findfirst(i->ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
-        
-        res = ReformatTransform(name, node.idxs, top == 0, ctx.qnt[top + 1 : top + i], protocol)
+        i = findfirst(i->ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format)) - 1
+
+        res = ReformatRequest(node.tns.tns, i, ctx.qnt[1 : top + i], [protocol])
         push!(ctx.trns, res)
     end
 end
 
-#=
 function transform_reformat_execute(node::Loop, ctx)
-    isempty(node.idxs) && return transform_reformat_collect(node.body)
+    isempty(node.idxs) && return transform_reformat_execute(node.body, ctx)
     push!(ctx.qnt, node.idxs[1])
-    #!isempty(trn.qnt) && subseteq(trn.qnt, ctx.qnt)
-    transform_reformat_collect(Loop(node.idxs[2:end], node.body), ctx)
+    prods = []
+    tns = []
+    for trn in ctx.trns
+        if !isempty(trn.qnt) && issubset(trn.qnt, ctx.qnt)
+            push!(prods, trn.prod)
+            ctx.tnss[trn.name] = trn.tns
+        end
+        
+    end
+    println(length(prods))
+    body′ = transform_reformat_execute(Loop(node.idxs[2:end], node.body), ctx)
     pop!(ctx.qnt)
+    return foldl(with, prods, init=body′)
 end
 
 function transform_reformat_execute(node::With, ctx)
     transform_reformat_execute(node.prod, ctx)
     res = getresult(node.prod)
     ctx.nest[res] = length(ctx.qnts)
-    #isempty(trn.qnt) && getname(trn.tns) == getname(res)
+    #isempty(trn.i) && getname(trn.tns) == getname(res)
     transform_reformat_execute(node.cons, ctx)
     delete!(res)
 end
 
 function transform_reformat_execute(node, ctx)
     if istree(node)
-        similarterm(node, map(arg -> transform_reformat_execute(arg, ctx), arguments(node)))
+        similarterm(node, operation(node), map(arg -> transform_reformat_execute(arg, ctx), arguments(node)))
     else
         node
     end
@@ -128,7 +163,11 @@ function transform_reformat_execute(node::Access{SymbolicHollowDirector}, ctx)
     format = getformat(node.tns)
     top = get(ctx.nest, name, 0)
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
-        
+        if haskey(ctx.tnss, name)
+            tns = ctx.tnss[name]
+            tns = SymbolicHollowDirector(tns, node.tns.protocol[end-length(tns.format) + 1: end])
+            return Access(tns, node.mode, node.idxs[end-length(tns.protocol) + 1: end])
+        end
     end
+    return node
 end
-=#

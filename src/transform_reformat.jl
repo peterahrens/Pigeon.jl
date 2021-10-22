@@ -174,8 +174,8 @@ function transform_reformat_execute(node::Access{SymbolicHollowDirector}, ctx)
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
         if haskey(ctx.tnss, name)
             tns = ctx.tnss[name]
-            tns = SymbolicHollowDirector(tns, node.tns.protocol[end-length(tns.format) + 1: end])
-            return Access(tns, node.mode, node.idxs[end-length(tns.protocol) + 1: end])
+            tns = SymbolicHollowDirector(tns, node.tns.protocol[end - length(tns.format) + 1: end])
+            return Access(tns, node.mode, node.idxs[end - length(tns.protocol) + 1: end])
         end
     end
     return node

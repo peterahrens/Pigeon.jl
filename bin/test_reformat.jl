@@ -16,12 +16,16 @@ prg = @i @loop i (
     )
 )
 
+display(prg)
+
 display(Pigeon.transform_reformat(prg))
 
 prg = @i @loop i (
 	@loop j (
-		A[i, j] += B3[i, j] * B1[i, j]
+		A[i, j] += B2[i, j] * B2[i, j]
     )
 )
+
+display(prg)
 
 display(Pigeon.transform_reformat(prg))

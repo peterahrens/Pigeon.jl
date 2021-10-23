@@ -22,10 +22,12 @@ display(Pigeon.transform_reformat(prg))
 
 prg = @i @loop i (
 	@loop j (
-		A[i, j] += B2[i, j] * B2[i, j]
+		A[i, j] += B1[i, j] * B3[i, j]
     )
 )
 
 display(prg)
 
 display(Pigeon.transform_reformat(prg))
+
+#try \forall i j k l A[i,j] + A[k, l]

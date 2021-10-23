@@ -2,11 +2,17 @@ mutable struct ReformatContext
     nest
     qnt
     qnt′
+    style
 end
 
-transform_reformat(node) = transform_reformat(node, ReformatContext(Dict(), [], []))
+transform_reformat(node) = transform_reformat(node, ReformatContext(Dict(), [], [], nothing))
 
-transform_reformat(node, ctx) = transform_reformat(node, ctx, make_style(node, ctx))
+function transform_reformat(node, ctx)
+    ctx.style = make_style(node, ctx)
+    style = make_style(node, ctx)
+    ctx.style = nothing
+    transform_reformat(node, ctx, style)
+end
 
 function make_style(root, ctx::ReformatContext, node::Loop)
     append!(ctx.qnt′, node.idxs)
@@ -50,7 +56,7 @@ end
 
 
 
-struct ReformatTempStyle
+struct ReformatReadStyle
     tns
     keep
     idxs
@@ -62,28 +68,35 @@ function make_style(root, ctx::ReformatContext, node::Access{SymbolicHollowDirec
     protocol = getprotocol(node.tns)
     format = getformat(node.tns)
     top = get(ctx.nest, name, 0)
+    style = DefaultStyle()
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
         #push a tensor reformat as far down the nest as we can, without computing it redundantly
         keep = findfirst(i->ctx.qnt′[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
         if keep == 1 && haskey(ctx.nest, getname(node.tns))
             if root isa With && getname(getresult(root.prod)) == getname(node.tns)
-                return ReformatWithStyle(node.tns.tns, format, protocol)
+                style = ReformatWithStyle(node.tns.tns, format, protocol)
             end
         elseif top + keep == length(ctx.qnt)
-            return ReformatTempStyle(node.tns.tns, keep, node.idxs[1:keep-1], Set([protocol]))
+            style = ReformatReadStyle(node.tns.tns, keep, node.idxs[1:keep-1], Set([protocol]))
         end
     end
-    return DefaultStyle()
+    return isapplicable(ctx.style, style) ? style : DefaultStyle()
 end
 
-function combine_style(a::ReformatTempStyle, b::ReformatTempStyle)
+isapplicable(::Nothing, style) = true
+isapplicable(root_style::ReformatReadStyle, style::ReformatReadStyle) = root_style.tns == style.tns
+isapplicable(::DefaultStyle, ::ReformatReadStyle) = false
+isapplicable(::ReformatReadStyle, ::DefaultStyle) = true
+isapplicable(::DefaultStyle, ::DefaultStyle) = true
+
+function combine_style(a::ReformatReadStyle, b::ReformatReadStyle)
     if a.tns == b.tns
-        return ReformatTempStyle(a.tns, min(a.keep, b.keep), intersect(a.idxs, b.idxs), union(a.protocols, b.protocols))
+        return ReformatReadStyle(a.tns, min(a.keep, b.keep), intersect(a.idxs, b.idxs), union(a.protocols, b.protocols))
     end
     return getname(a.tns) < getname(b.tns) ? a : b
 end
 
-function transform_reformat(root, ctx::ReformatContext, style::ReformatTempStyle)
+function transform_reformat(root, ctx::ReformatContext, style::ReformatReadStyle)
     protocols = unzip(style.protocols)
     format′ = [foldl(widenformat, protocols[i], init = NoFormat()) for i = style.keep:length(getformat(style.tns))]
     println((format′, style.tns.format))

@@ -2,7 +2,7 @@ abstract type AbstractReformatContext end
 
 function transform_reformat(root)
     root = transform_reformat(root, ReformatWorkspaceContext())
-    #root = transform_reformat(root, ReformatReadContext())
+    root = transform_reformat(root, ReformatReadContext())
     root
 end
 
@@ -37,7 +37,7 @@ struct ReformatSymbolicStyle
 end
 
 combine_style(a::ReformatSymbolicStyle, b::DefaultStyle) = ReformatSymbolicStyle(result_style(a.style, b))
-make_style(::Any, ::AbstractReformatContext, ::Any) = DefaultStyle()
+combine_style(a::ReformatSymbolicStyle, b::ReformatSymbolicStyle) = ReformatSymbolicStyle(result_style(a.style, b.style))
 
 struct ReformatWorkspaceContext <: AbstractReformatContext
     qnt

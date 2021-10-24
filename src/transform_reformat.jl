@@ -1,94 +1,22 @@
-mutable struct ReformatContext
-    nest
-    qnt
-    qnt′
+abstract type AbstractReformatContext end
+
+function transform_reformat(root)
+    root = transform_reformat(root, ReformatWorkspaceContext())
+    #root = transform_reformat(root, ReformatReadContext())
+    root
 end
 
-transform_reformat(node) = transform_reformat(node, ReformatContext(Dict(), [], []))
+transform_reformat(node, ctx) = transform_reformat(node, ctx, make_style(node, ctx))
 
-function transform_reformat(root, ctx)
-    tasks = transform_reformat_collect(root, ctx, root)
-    
-    #merge tasks into a sorted list of actions
-    acts = []
-    for task in tasks
-        acts′ = []
-        for act in acts
-            res = result_task(act, task) 
-            if res !== nothing
-                task = res
-            else
-                push!(acts′, act)
-            end
-        end
-        push!(acts′, task)
-        acts = acts′
-    end
-
-    #filter out actions that aren't ready yet
-
-    acts = filter(act -> transform_reformat_ready(root, ctx, act), acts)
-
-    println(acts)
-
-    #choose an action to perform
-
-    transform_reformat(root, ctx, foldl(choose_task, acts, init = DefaultTask()))
-end
-
-function transform_reformat_collect(root, ctx, node)
-    if istree(node)
-        return mapreduce(arg->transform_reformat_collect(root, ctx, arg), vcat, arguments(node))
-    end
-    return [DefaultTask()]
-end
-
-function transform_reformat_collect(root, ctx::ReformatContext, node::Loop)
-    append!(ctx.qnt′, node.idxs)
-    res = transform_reformat_collect(root, ctx, node.body)
-    for idx in node.idxs pop!(ctx.qnt′) end
-    return res
-end
-
-function transform_reformat_collect(root, ctx::ReformatContext, node::With)
-    prod_tasks = transform_reformat_collect(root, ctx, node.prod)
-    ctx.nest[getname(getresult(node.prod))] = length(ctx.qnt′)
-    cons_tasks = transform_reformat_collect(root, ctx, node.cons)
-    delete!(ctx.nest, getname(getresult(node.prod)))
-    return vcat(prod_tasks, cons_tasks)
-end
-
-struct UnknownTask end
-struct DefaultTask end
-struct PriorityTask
-    task
-end
-result_task(a, b) = __result_task(_result_task(combine_task(a, b), combine_task(b, a)))
-__result_task(::PriorityTask) = nothing
-__result_task(task) = task
-choose_task(a, b) = _choose_task(_result_task(combine_task(a, b), combine_task(b, a)))
-_choose_task(task::PriorityTask) = task.task
-_choose_task(task) = task
-_result_task(a::PriorityTask, b::PriorityTask) = PriorityTask(_result_task(a.task, b.task))
-_result_task(a::UnknownTask, b::UnknownTask) = throw(MethodError(combine_task, a, b))
-_result_task(a, b::UnknownTask) = a
-_result_task(a::UnknownTask, b) = b
-_result_task(a::T, b::T) where {T} = a#(a == b) ? a : (println(a, b); @assert false "TODO lower_task_ambiguity_error")
-_result_task(a, b) = (a == b) ? a : @assert false "TODO lower_task_ambiguity_error"
-combine_task(a, b) = UnknownTask()
-combine_task(a::DefaultTask, b::DefaultTask) = DefaultTask()
-
-function transform_reformat(node::Loop, ctx, ::DefaultTask)
+function transform_reformat(node::Loop, ctx::AbstractReformatContext, ::DefaultStyle)
     isempty(node.idxs) && return transform_reformat(node.body, ctx)
     push!(ctx.qnt, node.idxs[1])
-    push!(ctx.qnt′, node.idxs[1])
     body′ = transform_reformat(Loop(node.idxs[2:end], node.body), ctx)
     pop!(ctx.qnt)
-    pop!(ctx.qnt′)
     return Loop(Any[node.idxs[1]], body′)
 end
 
-function transform_reformat(node::With, ctx, ::DefaultTask)
+function transform_reformat(node::With, ctx::AbstractReformatContext, ::DefaultStyle)
     prod = transform_reformat(node.prod, ctx)
     ctx.nest[getname(getresult(node.prod))] = length(ctx.qnt)
     cons = transform_reformat(node.cons, ctx)
@@ -96,7 +24,7 @@ function transform_reformat(node::With, ctx, ::DefaultTask)
     return With(cons, prod)
 end
 
-function transform_reformat(node, ctx, ::DefaultTask)
+function transform_reformat(node, ctx::AbstractReformatContext, ::DefaultStyle)
     if istree(node)
         similarterm(node, operation(node), map(arg -> transform_reformat(arg, ctx), arguments(node)))
     else
@@ -104,107 +32,124 @@ function transform_reformat(node, ctx, ::DefaultTask)
     end
 end
 
+struct ReformatSymbolicStyle
+    style
+end
 
+combine_style(a::ReformatSymbolicStyle, b::DefaultStyle) = ReformatSymbolicStyle(result_style(a.style, b))
+make_style(::Any, ::AbstractReformatContext, ::Any) = DefaultStyle()
 
-struct ReformatLoopTask
+struct ReformatWorkspaceContext <: AbstractReformatContext
+    qnt
+    nest
+end
+ReformatWorkspaceContext() = ReformatWorkspaceContext([], Dict())
+mutable struct ReformatWorkspaceCollectContext <: AbstractReformatContext
+    qnt
+    nest
+    tns
+    format
+end
+mutable struct ReformatWorkspaceSubstituteContext <: AbstractReformatContext
+    qnt
+    nest
+    tns
+    tns′
+end
+function transform_reformat(root::With, ctx::ReformatWorkspaceContext, style::ReformatSymbolicStyle)
+    transform_reformat_workspace(root::With, ctx::ReformatWorkspaceContext, getresult(root.prod))
+end
+function transform_reformat_workspace(root::With, ctx::ReformatWorkspaceContext, tns::SymbolicHollowDirector)
+    format = deepcopy(getformat(tns))
+    transform_reformat(root, ReformatWorkspaceCollectContext(ctx.qnt, ctx.nest, tns.tns, format))
+    tns′ = SymbolicHollowTensor(getname(tns), format, tns.tns.dims, tns.tns.default)
+    prod′ = transform_reformat(transform_reformat(root.prod, ReformatWorkspaceSubstituteContext(ctx.qnt, ctx.nest, tns.tns, tns′)), ctx)
+    cons′ = transform_reformat(transform_reformat(root.cons, ReformatWorkspaceSubstituteContext(ctx.qnt, ctx.nest, tns.tns, tns′)), ctx)
+    return With(cons′, prod′)
+end
+
+make_style(node::With, ::ReformatWorkspaceContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
+
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatWorkspaceCollectContext, ::DefaultStyle)
+    if node.tns.tns == ctx.tns
+        ctx.format .= map(widenformat, ctx.format, getprotocol(node.tns))
+    end
+    node
+end
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatWorkspaceSubstituteContext, ::DefaultStyle)
+    if node.tns.tns == ctx.tns
+        tns′ = SymbolicHollowDirector(ctx.tns′, node.tns.protocol)
+        return Access(tns′, node.mode, node.idxs)
+    end
+    return node
+end
+
+struct ReformatReadContext <: AbstractReformatContext
+    qnt
+    nest
+end
+ReformatReadContext() = ReformatReadContext([], Dict())
+mutable struct ReformatReadTensorContext <: AbstractReformatContext
+    qnt
+    nest
+    tnss
+end
+mutable struct ReformatReadCollectContext <: AbstractReformatContext
+    qnt
+    nest
+    reqs
+end
+mutable struct ReformatReadSubstituteContext <: AbstractReformatContext
+    qnt
+    nest
     tns
     keep
-    mode
+    tns′
+end
+function transform_reformat(root, ctx::ReformatReadContext, style::ReformatSymbolicStyle)
+    reqs = Dict()
+    transform_reformat(root, ReformatReadCollectContext(ctx.qnt, ctx.nest, reqs))
+    prods = []
+    for (name, req) in pairs(reqs)
+        if issubset(req.idxs, ctx.qnt)
+            format′ = req.format[req.keep:end]
+            name′ = freshen(getname(req.tns))
+            dims′ = req.tns.dims[req.keep:end]
+            tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
+            idxs′ = [Name(gensym()) for _ in format′]
+            push!(prods, @i (@loop $idxs′ $tns′[$idxs′] = $(req.tns)[$(req.idxs), $idxs′]))
+            #for now, assume that a different pass will add "default" read/write protocols
+            root = transform_reformat(root, ReformatReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, tns′))
+        end
+    end
+    return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
+end
+make_style(node, ::ReformatReadContext, ::Access{SymbolicHollowDirector, Read}) = ReformatSymbolicStyle(DefaultStyle())
+mutable struct ReformatReadRequest
+    tns
+    keep
     idxs
-    protocols
+    format
 end
-
-struct ReformatWithTask
-    tns
-    keep
-    protocols
-end
-
-transform_reformat_ready(root, ctx, ::DefaultTask) = true
-function transform_reformat_ready(root, ctx, task::ReformatLoopTask)
-    issubset(task.idxs[1:task.keep-1], ctx.qnt)
-end
-transform_reformat_ready(root, ctx, task::ReformatWithTask) = true
-
-function transform_reformat_collect(root, ctx::ReformatContext, node::Access{SymbolicHollowDirector})
+function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::ReformatReadCollectContext, ::DefaultStyle)
     name = getname(node.tns)
     protocol = getprotocol(node.tns)
     format = getformat(node.tns)
     top = get(ctx.nest, name, 0)
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
-        #push a tensor reformat as far down the nest as we can, without computing it redundantly
-        keep = findfirst(i->ctx.qnt′[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
-        if keep == 1 && haskey(ctx.nest, getname(node.tns))
-            return [ReformatWithTask(node.tns.tns, format, Set([protocol]))]
-        else
-            return [ReformatLoopTask(node.tns.tns, keep, node.mode, node.idxs[1:keep-1], Set([protocol]))]
+        keep = findfirst(i -> ctx.qnt[top + i] != node.idxs[i] || !hasprotocol(format[i], protocol[i]), 1:length(format))
+        req = get!(ctx.reqs, name, ReformatReadRequest(node.tns.tns, keep, node.idxs, Any[NoFormat() for _ in format]))
+        req.keep = min(req.keep, keep)
+        req.idxs = intersect(req.idxs, node.idxs[1:keep-1])
+        req.format .= map(widenformat, req.format, protocol)
+    end
+    return node
+end
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadSubstituteContext, ::DefaultStyle)
+    if node.tns.tns == ctx.tns
+        if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
+            return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
         end
     end
-    return [DefaultTask()]
-end
-
-combine_task(a::ReformatLoopTask, b::DefaultTask) = a
-function combine_task(a::ReformatLoopTask, b::ReformatLoopTask)
-    if a.tns == b.tns
-        if (a.mode == Read()) ⊻ (b.mode == Read())
-            return ReformatWithTask(a.tns, min(a.keep, b.keep), union(a.protocols, b.protocols))
-        else
-            @assert a.mode == b.mode
-            return ReformatLoopTask(a.tns, min(a.keep, b.keep), a.mode, intersect(a.idxs, b.idxs), union(a.protocols, b.protocols))
-        end
-    end
-    return PriorityTask(getname(a.tns) < getname(b.tns) ? a : b)
-end
-
-combine_task(a::ReformatWithTask, b::DefaultTask) = a
-function combine_task(a::ReformatWithTask, b::ReformatLoopTask)
-    if a.tns == b.tns
-        return ReformatWithTask(a.tns, min(a.keep, b.keep), union(a.protocols, b.protocols))
-    end
-    return PriorityTask(a)
-end
-function combine_task(a::ReformatWithTask, b::ReformatWithTask)
-    if a.tns == b.tns
-        return ReformatWithTask(a.tns, min(a.keep, b.keep), union(a.protocols, b.protocols))
-    end
-    return PriorityTask(getname(a.tns) < getname(b.tns) ? a : b)
-end
-
-function transform_reformat(root, ctx::ReformatContext, task::ReformatLoopTask)
-    protocols = unzip(task.protocols)
-    format′ = [foldl(widenformat, protocols[i], init = NoFormat()) for i = task.keep:length(getformat(task.tns))]
-    name′ = freshen(getname(task.tns))
-    dims′ = task.tns.dims[task.keep:end]
-    tns′ = SymbolicHollowTensor(name′, format′, dims′, task.tns.default)
-    idxs′ = [Name(gensym()) for _ in format′]
-    #for now, assume that a different pass will add "default" read/write protocols
-    prod′ = @i (@loop $idxs′ $tns′[$idxs′] = $(task.tns)[$(task.idxs), $idxs′])
-    substitute_reformat(node) = node
-    function substitute_reformat(node::Access{SymbolicHollowDirector})
-        if task.tns == node.tns.tns
-            if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
-                return Access(SymbolicHollowDirector(tns′, getprotocol(node.tns)[task.keep:end]), node.mode, node.idxs[task.keep:end])
-            end
-        end
-        node
-    end
-    cons′ = Postwalk(substitute_reformat)(root)
-    return With(transform_reformat(cons′), prod′)
-end
-
-function transform_reformat(root, ctx::ReformatContext, task::ReformatWithTask)
-    protocols = unzip(task.protocols)
-    format′ = [foldl(widenformat, protocols[i], init = getformat(task.tns)[i]) for i = 1:length(getformat(task.tns))] #For now we only widen, might make sense to just collect all the protocols for everything at each step.
-    tns′ = SymbolicHollowTensor(getname(task.tns), format′, task.tns.dims, task.tns.default)
-    #for now, assume that a different pass will add "default" read/write protocols
-    substitute_reformat(node) = node
-    function substitute_reformat(node::Access{SymbolicHollowDirector})
-        if task.tns == node.tns.tns
-            if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
-                return Access(SymbolicHollowDirector(tns′, getprotocol(node.tns)), node.mode, node.idxs)
-            end
-        end
-        node
-    end
-    return transform_reformat(Postwalk(substitute_reformat)(root), ctx)
+    return node
 end

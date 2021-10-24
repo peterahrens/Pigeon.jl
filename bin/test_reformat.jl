@@ -46,6 +46,6 @@ prg = @i (@loop i j (
 
 display(prg)
 
-display(Pigeon.transform_reformat(prg))
+display(Pigeon.normalize_index(Pigeon.transform_reformat(prg)))
 
 #try \forall i j k l A[i,j] + A[k, l]

@@ -1,5 +1,5 @@
 using Pigeon
-using Pigeon: ListFormat, ArrayFormat, HashFormat
+using Pigeon: ListFormat, ArrayFormat, HashFormat, NoFormat
 using Pigeon: StepProtocol, LocateProtocol, AppendProtocol, InsertProtocol
 
 using Pigeon: Direct
@@ -25,6 +25,24 @@ prg = @i @loop i (
 		A[i, j] += B1[i, j] * B3[i, j]
     )
 )
+
+display(prg)
+
+display(Pigeon.transform_reformat(prg))
+
+
+A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+B = Fiber(:B, [ListFormat(), NoFormat()], [:I, :J])
+B_w = Direct(B, [AppendProtocol(), InsertProtocol()])
+B_r = Direct(B, [StepProtocol(), StepProtocol()])
+C = Direct(Fiber(:C, [ListFormat(), ListFormat()], [:I, :J]), [StepProtocol(), StepProtocol()])
+
+
+prg = @i (@loop i j (
+    A[i, j] += B_r[i, j]
+)) where (@loop k l (
+    B_w[k, l] += C[k, l]
+))
 
 display(prg)
 

@@ -20,6 +20,16 @@ display(prg)
 
 display(Pigeon.transform_reformat(prg))
 
+prg = Pigeon.concordize(@i @loop i (
+	@loop j (
+		A[i, j] += B1[i, j] * B2[j, i]
+    )
+))
+
+display(prg)
+
+display(Pigeon.transform_reformat(prg))
+
 prg = @i @loop i (
 	@loop j (
 		A[i, j] += B1[i, j] * B3[i, j]

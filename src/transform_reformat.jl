@@ -1,6 +1,7 @@
 abstract type AbstractReformatContext end
 
 function transform_reformat(root)
+    root = transform_reformat(root, RepermuteReadContext())
     root = transform_reformat(root, ReformatWorkspaceContext())
     root = transform_reformat(root, ReformatReadContext())
     root
@@ -111,10 +112,10 @@ function transform_reformat(root, ctx::ReformatReadContext, style::ReformatSymbo
     transform_reformat(root, ReformatReadCollectContext(ctx.qnt, ctx.nest, reqs))
     prods = []
     for (name, req) in pairs(reqs)
-        if issubset(req.idxs, ctx.qnt)
-            format′ = req.format[req.keep:end]
+        if issubset(req.idxs, ctx.qnt) # && haskey(ctx.nest, name) || req.global
+            format′ = req.format[req.keep : end]
             name′ = freshen(getname(req.tns))
-            dims′ = req.tns.dims[req.keep:end]
+            dims′ = req.tns.dims[req.keep : end]
             tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
             idxs′ = [Name(gensym()) for _ in format′]
             push!(prods, @i (@loop $idxs′ $tns′[$idxs′] = $(req.tns)[$(req.idxs), $idxs′]))
@@ -148,6 +149,102 @@ end
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadSubstituteContext, ::DefaultStyle)
     if node.tns.tns == ctx.tns
         if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
+            return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
+        end
+    end
+    return node
+end
+
+struct RepermuteReadContext <: AbstractReformatContext
+    qnt
+    nest
+end
+RepermuteReadContext() = RepermuteReadContext([], Dict())
+mutable struct RepermuteReadTensorContext <: AbstractReformatContext
+    qnt
+    nest
+    tnss
+end
+mutable struct RepermuteReadCollectContext <: AbstractReformatContext
+    qnt
+    nest
+    reqs
+end
+mutable struct RepermuteReadSubstituteContext <: AbstractReformatContext
+    qnt
+    nest
+    tns
+    keep
+    perm
+    tns′
+end
+function transform_reformat(root, ctx::RepermuteReadContext, style::ReformatSymbolicStyle)
+    reqs = Dict()
+    transform_reformat(root, RepermuteReadCollectContext(ctx.qnt, ctx.nest, reqs))
+    prods = []
+    for ((name, perm), req) in pairs(reqs)
+        if issubset(req.idxs, ctx.qnt) # && haskey(ctx.nest, name) || req.global
+            format′ = req.format[req.keep : end]
+            name′ = freshen(getname(req.tns))
+            dims′ = req.tns.dims[req.keep : end]
+            tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
+            idxs′ = [Name(gensym()) for _ in format′]
+            push!(prods, @i (@loop $idxs′ $tns′[$idxs′] = $(req.tns)[$(req.idxs), $(idxs′[perm])]))
+            #for now, assume that a different pass will add "default" read/write protocols
+            root = transform_reformat(root, RepermuteReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, perm, tns′))
+        end
+    end
+    return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
+end
+make_style(node, ::RepermuteReadContext, ::Access{SymbolicHollowDirector, Read}) = ReformatSymbolicStyle(DefaultStyle())
+mutable struct RepermuteReadRequest
+    tns
+    keep
+    idxs
+    format
+end
+function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::RepermuteReadCollectContext, ::DefaultStyle)
+    name = getname(node.tns)
+    protocol = getprotocol(node.tns)
+    format = getformat(node.tns)
+    perm = node.tns.perm
+    concord = ones(Bool, length(perm))
+    for i in eachindex(perm)
+        if i != perm[i]
+            concord[i:perm[i]] .= false
+        end
+    end
+    group = []
+    for i in eachindex(concord)
+        j = findfirst(j -> concord[j], i:length(concord))
+        push!(group, j === nothing ? length(concord) : j - 1)
+    end
+
+    top = get(ctx.nest, name, 0)
+    if !all(i -> (concord[i] || format[i] == Locate()), 1:length(format))
+        keep = findfirst(1:length(format)) do i
+            ctx.qnt[top + i] != node.idxs[i] ||
+            !hasprotocol(format[i], protocol[i]) ||
+            (concord[i] || all(format[i:group[i]] .== (locate,)))
+        end
+
+        req = get!(ctx.reqs, (name, perm), RepermuteReadRequest(node.tns.tns, keep, node.idxs, Any[NoFormat() for _ in format]))
+        req.keep = min(req.keep, keep)
+        req.idxs = intersect(req.idxs, node.idxs[1:keep-1])
+        req.format .= map(widenformat, req.format, protocol)
+    end
+    return node
+end
+
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteReadSubstituteContext, ::DefaultStyle)
+    if node.tns.tns == ctx.tns && node.tns.perm == ctx.perm
+        concord = ones(Bool, length(ctx.perm))
+        for i in eachindex(ctx.perm)
+            if i != perm[i]
+                concord[i:ctx.perm[i]] .= false
+            end
+        end
+        if !all(i -> (concord[i] || format[i] == Locate()), 1:length(format))
             return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
         end
     end

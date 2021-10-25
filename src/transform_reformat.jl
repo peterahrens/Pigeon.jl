@@ -1,12 +1,12 @@
 abstract type AbstractReformatContext end
 
 function transform_reformat(root)
-    root = concordize(transform_ssa(root)) #in general, we don't need to concordize
+    root = transform_ssa(root)
     root = transform_reformat(root, RepermuteWorkspaceContext())
     root = transform_reformat(root, RepermuteReadContext())
     root = transform_reformat(root, ReformatWorkspaceContext())
     root = transform_reformat(root, ReformatReadContext())
-    root
+    normalize_index(root)
 end
 
 transform_reformat(node, ctx) = transform_reformat(node, ctx, make_style(node, ctx))
@@ -114,7 +114,7 @@ function transform_reformat(root, ctx::ReformatReadContext, style::ReformatSymbo
     transform_reformat(root, ReformatReadCollectContext(ctx.qnt, ctx.nest, reqs))
     prods = []
     for (name, req) in pairs(reqs)
-        if issubset(req.idxs, ctx.qnt) # && haskey(ctx.nest, name) || req.global
+        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) # && haskey(ctx.nest, name) || req.global
             format′ = req.format[req.keep : end]
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
@@ -194,7 +194,7 @@ function transform_reformat(root, ctx::RepermuteReadContext, style::ReformatSymb
     transform_reformat(root, RepermuteReadCollectContext(ctx.qnt, ctx.nest, reqs))
     prods = []
     for ((name, perm), req) in pairs(reqs)
-        if issubset(req.idxs, ctx.qnt) # && haskey(ctx.nest, name) || req.global
+        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) # && haskey(ctx.nest, name) || req.global
             format′ = Any[NoFormat() for i = req.keep : length(getsites(req.tns))]
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
@@ -272,8 +272,6 @@ make_style(node::With, ::RepermuteWorkspaceContext, ::Access{SymbolicHollowDirec
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteWorkspaceSubstituteContext, ::DefaultStyle)
     if getname(node.tns) == getname(ctx.tns)
         tns′ = SymbolicHollowDirector(ctx.tns′, node.tns.protocol[ctx.perm], node.tns.perm[invperm(ctx.perm)])
-        println(ctx.perm)
-        println(node.idxs)
         return Access(tns′, node.mode, node.idxs)
     end
     return node

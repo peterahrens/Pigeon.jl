@@ -1,22 +1,80 @@
 using Pigeon
 using Pigeon: ListFormat, ArrayFormat, HashFormat, NoFormat
-using Pigeon: StepProtocol, LocateProtocol, AppendProtocol, InsertProtocol
+using Pigeon: StepProtocol, LocateProtocol, AppendProtocol, InsertProtocol, ConvertProtocol
 
 using Pigeon: Direct
 
-#@testset "transform_reformat" begin
+using Pigeon: transform_reformat, concordize
+
+function check_homomorphic(ref, test)
+    if Pigeon.is_homomorphic(ref, test)
+        return true
+    end
+    println("Reference:")
+    display(ref)
+    println()
+    println("Test:")
+    display(test)
+    println()
+    return false
+end
+
+@testset "transform_reformat" begin
     A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
     B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
-    B1 = Direct(B, [LocateProtocol(), StepProtocol()])
-    B2 = Direct(B, [LocateProtocol(), LocateProtocol()])
-    B3 = Direct(B, [StepProtocol(), LocateProtocol()])
+    B_r1 = Direct(B, [LocateProtocol(), StepProtocol()])
+    B_r2 = Direct(B, [LocateProtocol(), LocateProtocol()])
 
     prg = @i @loop i (
         @loop j (
-            A[i, j] += B1[i, j] * B2[j, i]
+            A[i, j] += B_r1[i, j] * B_r2[j, i]
         )
     )
 
+    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+    B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
+    B_r1 = Direct(B, [LocateProtocol(), StepProtocol()])
+    B_r2 = Direct(B, [ConvertProtocol(), ConvertProtocol()])
+    B1 = Fiber(:B1, [ArrayFormat(), ArrayFormat()], [:I, :J])
+    B1_r = Direct(B1, [LocateProtocol(), LocateProtocol()])
+    B1_w = Direct(B1, [ConvertProtocol(), ConvertProtocol()])
+
+    ref_prg = @i (@loop i j (
+          A[i, j] += *(B_r1[i, j], B1_r[i, j])
+        )) where (
+          @loop i_3 j_2 (
+            B1_w[i_3, j_2] = B_r2[j_2, i_3]
+          )
+        )
+
+    @test check_homomorphic(transform_reformat(concordize(prg)), ref_prg)
+
+    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+    B = Fiber(:B, [ListFormat(), ListFormat(), ListFormat()], [:I, :K, :J])
+    B_r = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()])
+
+    prg = @i @loop i j k A[i, j] += B_r[i, k, j]
+
+    B_r = Direct(B, [StepProtocol(), ConvertProtocol(), ConvertProtocol()])
+    B1 = Fiber(:B1, [ListFormat(), ListFormat()], [:K, :J])
+    B1_r = Direct(B1, [StepProtocol(), StepProtocol()])
+    B1_w = Direct(B1, [ConvertProtocol(), ConvertProtocol()])
+
+    ref_prg = @i (@loop i (
+    (
+        @loop j k (
+            A[i, j] += B1_r[j, k]
+        )
+    ) where (
+        @loop j_8 k_9 (
+            B1_w[j_8, k_9] = B_r[i, k_9, j_8]
+        )
+    )))
+
+    @test check_homomorphic(transform_reformat(concordize(prg)), ref_prg) 
+    display(transform_reformat(concordize(prg)))
+    display(ref_prg)
+#=
     display(prg)
 
     display(Pigeon.transform_reformat(prg))
@@ -90,9 +148,6 @@ using Pigeon: Direct
     display(prg)
 
     display(Pigeon.normalize_index(Pigeon.transform_reformat(prg)))
-
-    #=
-end
-
-#try \forall i j k l A[i,j] + A[k, l]
 =#
+#try \forall i j k l A[i,j] + A[k, l]
+end

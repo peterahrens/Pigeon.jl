@@ -16,6 +16,8 @@ freshen(ex::Freshie) = Freshie(ex.name, global fresh_num += 1)
 
 getname(ex::Union{Symbol, Freshie}) = ex
 rename(ex::Union{Symbol, Freshie}, name) = name
+isrenamable(::Union{Symbol, Freshie}) = true
+isrenamable(ex) = false
 
 struct Namespace
     renames
@@ -141,4 +143,34 @@ end
 
 function transform_ssa!(root::Domain, ctx)
     definename!(root, ctx)
+end
+
+is_homomorphic(a, b) = is_homomorphic(a, b, Dict())
+function _is_homomorphic(a, b, names)
+    res = is_homomorphic(a, b, names)
+    if !res
+        println(a)
+        println(b)
+        println()
+    end
+    return res
+end
+
+using InteractiveUtils
+
+function is_homomorphic(a, b, names)
+    if istree(a) && istree(b)
+        if operation(a) == operation(b)
+            if length(arguments(a)) == length(arguments(b))
+                return all(map((c, d) -> _is_homomorphic(c, d, names), arguments(a), arguments(b)))
+            end
+        end
+    else
+        if isrenamable(a) && isrenamable(b)
+            return a == rename(deepcopy(b), get!(names, getname(a), getname(a)))
+        else
+            return a == b
+        end
+    end
+    return false
 end

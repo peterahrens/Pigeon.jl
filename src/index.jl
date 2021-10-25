@@ -128,6 +128,7 @@ show_expression(io, mime, ex::Name) = print(io, ex.name)
 
 getname(ex::Name) = ex.name
 rename(ex::Name, name) = Name(name)
+isrenamable(::Name) = true
 
 struct With <: IndexStatement
 	cons::Any

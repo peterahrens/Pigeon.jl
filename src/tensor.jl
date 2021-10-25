@@ -13,12 +13,20 @@ Base.copy(tns::SymbolicHollowTensor) = SymbolicHollowTensor(
     tns.default,
     tns.perm)
 
+Base.:(==)(a::SymbolicHollowTensor, b::SymbolicHollowTensor) = 
+    a.name == b.name &&
+    a.format == b.format &&
+    a.dims == b.dims &&
+    a.default == b.default &&
+    a.perm == b.perm
+
 #TODO this type probably needs a rework, but we will wait till we see what the enumerator needs
 SymbolicHollowTensor(name, format, dims) = SymbolicHollowTensor(name, format, dims, 0)
 SymbolicHollowTensor(name, format, dims, default) = SymbolicHollowTensor(name, format, dims, default, collect(1:length(dims)))
 
 getname(tns::SymbolicHollowTensor) = tns.name
 rename(tns::SymbolicHollowTensor, name) = (tns = Base.copy(tns); tns.name = name; tns)
+isrenamable(tns::SymbolicHollowTensor) = true
 
 getformat(tns::SymbolicHollowTensor) = tns.format
 getdefault(tns::SymbolicHollowTensor) = tns.default
@@ -56,6 +64,10 @@ Base.copy(tns::SymbolicHollowDirector) = SymbolicHollowDirector(
     tns.protocol,
     tns.perm)
 
+Base.:(==)(a::SymbolicHollowDirector, b::SymbolicHollowDirector) = 
+    a.tns == b.tns &&
+    a.protocol == b.protocol &&
+    a.perm == b.perm
 
 SymbolicHollowDirector(tns, protos) = SymbolicHollowDirector(tns, protos, collect(1:length(protos)))
 
@@ -76,6 +88,7 @@ end
 
 getname(tns::SymbolicHollowDirector) = getname(tns.tns)
 rename(tns::SymbolicHollowDirector, name) = (tns = Base.copy(tns); tns.tns = rename(tns.tns, name); tns)
+isrenamable(::SymbolicHollowDirector) = true
 
 getformat(tns::SymbolicHollowDirector) = getformat(tns.tns)[tns.perm]
 getprotocol(tns::SymbolicHollowDirector) = tns.protocol

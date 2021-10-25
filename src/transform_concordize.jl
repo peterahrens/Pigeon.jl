@@ -26,6 +26,13 @@ function retranspose(tns::SymbolicHollowTensor, σ)
     return (tns, σ)
 end
 
+function retranspose(tns::SymbolicHollowDirector, σ)
+    tns = copy(tns)
+    tns.perm = tns.perm[σ]
+    tns.protocol = tns.protocol[σ]
+    return (tns, σ)
+end
+
 function retranspose(tns::SymbolicSolidTensor, σ)
     tns = copy(tns)
     tns.perm = tns.perm[σ]

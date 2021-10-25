@@ -221,7 +221,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Rep
     end
 
     top = get(ctx.nest, name, 0)
-    if !all(i -> (concord[i] || format[i] == Locate()), 1:length(format))
+    if !all(i -> hasprotocol(format[i], protocol[i]) && (concord[i] || format[i] == Locate()), 1:length(format))
         keep = findfirst(1:length(format)) do i
             ctx.qnt[top + i] != node.idxs[i] ||
             !hasprotocol(format[i], protocol[i]) ||
@@ -240,11 +240,11 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::Repermute
     if node.tns.tns == ctx.tns && node.tns.perm == ctx.perm
         concord = ones(Bool, length(ctx.perm))
         for i in eachindex(ctx.perm)
-            if i != perm[i]
+            if i != node.tns.perm[i]
                 concord[i:ctx.perm[i]] .= false
             end
         end
-        if !all(i -> (concord[i] || format[i] == Locate()), 1:length(format))
+        if !all(i -> (concord[i] || getformat(node)[i] == Locate()), 1:length(getformat(node)))
             return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
         end
     end

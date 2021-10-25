@@ -2,8 +2,8 @@ abstract type AbstractReformatContext end
 
 function transform_reformat(root)
     root = concordize(transform_ssa(root)) #in general, we don't need to concordize
+    root = transform_reformat(root, RepermuteWorkspaceContext())
     root = transform_reformat(root, RepermuteReadContext())
-    display(root)
     root = transform_reformat(root, ReformatWorkspaceContext())
     root = transform_reformat(root, ReformatReadContext())
     root
@@ -74,13 +74,13 @@ end
 make_style(node::With, ::ReformatWorkspaceContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
 
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatWorkspaceCollectContext, ::DefaultStyle)
-    if node.tns.tns == ctx.tns
+    if getname(node.tns.tns) == getname(ctx.tns)
         ctx.format .= map(widenformat, ctx.format, getprotocol(node.tns))
     end
     node
 end
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatWorkspaceSubstituteContext, ::DefaultStyle)
-    if node.tns.tns == ctx.tns
+    if getname(node.tns.tns) == getname(ctx.tns)
         tns′ = SymbolicHollowDirector(ctx.tns′, node.tns.protocol)
         return Access(tns′, node.mode, node.idxs)
     end
@@ -158,7 +158,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Ref
     return node
 end
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadSubstituteContext, ::DefaultStyle)
-    if node.tns.tns == ctx.tns
+    if getname(node.tns.tns) == getname(ctx.tns)
         if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
             return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
         end
@@ -238,8 +238,43 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Rep
 end
 
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteReadSubstituteContext, ::DefaultStyle)
-    if node.tns.tns == ctx.tns && node.tns.perm == ctx.perm
+    if getname(node.tns.tns) == getname(ctx.tns) && node.tns.perm == ctx.perm
         return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
+    end
+    return node
+end
+
+struct RepermuteWorkspaceContext <: AbstractReformatContext
+    qnt
+    nest
+end
+RepermuteWorkspaceContext() = RepermuteWorkspaceContext([], Dict())
+mutable struct RepermuteWorkspaceSubstituteContext <: AbstractReformatContext
+    qnt
+    nest
+    tns
+    perm
+    tns′
+end
+function transform_reformat(root::With, ctx::RepermuteWorkspaceContext, style::ReformatSymbolicStyle)
+    transform_reformat_workspace(root::With, ctx::RepermuteWorkspaceContext, getresult(root.prod))
+end
+function transform_reformat_workspace(root::With, ctx::RepermuteWorkspaceContext, tns::SymbolicHollowDirector)
+    format = deepcopy(getformat(tns))
+    tns′ = SymbolicHollowTensor(getname(tns), format[tns.perm], tns.tns.dims[tns.perm], tns.tns.default)
+    prod′ = transform_reformat(transform_reformat(root.prod, RepermuteWorkspaceSubstituteContext(ctx.qnt, ctx.nest, tns.tns, tns.perm, tns′)), ctx)
+    cons′ = transform_reformat(transform_reformat(root.cons, RepermuteWorkspaceSubstituteContext(ctx.qnt, ctx.nest, tns.tns, tns.perm, tns′)), ctx)
+    return With(cons′, prod′)
+end
+
+make_style(node::With, ::RepermuteWorkspaceContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
+
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteWorkspaceSubstituteContext, ::DefaultStyle)
+    if getname(node.tns) == getname(ctx.tns)
+        tns′ = SymbolicHollowDirector(ctx.tns′, node.tns.protocol[ctx.perm], node.tns.perm[invperm(ctx.perm)])
+        println(ctx.perm)
+        println(node.idxs)
+        return Access(tns′, node.mode, node.idxs)
     end
     return node
 end

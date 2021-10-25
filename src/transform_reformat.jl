@@ -119,13 +119,13 @@ function transform_reformat(root, ctx::ReformatReadContext, style::ReformatSymbo
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
             tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
-            idxs′ = Any[Name(gensym()) for _ in format′]
+            idxs′ = map(i->Name(freshen(getname(i))), req.idxs[req.keep:end])
             #for now, assume that a different pass will add "default" read/write protocols
             root = transform_reformat(root, ReformatReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, tns′))
             conv_protocol = Any[ConvertProtocol() for _ = 1:length(tns′.perm)]
             dir′ = SymbolicHollowDirector(tns′, conv_protocol)
             dir = SymbolicHollowDirector(req.tns, vcat(req.protocol, conv_protocol))
-            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $(dir)[$(req.idxs), $idxs′]))
+            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $(dir)[$(req.idxs[1:req.keep-1]), $idxs′]))
         end
     end
     return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
@@ -152,7 +152,6 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Ref
                 protocol[i] == req.protocol[i])
         end
         req.keep = min(req.keep, keep)
-        req.idxs = intersect(req.idxs, node.idxs[1:keep-1])
         req.protocol = protocol[1:keep-1]
         req.format .= map(widenformat, req.format, protocol)
     end
@@ -200,13 +199,13 @@ function transform_reformat(root, ctx::RepermuteReadContext, style::ReformatSymb
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
             tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
-            idxs′ = [Name(gensym()) for _ in format′]
+            idxs′ = map(i->Name(freshen(getname(i))), req.idxs[req.keep:end])
             #for now, assume that a different pass will add "default" read/write protocols
             root = transform_reformat(root, RepermuteReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, perm, tns′))
             conv_protocol = [ConvertProtocol() for _ = 1:length(tns′.perm)]
             dir′ = SymbolicHollowDirector(tns′, conv_protocol)
             dir = SymbolicHollowDirector(req.tns, vcat(req.protocol, conv_protocol))
-            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $dir[$(req.idxs), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])]))
+            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])]))
         end
     end
     return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
@@ -233,7 +232,6 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Rep
                 perm[i] == i)
         end
         req.keep = min(req.keep, keep)
-        req.idxs = intersect(req.idxs, node.idxs[1:keep-1])
         req.protocol = protocol[1:keep-1]
     end
     return node

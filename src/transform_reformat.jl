@@ -2,8 +2,8 @@ abstract type AbstractReformatContext end
 
 function transform_reformat(root)
     root = concordize(transform_ssa(root)) #in general, we don't need to concordize
-    println(root)
     root = transform_reformat(root, RepermuteReadContext())
+    display(root)
     root = transform_reformat(root, ReformatWorkspaceContext())
     root = transform_reformat(root, ReformatReadContext())
     root
@@ -224,7 +224,6 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Rep
     perm = node.tns.perm
 
     top = get(ctx.nest, name, 0)
-    println(perm)
     if !all(i -> (i == perm[i]), 1:length(perm))
         req = get!(ctx.reqs, (name, perm), RepermuteReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol)))
         keep = findfirst(1:length(perm)) do i

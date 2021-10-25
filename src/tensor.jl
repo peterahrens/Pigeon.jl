@@ -113,7 +113,7 @@ hasprotocol(::HashFormat, ::InsertProtocol) = true
 widenformat(fmt, proto) = hasprotocol(fmt, proto) ? fmt : error()
 
 widenformat(fmt, ::ConvertProtocol) = fmt
-widenformat(::NoFormat, ::LocateProtocol) = HashFormat()
+widenformat(::NoFormat, ::LocateProtocol) = ArrayFormat() #Should be hash I think
 widenformat(::NoFormat, ::StepProtocol) = ListFormat()
 widenformat(::NoFormat, ::InsertProtocol) = HashFormat()
 widenformat(::NoFormat, ::AppendProtocol) = ListFormat()

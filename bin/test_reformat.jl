@@ -12,6 +12,31 @@ B3 = Direct(B, [StepProtocol(), LocateProtocol()])
 
 prg = @i @loop i (
 	@loop j (
+		A[i, j] += B1[i, j] * B2[j, i]
+    )
+)
+
+display(prg)
+
+display(Pigeon.transform_reformat(prg))
+
+A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+B = Fiber(:B, [ListFormat(), ListFormat(), ListFormat()], [:I, :K, :J])
+B = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()])
+
+prg = @i @loop i (
+	@loop j k (
+		A[i, j] += B[i, k, j]
+    )
+)
+
+display(prg)
+
+display(Pigeon.transform_reformat(prg))
+
+#=
+prg = @i @loop i (
+	@loop j (
 		A[i, j] += B1[i, j] * B2[i, j]
     )
 )
@@ -20,15 +45,6 @@ display(prg)
 
 display(Pigeon.transform_reformat(prg))
 
-prg = Pigeon.concordize(@i @loop i (
-	@loop j (
-		A[i, j] += B1[i, j] * B2[j, i]
-    )
-))
-
-display(prg)
-
-display(Pigeon.transform_reformat(prg))
 
 prg = @i @loop i (
 	@loop j (
@@ -59,3 +75,4 @@ display(prg)
 display(Pigeon.normalize_index(Pigeon.transform_reformat(prg)))
 
 #try \forall i j k l A[i,j] + A[k, l]
+=#

@@ -82,6 +82,8 @@ getprotocol(tns::SymbolicHollowDirector) = tns.protocol
 getdefault(tns::SymbolicHollowDirector) = getdefault(tns.tns)
 getsites(tns::SymbolicHollowDirector) = getsites(tns.tns)[tns.perm]
 
+struct ConvertProtocol end
+show_expression(io, mime, ::ConvertProtocol) = print(io, "_")
 struct StepProtocol end
 show_expression(io, mime, ::StepProtocol) = print(io, "s")
 struct LocateProtocol end
@@ -93,6 +95,8 @@ show_expression(io, mime, ::InsertProtocol) = print(io, "i")
 
 const coiter = StepProtocol()
 const locate = LocateProtocol()
+
+hasprotocol(fmt, ::ConvertProtocol) = true #Not sure
 
 hasprotocol(::ArrayFormat, ::LocateProtocol) = true
 hasprotocol(::ArrayFormat, ::AppendProtocol) = true #Not sure
@@ -108,6 +112,7 @@ hasprotocol(::HashFormat, ::InsertProtocol) = true
 
 widenformat(fmt, proto) = hasprotocol(fmt, proto) ? fmt : error()
 
+widenformat(fmt, ::ConvertProtocol) = fmt
 widenformat(::NoFormat, ::LocateProtocol) = HashFormat()
 widenformat(::NoFormat, ::StepProtocol) = ListFormat()
 widenformat(::NoFormat, ::InsertProtocol) = HashFormat()

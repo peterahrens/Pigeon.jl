@@ -199,4 +199,4 @@ end
 
 saturate_formats(node) = [node]
 
-retranspose(tns, σ) = (tns, σ)
+retranspose(tns, σ) = (tns, σ) #TODO should be error?

@@ -292,3 +292,23 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::Repermute
     end
     return node
 end
+
+
+struct MarkInsertContext <: AbstractReformatContext
+    qnt
+    nest
+end
+MarkInsertContext() = MarkInsertContext([], Dict())
+
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::MarkInsertContext, ::DefaultStyle)
+    top = get(ctx.nest, getname(node.tns), 0)
+    if node.mode != Read() 
+        keep = findfirst(i -> ctx.qnt[top + i] != node.idxs[i], 1:length(node.idxs))
+        if keep !== nothing
+            tns′ = copy(node.tns)
+            tns′.protocol = [i >= keep ? InsertProtocol() : node.tns.protocol[i] for i in 1:length(node.tns.protocol)]
+            return Access(tns′, node.mode, node.idxs)
+        end
+    end
+    return node
+end

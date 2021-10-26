@@ -94,6 +94,17 @@ end
 
     @test check_homomorphic(ref_prg, transform_reformat(concordize(prg))) 
 
+
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:I, :J]), [ConvertProtocol(), ConvertProtocol()])
+    B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :K]), [LocateProtocol(), StepProtocol()])
+    C = Direct(Fiber(:C, [ArrayFormat(), ListFormat()], [:K, :J]), [LocateProtocol(), StepProtocol()])
+
+    prg = @i @loop i k j A[i, j] += B[i, k] * C[k, j]
+
+    display(prg)
+    println()
+    display(transform_reformat(prg, Pigeon.MarkInsertContext()))
+
 #=
     display(prg)
 

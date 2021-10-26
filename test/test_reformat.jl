@@ -51,9 +51,9 @@ end
 
     A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
     B = Fiber(:B, [ListFormat(), ListFormat(), ListFormat()], [:I, :K, :J])
-    B_r = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()])
+    B_r = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()], [1, 3, 2])
 
-    prg = @i @loop i j k A[i, j] += B_r[i, k, j]
+    prg = @i @loop i j k A[i, j] += B_r[i, j, k]
 
     B_r = Direct(B, [StepProtocol(), ConvertProtocol(), ConvertProtocol()])
     B1 = Fiber(:B1, [ListFormat(), ListFormat()], [:K, :J])
@@ -71,12 +71,12 @@ end
         )
     )))
 
-    @test check_homomorphic(ref_prg, transform_reformat(concordize(prg))) 
+    @test check_homomorphic(ref_prg, transform_reformat(prg)) 
 
-    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:J, :I]), [AppendProtocol(), InsertProtocol()])
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:J, :I]), [InsertProtocol(), AppendProtocol()], [2, 1])
     B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J]), [LocateProtocol(), StepProtocol()])
 
-    prg = @i @loop i j A[j, i] += B[i, j]
+    prg = @i @loop i j A[i, j] += B[i, j]
 
     A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:J, :I]), [ConvertProtocol(), ConvertProtocol()])
     B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J]), [LocateProtocol(), StepProtocol()])
@@ -92,37 +92,22 @@ end
           )
         )
 
-    @test check_homomorphic(ref_prg, transform_reformat(concordize(prg))) 
+    @test check_homomorphic(ref_prg, transform_reformat(prg)) 
 
 
-    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:I, :J]), [ConvertProtocol(), ConvertProtocol()])
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
     B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :K]), [LocateProtocol(), StepProtocol()])
     C = Direct(Fiber(:C, [ArrayFormat(), ListFormat()], [:K, :J]), [LocateProtocol(), StepProtocol()])
 
     prg = @i @loop i k j A[i, j] += B[i, k] * C[k, j]
 
-    display(prg)
-    println()
-    display(transform_reformat(prg, Pigeon.MarkInsertContext()))
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:I, :J]), [AppendProtocol(), InsertProtocol()])
+
+    ref_prg = @i @loop i k j A[i, j] += B[i, k] * C[k, j]
+    
+    @test check_homomorphic(ref_prg, normalize_index(transform_reformat(prg, Pigeon.MarkInsertContext())))
 
 #=
-    display(prg)
-
-    display(Pigeon.transform_reformat(prg))
-
-    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
-    B = Fiber(:B, [ListFormat(), ListFormat(), ListFormat()], [:I, :K, :J])
-    B = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()])
-
-    prg = @i @loop i (
-        @loop j k (
-            A[i, j] += B[i, k, j]
-        )
-    )
-
-    display(prg)
-
-    display(Pigeon.transform_reformat(prg))
 
     prg = @i @loop i (
         @loop j (

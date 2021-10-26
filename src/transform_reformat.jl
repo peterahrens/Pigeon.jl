@@ -218,7 +218,6 @@ function transform_reformat(root, ctx::RepermuteReadContext, style::ReformatSymb
             if mode == Read()
                 push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])]))
             else
-                println(idxs′)
                 push!(conss, @i (@loop $idxs′ $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])] = $dir′[$idxs′]))
             end
         end

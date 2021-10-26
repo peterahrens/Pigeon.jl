@@ -20,7 +20,7 @@ function check_homomorphic(ref, test)
 end
 
 @testset "transform_reformat" begin
-    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
     B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
     B_r1 = Direct(B, [LocateProtocol(), StepProtocol()])
     B_r2 = Direct(B, [LocateProtocol(), LocateProtocol()])
@@ -31,7 +31,7 @@ end
         )
     )
 
-    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
     B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
     B_r1 = Direct(B, [LocateProtocol(), StepProtocol()])
     B_r2 = Direct(B, [ConvertProtocol(), ConvertProtocol()])
@@ -47,9 +47,9 @@ end
           )
         )
 
-    @test check_homomorphic(transform_reformat(concordize(prg)), ref_prg)
+    @test check_homomorphic(ref_prg, transform_reformat(concordize(prg)))
 
-    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [LocateProtocol(), LocateProtocol()])
+    A = Direct(Fiber(:A, [ArrayFormat(), ArrayFormat()], [:I, :J]), [AppendProtocol(), AppendProtocol()])
     B = Fiber(:B, [ListFormat(), ListFormat(), ListFormat()], [:I, :K, :J])
     B_r = Direct(B, [StepProtocol(), StepProtocol(), StepProtocol()])
 
@@ -71,9 +71,29 @@ end
         )
     )))
 
-    @test check_homomorphic(transform_reformat(concordize(prg)), ref_prg) 
-    display(transform_reformat(concordize(prg)))
-    display(ref_prg)
+    @test check_homomorphic(ref_prg, transform_reformat(concordize(prg))) 
+
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:J, :I]), [AppendProtocol(), InsertProtocol()])
+    B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J]), [LocateProtocol(), StepProtocol()])
+
+    prg = @i @loop i j A[j, i] += B[i, j]
+
+    A = Direct(Fiber(:A, [ArrayFormat(), ListFormat()], [:J, :I]), [ConvertProtocol(), ConvertProtocol()])
+    B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J]), [LocateProtocol(), StepProtocol()])
+    A1 = Fiber(:A1, [HashFormat(), ListFormat()], [:J, :I])
+    A1_r = Direct(A1, [ConvertProtocol(), ConvertProtocol()])
+    A1_w = Direct(A1, [InsertProtocol(), AppendProtocol()])
+
+    ref_prg = @i (@loop i_1 j_1 (
+          A[j_1, i_1] = A1_r[i, j]
+        )) where (
+          @loop i j (
+            A1_w[i,j] += B[i, j]
+          )
+        )
+
+    @test check_homomorphic(ref_prg, transform_reformat(concordize(prg))) 
+
 #=
     display(prg)
 

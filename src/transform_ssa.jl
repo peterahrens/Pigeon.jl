@@ -162,7 +162,7 @@ function is_homomorphic(a, b, names)
     if istree(a) && istree(b)
         if operation(a) == operation(b)
             if length(arguments(a)) == length(arguments(b))
-                return all(map((c, d) -> _is_homomorphic(c, d, names), arguments(a), arguments(b)))
+                return all(map((c, d) -> is_homomorphic(c, d, names), arguments(a), arguments(b)))
             end
         end
     else

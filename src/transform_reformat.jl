@@ -1,3 +1,5 @@
+#this file is absolute garbage
+
 abstract type AbstractReformatContext end
 
 function transform_reformat(root)
@@ -108,29 +110,35 @@ mutable struct ReformatReadSubstituteContext <: AbstractReformatContext
     tns
     keep
     tns′
+    mode
 end
 function transform_reformat(root, ctx::ReformatReadContext, style::ReformatSymbolicStyle)
     reqs = Dict()
     transform_reformat(root, ReformatReadCollectContext(ctx.qnt, ctx.nest, reqs))
     prods = []
-    for (name, req) in pairs(reqs)
-        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) # && haskey(ctx.nest, name) || req.global
+    conss = []
+    for ((name, mode), req) in pairs(reqs)
+        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) && (mode == Read() || getname(getresult(root)) == getname(req.tns))# && haskey(ctx.nest, name) || req.global
             format′ = req.format[req.keep : end]
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
             tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
             idxs′ = map(i->Name(freshen(getname(i))), req.idxs[req.keep:end])
             #for now, assume that a different pass will add "default" read/write protocols
-            root = transform_reformat(root, ReformatReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, tns′))
+            root = transform_reformat(root, ReformatReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, tns′, mode))
             conv_protocol = Any[ConvertProtocol() for _ = 1:length(tns′.perm)]
             dir′ = SymbolicHollowDirector(tns′, conv_protocol)
             dir = SymbolicHollowDirector(req.tns, vcat(req.protocol, conv_protocol))
-            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $(dir)[$(req.idxs[1:req.keep-1]), $idxs′]))
+            if mode == Read()
+                push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $(dir)[$(req.idxs[1:req.keep-1]), $idxs′]))
+            else
+                push!(conss, @i (@loop $idxs′ $(dir)[$(req.idxs[1:req.keep-1]), $idxs′] = $dir′[$idxs′]))
+            end
         end
     end
-    return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
+    return foldr(with, conss, init = foldl(with, prods, init = transform_reformat(root, ctx, style.style)))
 end
-make_style(node, ::ReformatReadContext, ::Access{SymbolicHollowDirector, Read}) = ReformatSymbolicStyle(DefaultStyle())
+make_style(node, ::ReformatReadContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
 mutable struct ReformatReadRequest
     tns
     keep
@@ -138,13 +146,13 @@ mutable struct ReformatReadRequest
     protocol
     format
 end
-function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::ReformatReadCollectContext, ::DefaultStyle)
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadCollectContext, ::DefaultStyle)
     name = getname(node.tns)
     protocol = getprotocol(node.tns)
     format = getformat(node.tns)
     top = get(ctx.nest, name, 0)
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
-        req = get!(ctx.reqs, name, ReformatReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol), Any[NoFormat() for _ in format]))
+        req = get!(ctx.reqs, (name, node.mode), ReformatReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol), Any[NoFormat() for _ in format]))
         keep = findfirst(1:length(format)) do i
             !(i <= req.keep &&
                 ctx.qnt[top + i] == node.idxs[i] &&
@@ -158,7 +166,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Ref
     return node
 end
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadSubstituteContext, ::DefaultStyle)
-    if getname(node.tns.tns) == getname(ctx.tns)
+    if getname(node.tns.tns) == getname(ctx.tns) && node.mode == ctx.mode
         if !all(i -> hasprotocol(getformat(node.tns)[i], getprotocol(node.tns)[i]), 1:length(getformat(node.tns)))
             return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
         end
@@ -188,43 +196,51 @@ mutable struct RepermuteReadSubstituteContext <: AbstractReformatContext
     keep
     perm
     tns′
+    mode
 end
 function transform_reformat(root, ctx::RepermuteReadContext, style::ReformatSymbolicStyle)
     reqs = Dict()
     transform_reformat(root, RepermuteReadCollectContext(ctx.qnt, ctx.nest, reqs))
     prods = []
-    for ((name, perm), req) in pairs(reqs)
-        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) # && haskey(ctx.nest, name) || req.global
+    conss = []
+    for ((name, mode, perm), req) in pairs(reqs)
+        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) && (mode == Read() || getname(getresult(root)) == getname(req.tns)) # && haskey(ctx.nest, name) || req.global
             format′ = Any[NoFormat() for i = req.keep : length(getsites(req.tns))]
             name′ = freshen(getname(req.tns))
             dims′ = req.tns.dims[req.keep : end]
             tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
             idxs′ = map(i->Name(freshen(getname(i))), req.idxs[req.keep:end])
             #for now, assume that a different pass will add "default" read/write protocols
-            root = transform_reformat(root, RepermuteReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, perm, tns′))
+            root = transform_reformat(root, RepermuteReadSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, perm, tns′, mode))
             conv_protocol = [ConvertProtocol() for _ = 1:length(tns′.perm)]
             dir′ = SymbolicHollowDirector(tns′, conv_protocol)
             dir = SymbolicHollowDirector(req.tns, vcat(req.protocol, conv_protocol))
-            push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])]))
+            if mode == Read()
+                push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])]))
+            else
+                println(idxs′)
+                push!(conss, @i (@loop $idxs′ $dir[$(req.idxs[1:req.keep-1]), $(idxs′[perm[req.keep:end] .- req.keep .+ 1])] = $dir′[$idxs′]))
+            end
         end
     end
-    return foldl(with, prods, init = transform_reformat(root, ctx, style.style))
+    return foldr(with, conss, init = foldl(with, prods, init = transform_reformat(root, ctx, style.style)))
 end
-make_style(node, ::RepermuteReadContext, ::Access{SymbolicHollowDirector, Read}) = ReformatSymbolicStyle(DefaultStyle())
+
+make_style(node, ::RepermuteReadContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
 mutable struct RepermuteReadRequest
     tns
     keep
     idxs
     protocol
 end
-function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::RepermuteReadCollectContext, ::DefaultStyle)
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteReadCollectContext, ::DefaultStyle)
     name = getname(node.tns)
     protocol = getprotocol(node.tns)
     perm = node.tns.perm
 
     top = get(ctx.nest, name, 0)
     if !all(i -> (i == perm[i]), 1:length(perm))
-        req = get!(ctx.reqs, (name, perm), RepermuteReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol)))
+        req = get!(ctx.reqs, (name, node.mode, perm), RepermuteReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol)))
         keep = findfirst(1:length(perm)) do i
             !(i <= req.keep &&
                 ctx.qnt[top + i] == node.idxs[i] &&
@@ -238,7 +254,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector, Read}, ctx::Rep
 end
 
 function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::RepermuteReadSubstituteContext, ::DefaultStyle)
-    if getname(node.tns.tns) == getname(ctx.tns) && node.tns.perm == ctx.perm
+    if getname(node.tns.tns) == getname(ctx.tns) && node.tns.perm == ctx.perm && node.mode == ctx.mode
         return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
     end
     return node

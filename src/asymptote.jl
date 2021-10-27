@@ -250,9 +250,7 @@ indices(x::Forall) = setdiff(indices(x.arg), x.idxs)
 indices(x::Exists) = setdiff(indices(x.arg), x.idxs)
 indices(x::Predicate) = x.args
 
-simplify_time = 0
-simplify_asymptote = (x) -> begin
-    global simplify_time += @elapsed y = Fixpoint(Postwalk(Chain([
+simplify_asymptote = Fixpoint(Postwalk(Chain([
     (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
 
     (@rule Such(~s, false) => Empty()),
@@ -314,9 +312,7 @@ simplify_asymptote = (x) -> begin
 
     (@rule Exists(~~i, Vee(~p, ~q, ~~r)) =>
         Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~q, ~~r...)))),
-])))(x)
-    return y
-end
+])))
 
 mutable struct PointQuery
     points

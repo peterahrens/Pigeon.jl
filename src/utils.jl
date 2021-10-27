@@ -225,3 +225,31 @@ function unzip_rest(vecs, eltypes, i, itrs, state)
         end
     end
 end
+
+function filter_pareto(args; by = identity, lt = isless)
+    keys = args
+    if by != identity
+        keys = @showprogress 0.1 "analysis..." map(by, keys)
+    end
+
+    pareto = []
+    @showprogress 1 "filtering..." for (a, key_a) in collect(zip(kernels, asymptotes))[randperm(end)]
+        pareto′ = Any[(a, key_a)]
+        keep = true
+        for (b, key_b) in pareto
+            dom_a = key_a < key_b
+            dom_b = key_b < key_a
+            if dom_b && !dom_a
+                keep = false
+                break
+            elseif !(dom_a && !dom_b)
+                push!(pareto′, (b, key_b))
+            end
+        end
+        if keep
+            pareto = pareto′
+        end
+    end
+
+    return first.(pareto)
+end

@@ -5,12 +5,12 @@ using TermInterface
 using TermInterface: arguments, operation, istree, similarterm
 using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
 using SymbolicUtils: @rule, @capture
+using Random
 
 using Base.Iterators: product
 using Combinatorics
 using DataStructures
 using ProgressMeter
-
 
 export @i
 export @name
@@ -21,7 +21,9 @@ export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
-export Dense, Fiber, coiter, locate
+export Dense, Fiber
+export ListFormat, ArrayFormat, HashFormat, NoFormat
+export LocateProtocol, StepProtocol, ConvertProtocol
 
 export saturate_index
 export normalize_index
@@ -55,6 +57,19 @@ end
 
 macro name(args::Symbol...)
     return Expr(:block, map(arg->:($(esc(arg)) = Name($(QuoteNode(arg)))), args)..., :(($(map(esc, args)...), )))
+end
+
+function autoschedule(prgm; sunk_costs = [], assumptions = [], protocolize = bigprotocolize)
+    frontier = saturate_index(prgm)
+    frontier = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), frontier)
+    frontier = mapreduce(PostwalkSaturate(protocolize), vcat, frontier)
+    frontier = map(prgm -> transform_reformat(prgm, MarkInsertContext()), frontier)
+    frontier = map(Pigeon.concordize, frontier)
+    frontier = filter_pareto(frontier, 
+        by = kernel -> (display(kernel); supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...)))),
+        lt = (a, b) -> isdominated(a, b, normal = true)
+    )
+    return frontier
 end
 
 if Base.VERSION >= v"1.4.2"

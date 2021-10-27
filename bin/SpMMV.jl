@@ -2,12 +2,12 @@ using Pigeon
 
 a = Dense(:a, [:I])
 #B = Fiber(:B, [[coiter], [coiter]], [:I, :J])
-B = Fiber(:B, [[locate, coiter], [locate, coiter]], [:I, :J])
+B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
 #C = Fiber(:C, [[coiter], [coiter]], [:J, :K])
-C = Fiber(:C, [[locate, coiter], [locate, coiter]], [:J, :K])
+C = Fiber(:C, [ArrayFormat(), ListFormat()], [:J, :K])
 d = Dense(:d, [:K])
 
-ex = @i @loop k j i a[i] += B[i, j] * C[j, k] * d[k]
+prgm = @i @loop k j i a[i] += B[i, j] * C[j, k] * d[k]
 
 #=
 B = Fiber(:B, [coiter, coiter], [:I, :J])
@@ -41,17 +41,11 @@ exit()
 =#
 
 #workspacer(name, dims) = Fiber(name, map(_->[locate, coiter], dims), dims)
-workspacer(name, ::Pigeon.Read, dims) = Fiber(name, map(_->[locate, coiter], dims), dims)
-workspacer(name, mode, dims) = Fiber(name, map(_->[locate], dims), dims)
+#workspacer(name, ::Pigeon.Read, dims) = Fiber(name, map(_->[locate, coiter], dims), dims)
+#workspacer(name, mode, dims) = Fiber(name, map(_->[locate], dims), dims)
 
-schedules = saturate_index(ex, Pigeon.AsymptoticContext, workspacer=workspacer)
-
-schedules = map(Pigeon.concordize, schedules)
-schedules = mapreduce(Pigeon.PrewalkSaturate(Pigeon.saturate_formats), vcat, schedules)
 
 #foreach(display, schedules)
-
-println(length(schedules))
 
 #=
 a = Dense(:a, [:I])
@@ -79,7 +73,7 @@ Pigeon.Exists(:k, Pigeon.Predicate(:K, :k)),
 
 
 #frontier = filter_pareto(schedules, sunk_costs = [map(Pigeon.read_cost, [a, B, C, d]); Domain(gensym(), :j)], assumptions=map(Pigeon.assume_nonempty, [B, C]))
-frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [a, B, C, d]), assumptions=map(Pigeon.assume_nonempty, [B, C]))
+frontier = Pigeon.autoschedule(prgm, sunk_costs = map(Pigeon.read_cost, [a, B, C, d]), assumptions=map(Pigeon.assume_nonempty, [B, C]))
 
 #B = Fiber(:B, [locate, coiter], [:K, :I])
 #C = Fiber(:C, [locate, coiter], [:K, :J])

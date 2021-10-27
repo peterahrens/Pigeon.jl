@@ -1,8 +1,6 @@
 #A few notes:
 #Cup() is equivalent to Empty()
 #Wedge() is equivalent to true
-normalize_time = 0
-normalize_calls = 0
 
 #Cup > Such > Times > Vee > Exists > Wedge > Rename
 
@@ -21,7 +19,7 @@ normalize_calls = 0
 # vee needs to be postwalked
 
 
-function normalize_asymptote_2(ex)
+function _normalize_asymptote(ex)
     ex = Postwalk(Chain([
         (@rule $(Empty()) => Cup()),
         (@rule true => Wedge()),
@@ -101,19 +99,9 @@ function normalize_asymptote_2(ex)
     return ex
 end
 
-function normalize_asymptote(x)
-    global normalize_time += @elapsed y = normalize_asymptote_2(Such(x, Exists(Wedge())))
-    global normalize_calls
-    normalize_calls += 1
-    return y
-end
+normalize_asymptote(x) = _normalize_asymptote(Such(x, Exists(Wedge())))
 
-function normalize_proposition(x)
-    global normalize_time += @elapsed y = normalize_asymptote_2(Exists(Wedge(x)))
-    global normalize_calls
-    normalize_calls += 1
-    return y
-end
+normalize_proposition(x) = _normalize_asymptote(Exists(Wedge(x)))
 
 """
     isdominated(a, b)

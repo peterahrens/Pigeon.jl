@@ -40,28 +40,8 @@ end
 
 getname(w::Workspace) = w.n
 
-struct DimensionalizeWorkspaceContext{Ctx}
-    dims
-end
 
-function format_workspaces(prgm, Ctx, workspacer)
-    ctx = DimensionalizeWorkspaceContext{Ctx}(Dimensions())
-    prgm = transform_ssa(prgm)
-    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
-    dims = ctx.dims
-	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
-        name = getname(node.tns)
-        tns = workspacer(name, node.mode, map(idx->dims[getname(idx)], node.idxs))
-	    return access(tns, node.mode, node.idxs)
-	end))(prgm)
-end
-
-
-getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
-lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
-getsites(::Workspace) = Base.Iterators.countfrom()
-
-function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
+function saturate_index(stmt)
     normalize = Fixpoint(Postwalk(Chain([
         (@ex@rule @i(@loop (~~i) @loop (~~j) ~s) => @i @loop (~~i) (~~j) ~s),
     ])))
@@ -180,7 +160,6 @@ function saturate_index(stmt, Ctx; workspacer=(name, mode, dims)->name)
 
     prgms = mapreduce(reorder, vcat, prgms)
     prgms = map(name_workspaces, prgms)
-    return map(node->format_workspaces(node, Ctx, workspacer), prgms)
 end
 
 saturate_symaccesses(node) = node
@@ -200,3 +179,35 @@ end
 saturate_formats(node) = [node]
 
 retranspose(tns, σ) = (tns, σ) #TODO should be error?
+
+struct DimensionalizeWorkspaceContext{Ctx}
+    dims
+end
+
+function format_workspaces(prgm, Ctx, workspacer)
+    ctx = DimensionalizeWorkspaceContext{Ctx}(Dimensions())
+    prgm = transform_ssa(prgm)
+    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
+    dims = ctx.dims
+	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
+        name = getname(node.tns)
+        tns = workspacer(name, node.mode, map(idx->dims[getname(idx)], node.idxs))
+	    return access(tns, node.mode, node.idxs)
+	end))(prgm)
+end
+
+getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
+lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
+getsites(::Workspace) = Base.Iterators.countfrom()
+
+fiber_workspacer(name, mode, dims) = Fiber(name, [NoFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
+
+bigprotocolize(ex) = [ex]
+function bigprotocolize(ex::Access{SymbolicHollowTensor, Read})
+    tns = ex.tns
+    return [Access(Direct(tns, protocol), ex.mode, ex.idxs) for protocol in product([[LocateProtocol(), StepProtocol()] for _ in getformat(tns)]...)]
+end
+
+function bigprotocolize(ex::Access{SymbolicHollowTensor})
+    [Access(Direct(ex.tns, [AppendProtocol() for _ in getformat(ex.tns)]), ex.mode, ex.idxs)] #TODO This is probably wrong, might want to merge with MarkInsertContext
+end

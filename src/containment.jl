@@ -109,8 +109,6 @@ normalize_proposition(x) = _normalize_asymptote(Exists(Wedge(x)))
     ArgumentError if the answer cannot be determined.
 """
 function isdominated(a, b; sunk_costs = [], assumptions = [], normal=false)
-    global dominate_calls
-    dominate_calls += 1
     normal &= isempty(sunk_costs) && isempty(assumptions)
     function canonicalize(q)
         if !normal

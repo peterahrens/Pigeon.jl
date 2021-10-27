@@ -241,3 +241,24 @@ end
 function initialize!(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
     ctx.state[getname(tns)] = PointQuery(false)
 end
+
+mutable struct MaxDepthContext
+    d_max
+    d
+end
+function maxdepth(prgm)
+    ctx = MaxDepthContext(0, 0)
+    maxdepth!(prgm, ctx)
+    return ctx.d_max
+end
+function maxdepth!(node, ctx::MaxDepthContext)
+    if istree(node)
+        map(arg->maxdepth!(arg, ctx::MaxDepthContext), arguments(node))
+    end
+end
+function maxdepth!(node::Loop, ctx::MaxDepthContext)
+    ctx.d += length(node.idxs)
+    ctx.d_max = max(ctx.d_max, ctx.d)
+    maxdepth!(node.body, ctx)
+    ctx.d -= length(node.idxs)
+end

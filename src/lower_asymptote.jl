@@ -39,14 +39,14 @@ function getdata(tns::AbstractSymbolicHollowTensor, ctx::AsymptoticContext)
 end
 
 function getdatadefault(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
-    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in tns.perm]...))
+    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in getsites(tns)]...))
 end
 
 function getdatadefault(tns::SymbolicHollowDirector, ctx::AsymptoticContext)
-    getdatadefault(tns.tns, ctx)
+    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in getsites(tns)]...))
 end
 
-lower_axes(tns::SymbolicHollowDirector, ctx) = lower_axes(tns.tns, ctx)[tns.perm]
+lower_axes(tns::SymbolicHollowDirector, ctx) = lower_axes(tns.tns, ctx)[getsites(tns)]
 lower_axes(tns::SymbolicHollowTensor, ::AsymptoticContext) = tns.dims
 lower_axes(tns::SymbolicHollowTensor, ::DimensionalizeWorkspaceContext{AsymptoticContext}) = tns.dims
 lower_axes(tns::SymbolicSolidTensor, ::AsymptoticContext) = tns.dims

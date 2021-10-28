@@ -166,4 +166,24 @@
         ),
     )
     @test Pigeon.asymptote_equal(a, a_ref)
+
+    #=
+
+    B1 = Direct(B, [StepProtocol(), StepProtocol()], [2, 1])
+C1 = Direct(C, [StepProtocol(), StepProtocol()], [1, 2])
+w1r = Direct(Fiber(:w1, [], []), [], [])
+w1w = Direct(Fiber(:w1, [], []), [], [])
+prg = (@i @∀ j (
+  (
+    @∀ i (
+      a[i] += *(w1r[], B1[j, i])
+    )
+  ) where (
+    @∀ k (
+      w1w[] += *(C1[j, k], d[k])
+    )
+  )
+))
+    Pigeon.Cup(Pigeon.Such(Pigeon.Times(Pigeon.Domain(j_14, :J), Pigeon.Domain(i_15, :I)), Pigeon.Exists(i_16, Pigeon.Wedge(Pigeon.Predicate(:B, i_15, j_14)))), Pigeon.Such(Pigeon.Times(Pigeon.Domain(j_2, :J), Pigeon.Domain(k_3, :K)), Pigeon.Exists(k_5, i_4, Pigeon.Wedge(Pigeon.Predicate(:B, i_4, j_2), Pigeon.Predicate(:C, j_2, k_3)))), Pigeon.Such(Pigeon.Times(Pigeon.Domain(j_22, :J)), Pigeon.Exists(k_23, Pigeon.Wedge(Pigeon.Predicate(:C, j_22, k_23)))))
+    =#
 end

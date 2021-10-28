@@ -21,7 +21,7 @@ export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
 
-export Dense, Fiber
+export Dense, Fiber, Direct
 export ListFormat, ArrayFormat, HashFormat, NoFormat
 export LocateProtocol, StepProtocol, ConvertProtocol
 

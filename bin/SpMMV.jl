@@ -73,7 +73,37 @@ Pigeon.Exists(:k, Pigeon.Predicate(:K, :k)),
 
 
 #frontier = filter_pareto(schedules, sunk_costs = [map(Pigeon.read_cost, [a, B, C, d]); Domain(gensym(), :j)], assumptions=map(Pigeon.assume_nonempty, [B, C]))
+B1 = Direct(B, [StepProtocol(), StepProtocol()], [2, 1])
+C1 = Direct(C, [StepProtocol(), StepProtocol()], [1, 2])
+w1r = Direct(Fiber(:w1, [], []), [], [])
+w1w = Direct(Fiber(:w1, [], []), [], [])
+prg = (@i @∀ j (
+  (
+    @∀ i (
+      a[i] += *(w1r[], B1[j, i])
+    )
+  ) where (
+    @∀ k (
+      w1w[] += *(C1[j, k], d[k])
+    )
+  )
+))
+
+asy_a = Pigeon.supersimplify_asymptote(Pigeon.asymptote(prg))
+
 frontier = Pigeon.autoschedule(prgm, sunk_costs = map(Pigeon.read_cost, [a, B, C, d]), assumptions=map(Pigeon.assume_nonempty, [B, C]))
+
+asy_b = Pigeon.supersimplify_asymptote(asymptote(frontier[1]))
+asy_c = Pigeon.supersimplify_asymptote(asymptote(frontier[1]))
+
+println(asy_a)
+display(asy_b)
+display(asy_c)
+
+println(Pigeon.isdominated(asy_a, asy_b))
+println(Pigeon.isdominated(asy_b, asy_a))
+println(Pigeon.isdominated(asy_c, asy_a))
+
 
 #B = Fiber(:B, [locate, coiter], [:K, :I])
 #C = Fiber(:C, [locate, coiter], [:K, :J])

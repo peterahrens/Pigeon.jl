@@ -99,7 +99,7 @@ function _normalize_asymptote(ex)
     return ex
 end
 
-normalize_asymptote(x) = _normalize_asymptote(Such(x, Exists(Wedge())))
+normalize_asymptote(x) = _normalize_asymptote(Such(Times(x), Exists(Wedge())))
 
 normalize_proposition(x) = _normalize_asymptote(Exists(Wedge(x)))
 

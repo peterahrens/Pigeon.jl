@@ -70,6 +70,7 @@ function autoschedule(prgm; sunk_costs = [], assumptions = [], protocolize = big
         by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...))),
         lt = (a, b) -> isdominated(a, b, normal = true)
     )
+    frontier = map(prgm->transform_reformat(prgm), frontier)
     return frontier
 end
 

@@ -150,6 +150,9 @@ end
     @test check_homomorphic(ref_prg, transform_reformat(prg))
 #=
 
+loop(Name(:j), with(loop(Name(:i), assign(access(Pigeon.SymbolicSolidTensor(:a, [:I], [1]), Pigeon.Update(), Name(:i)), +, call(*, access(Pigeon.SymbolicHollowDirector(Pigeon.SymbolicHollowTensor(:B, Any[ArrayFormat(), ListFormat()], [:I, :J], 0, [1, 2]), (LocateProtocol(), StepProtocol()), [2, 1]), Pigeon.Read(), Name(:j), Name(:i)), access(Pigeon.SymbolicHollowDirector(Pigeon.SymbolicHollowTensor(:w_1, Any[], Any[], 0, Int64[]), (), Int64[]), Pigeon.Read())))), loop(Name(:k), assign(access(Pigeon.SymbolicHollowDirector(Pigeon.SymbolicHollowTensor(:w_1, Any[], Any[], 0, Int64[]), Pigeon.AppendProtocol[], Int64[]), Pigeon.Update()), +, call(*, access(Pigeon.SymbolicHollowDirector(Pigeon.SymbolicHollowTensor(:C, Any[ArrayFormat(), ListFormat()], [:J, :K], 0, [1, 2]), (StepProtocol(), StepProtocol()), [1, 2]), Pigeon.Read(), Name(:j), Name(:k)), access(Pigeon.SymbolicSolidTensor(:d, [:K], [1]), Pigeon.Read(), Name(:k)))))))
+
+
     prg = @i @loop i (
         @loop j (
             A[i, j] += B1[i, j] * B2[i, j]

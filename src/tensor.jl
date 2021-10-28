@@ -54,10 +54,12 @@ function show_expression(io, mime, ex::SymbolicHollowTensor)
     print(io, "}")
 end
 
+
 mutable struct SymbolicHollowDirector <: AbstractSymbolicHollowTensor
     tns
-    protocol
+    protocol::Vector{Any}
     perm
+    SymbolicHollowDirector(tns, protocol, perm) = (if !all(p->p isa MyProtocol, protocol) println("hiii", protocol) end; new(tns, protocol, perm))
 end
 Base.copy(tns::SymbolicHollowDirector) = SymbolicHollowDirector(
     tns.tns,
@@ -90,7 +92,9 @@ getname(tns::SymbolicHollowDirector) = getname(tns.tns)
 rename(tns::SymbolicHollowDirector, name) = (tns = Base.copy(tns); tns.tns = rename(tns.tns, name); tns)
 isrenamable(::SymbolicHollowDirector) = true
 
-getformat(tns::SymbolicHollowDirector) = getformat(tns.tns)[tns.perm]
+function getformat(tns::SymbolicHollowDirector)
+    getformat(tns.tns)[tns.perm]
+end
 getprotocol(tns::SymbolicHollowDirector) = tns.protocol
 getdefault(tns::SymbolicHollowDirector) = getdefault(tns.tns)
 getsites(tns::SymbolicHollowDirector) = getsites(tns.tns)[tns.perm]
@@ -105,6 +109,13 @@ struct AppendProtocol end
 show_expression(io, mime, ::AppendProtocol) = print(io, "a")
 struct InsertProtocol end
 show_expression(io, mime, ::InsertProtocol) = print(io, "i")
+
+MyProtocol = Union{
+ConvertProtocol,
+StepProtocol,
+LocateProtocol,
+AppendProtocol,
+InsertProtocol}
 
 const coiter = StepProtocol()
 const locate = LocateProtocol()
@@ -132,6 +143,8 @@ widenformat(::NoFormat, ::InsertProtocol) = HashFormat()
 widenformat(::NoFormat, ::AppendProtocol) = ListFormat()
 widenformat(::ListFormat, ::InsertProtocol) = HashFormat()
 widenformat(::ArrayFormat, ::StepProtocol) = HashFormat()
+
+widenformat(::ListFormat, ::LocateProtocol) = HashFormat()
 
 mutable struct SymbolicSolidTensor
     name

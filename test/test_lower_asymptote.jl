@@ -168,6 +168,7 @@
     @test Pigeon.asymptote_equal(a, a_ref)
 
     #=
+    test
 
     B1 = Direct(B, [StepProtocol(), StepProtocol()], [2, 1])
 C1 = Direct(C, [StepProtocol(), StepProtocol()], [1, 2])

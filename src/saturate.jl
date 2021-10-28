@@ -200,12 +200,12 @@ getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims
 lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repeated(nothing)
 getsites(::Workspace) = Base.Iterators.countfrom()
 
-fiber_workspacer(name, mode, dims) = Fiber(name, [NoFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
+fiber_workspacer(name, mode, dims) = Fiber(name, Any[NoFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
 
 bigprotocolize(ex) = [ex]
 function bigprotocolize(ex::Access{SymbolicHollowTensor, Read})
     tns = ex.tns
-    return [Access(Direct(tns, protocol), ex.mode, ex.idxs) for protocol in product([[LocateProtocol(), StepProtocol()] for _ in getformat(tns)]...)]
+    return Any[Access(Direct(tns, collect(protocol)), ex.mode, ex.idxs) for protocol in product([[LocateProtocol(), StepProtocol()] for _ in getformat(tns)]...)]
 end
 
 function bigprotocolize(ex::Access{SymbolicHollowTensor})

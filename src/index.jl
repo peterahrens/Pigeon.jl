@@ -221,28 +221,6 @@ function show_statement(io, mime, stmt::Assign, level)
     print(io, "\n")
 end
 
-struct Transformat{Lhs} <: IndexStatement
-	lhs::Lhs
-	rhs::Any
-end
-Base.:(==)(a::Transformat, b::Transformat) = a.lhs == b.lhs && a.rhs == b.rhs
-
-transformat(args...) = transformat!(vcat(args...))
-transformat!(args) = Transformat(args[1], args[2])
-
-TermInterface.istree(::Type{<:Transformat})= true
-TermInterface.operation(stmt::Transformat) = transformat
-TermInterface.arguments(stmt::Transformat) = Any[stmt.lhs, stmt.rhs]
-TermInterface.similarterm(::IndexNode, ::typeof(transformat), args, T...) = transformat!(args)
-
-function show_statement(io, mime, stmt::Transformat, level)
-    print(io, tab^level)
-    show_expression(io, mime, stmt.lhs)
-    print(io, " ← ")
-    show_expression(io, mime, stmt.rhs)
-    print(io, "\n")
-end
-
 struct Call <: IndexExpression
     op::Any
     args::Vector{Any}

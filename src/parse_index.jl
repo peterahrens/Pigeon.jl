@@ -16,6 +16,10 @@ function capture_index(ex; ctx...)
         lhs = capture_index(ex.args[1]; ctx..., mode=Write())
         rhs = capture_index(ex.args[2]; ctx...)
         return :(assign($lhs, $rhs))
+    elseif ex isa Expr && ex.head == :(←) && length(ex.args) == 2
+        lhs = capture_index(ex.args[1]; ctx..., mode=Write())
+        rhs = capture_index(ex.args[2]; ctx...)
+        return :(transformat($lhs, $rhs))
     elseif ex isa Expr && haskey(incs, ex.head) && length(ex.args) == 2
         lhs = capture_index(ex.args[1]; ctx..., mode=Update())
         rhs = capture_index(ex.args[2]; ctx...)

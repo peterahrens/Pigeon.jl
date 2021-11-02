@@ -6,7 +6,7 @@ mutable struct TacoLowerContext
     tensor_file_options
     tensor_file_handlers
     tensor_file_readers
-    tensor_packers
+    tensor_output_constructors
     tensor_writers
     tensor_option_number
     names
@@ -22,7 +22,7 @@ function TacoLowerContext()
     tensor_file_options = ""
     tensor_file_handlers = ""
     tensor_file_readers = ""
-    tensor_packers = ""
+    tensor_output_constructors = ""
     tensor_writers = ""
     tensor_option_number = 3
     names = Set()
@@ -37,7 +37,7 @@ function TacoLowerContext()
         tensor_file_options,
         tensor_file_handlers,
         tensor_file_readers,
-        tensor_packers,
+        tensor_output_constructors,
         tensor_writers,
         tensor_option_number,
         names,
@@ -132,25 +132,20 @@ function script!(node::Access, ctx::TacoLowerContext)
             if node.mode === Read()
                 ctx.tensor_file_readers = """
                 $(ctx.tensor_file_readers)
-                Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}));
-                """
-            
-                ctx.tensor_packers = """
-                $(ctx.tensor_packers)
-                tensor_$(getname(tns)).pack();
+                Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}), pack=true);
                 """
             else
                 ctx.output = "tensor_$(getname(tns))"
             
-                ctx.tensor_packers = """
-                $(ctx.tensor_packers)
+                ctx.tensor_output_constructors = """
+                $(ctx.tensor_output_constructors)
                 tensor_$(getname(tns)) Tensor<double>(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
                 """
 
                 ctx.tensor_writers = """
                 $(ctx.tensor_writers)
                 if(file_$(getname(tns)) != ""){
-                    //write
+                    write(file_$(getname(tns)), tensor_$(getname(tns)));
                 }
                 """
             end
@@ -279,7 +274,7 @@ function lower_taco(prgm)
         $(ctx.tensor_file_readers)
 
         // Pack inserted data as described by the formats
-        $(ctx.tensor_packers)
+        $(ctx.tensor_output_constructors)
 
         // Form a tensor-vector multiplication expression
         $(ctx.index_headers)
@@ -287,7 +282,7 @@ function lower_taco(prgm)
         // Compile the expression
         $(ctx.output).compile($cin);
 
-        // Assemble A's indices and numerically compute the result
+        // Assemble output indices and numerically compute the result
         auto time = benchmark(
             10, 10000, [&$(ctx.output)]()
             { $(ctx.output).assemble(); },

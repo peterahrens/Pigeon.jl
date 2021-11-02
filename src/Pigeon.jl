@@ -49,6 +49,9 @@ include("dimensionalize.jl")
 include("lower_asymptote.jl")
 include("containment.jl")
 
+#Hacky files for paper
+include("taco.jl")
+
 function snoop()
     saturate_index(@i @loop i j k A[i] += B[j] * C[j] * D[k] * E[k])
     saturate_index(@i @loop i j k A[i, j] = B[i, k] * C[k, j] * x[j])

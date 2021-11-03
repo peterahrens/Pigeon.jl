@@ -262,3 +262,20 @@ function maxdepth!(node::Loop, ctx::MaxDepthContext)
     maxdepth!(node.body, ctx)
     ctx.d -= length(node.idxs)
 end
+
+mutable struct MaxWorkspaceContext
+    d_max
+end
+function maxworkspace(prgm)
+    ctx = MaxWorkspaceContext(0)
+    maxworkspace!(prgm, ctx)
+    return ctx.d_max
+end
+function maxworkspace!(node, ctx::MaxWorkspaceContext)
+    if istree(node)
+        map(arg->maxworkspace!(arg, ctx::MaxWorkspaceContext), arguments(node))
+    end
+end
+function maxworkspace!(node::Access{Workspace}, ctx::MaxWorkspaceContext)
+    ctx.d_max = max(ctx.d_max, length(node.idxs))
+end

@@ -3,6 +3,7 @@ mutable struct TacoLowerContext
     index_variable_names
     input_transposes
     output_transposes
+    usage
     index_headers
     tensor_file_headers
     tensor_file_options
@@ -14,6 +15,7 @@ mutable struct TacoLowerContext
     names
     inputs
     output
+    dims
 end
 
 function TacoLowerContext()
@@ -21,6 +23,7 @@ function TacoLowerContext()
     index_variable_names = Dict()
     input_transposes = ""
     output_transposes = ""
+    usage = ""
     index_headers = ""
     tensor_file_headers = ""
     tensor_file_options = ""
@@ -32,12 +35,14 @@ function TacoLowerContext()
     names = Set()
     inputs = Set()
     output = ""
+    dims = Dimensions()
 
     TacoLowerContext(
         tensor_variable_names,
         index_variable_names,
         input_transposes,
         output_transposes,
+        usage,
         index_headers,
         tensor_file_headers,
         tensor_file_options,
@@ -48,9 +53,11 @@ function TacoLowerContext()
         tensor_option_number,
         names,
         inputs,
-        output
+        output,
+        dims
     )
 end
+getdims(ctx::TacoLowerContext) = ctx.dims
 
 function script_transpose!(node, ctx::TacoLowerContext)
     if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
@@ -64,7 +71,7 @@ function script_transpose!(node, ctx::TacoLowerContext)
         Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
         """
         ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
-        script!((@i b[idxs2]), ctx)
+        script!((@i b[$idxs2]), ctx)
         res = script_transpose!(cons, ctx)
         delete!(ctx.names, getname(a))
         return res
@@ -74,7 +81,7 @@ function script_transpose!(node, ctx::TacoLowerContext)
         b isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, b.protocol)
         push!(ctx.names, getname(getresult(prod)))
-        script!((@i b[idxs2]), ctx)
+        script!((@i b[$idxs2]), ctx)
         ctx.output_transposes = """
         $(ctx.output_transposes)
         Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
@@ -179,7 +186,7 @@ function script!(node::Access, ctx::TacoLowerContext)
             
                 ctx.tensor_output_constructors = """
                 $(ctx.tensor_output_constructors)
-                Tensor<double> tensor_$(getname(tns))(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+                Tensor<double> tensor_$(getname(tns))({$(join(map(idx->ctx.dims[getname(idx)], node.idxs), ", "))}, Format({$(join(map(taco_format, getformat(tns)), ", "))}));
                 """
 
                 ctx.tensor_writers = """
@@ -194,21 +201,22 @@ function script!(node::Access, ctx::TacoLowerContext)
     return "tensor_$(getname(tns))($(join(idxs, ", ")))"
 end
 
-#=
-lower_axes(tns::SymbolicHollowDirector, ctx) = lower_axes(tns.tns, ctx)[getsites(tns)]
-function lower_axes(tns::SymbolicHollowTensor, ctx) = map(1:length(tns.dims)) do i
-    if ctx.tns[getname(tns)].isinput
-        "$(ctx.tns).getDimensions()[mode]"
+lower_axes(tns::Union{SymbolicHollowTensor, SymbolicSolidTensor}, ctx::TacoLowerContext) = map(1:length(tns.dims)) do i
+    if getname(tns) in ctx.inputs
+        "tensor_$(getname(tns)).getDimensions()[$i]"
     else
         nothing
     end
 end
 
-lower_axis_merge(::AsymptoticContext, a, b) = a === nothing ? b : a
-=#
+lower_axis_merge(::TacoLowerContext, a, b) = a === nothing ? b : a
 
 function lower_taco(prgm)
+    prgm = transform_ssa(prgm)
     ctx = TacoLowerContext()
+    ctx.inputs = setdiff(getglobals(prgm), [getname(getresult(prgm))])
+    ctx.output = getresult(prgm)
+    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
     cin = script_transpose!(prgm, ctx)
 
     script = """
@@ -253,7 +261,9 @@ function lower_taco(prgm)
             "usage: foo [options]\\n"
             "  -n, --ntrials <arg>        Maximum number of trials to run\\n"
             "  -t, --ttrials <arg>        Maximum time to run trials\\n"
-            "  -h, --help                 Display help message\\n");
+            "  -h, --help                 Display help message\\n"
+            $(ctx.usage)
+        );
     }
 
     int main(int argc, char **argv)
@@ -408,7 +418,7 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
             write(io, lower_taco(prgm))
         end
         run(`gcc -c -o $obj $src --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0`)
-        run(`gcc -c -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
+        run(`gcc -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
     end
     println(exe)
 end

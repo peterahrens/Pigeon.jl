@@ -4,7 +4,7 @@ dimensionalization assumes foralls have unique indices.
 
 struct DimensionalizeStyle end
 
-function lower!(root, ctx, ::DimensionalizeStyle)
+function lower!(root, ctx, ::DimensionalizeStyle) #TODO This is sorta messy haha just make a function that we can call to get the dims?
     Postwalk(node -> (dimensionalize!(node, ctx); node))(root)
     @assert !(make_style(root, ctx) isa DimensionalizeStyle)
     lower!(root, ctx)

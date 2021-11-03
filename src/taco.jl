@@ -162,6 +162,10 @@ function script!(node::Access, ctx::TacoLowerContext)
             {"tensor_$(getname(tns))", required_argument, 0, 0},
             """
 
+            ctx.usage = """ $(ctx.usage)
+            "--tensor_$(getname(tns)) <arg> file\\n"
+            """
+
             ctx.tensor_file_handlers = """
             $(ctx.tensor_file_handlers)
             case $(ctx.tensor_option_number):
@@ -420,5 +424,4 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
         run(`gcc -c -o $obj $src --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0`)
         run(`gcc -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
     end
-    println(exe)
 end

@@ -1,6 +1,8 @@
 mutable struct TacoLowerContext
     tensor_variable_names
     index_variable_names
+    input_transposes
+    output_transposes
     index_headers
     tensor_file_headers
     tensor_file_options
@@ -17,6 +19,8 @@ end
 function TacoLowerContext()
     tensor_variable_names = Dict()
     index_variable_names = Dict()
+    input_transposes = ""
+    output_transposes = ""
     index_headers = ""
     tensor_file_headers = ""
     tensor_file_options = ""
@@ -32,6 +36,8 @@ function TacoLowerContext()
     TacoLowerContext(
         tensor_variable_names,
         index_variable_names,
+        input_transposes,
+        output_transposes,
         index_headers,
         tensor_file_headers,
         tensor_file_options,
@@ -46,11 +52,36 @@ function TacoLowerContext()
     )
 end
 
+function script_transpose!(node, ctx::TacoLowerContext)
+    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
+        a isa SymbolicHollowDirector &&
+        all(p -> p isa ConvertProtocol, a.protocol) && 
+        b isa SymbolicHollowDirector &&
+        all(p -> p isa ConvertProtocol, b.protocol)
+        ctx.input_transposes = """
+        $(ctx.input_transposes)
+        tensor_$(getname(a)) = transpose({$(join(map(string, getsites(b)), ", "))}, Format(({$(join(map(taco_format, getformat(a)), ", "))})));
+        """
+        return script_transpose!(cons, ctx)
+    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
+        a isa SymbolicHollowDirector &&
+        all(p -> p isa ConvertProtocol, a.protocol) && 
+        b isa SymbolicHollowDirector &&
+        all(p -> p isa ConvertProtocol, b.protocol)
+        ctx.output_transposes = """
+        $(ctx.output_transposes)
+        tensor_$(getname(a)) = transpose({$(join(map(string, getsites(b)), ", "))}, Format(({$(join(map(taco_format, getformat(a)), ", "))})));
+        """
+        return script_transpose!(prod, ctx)
+    end
+    return script!(node, ctx)
+end
+
 function script!(node::With, ctx::TacoLowerContext)
-    push!(ctx.names, getname(getresult(prod)))
+    push!(ctx.names, getname(getresult(node)))
     prod = script!(node.prod, ctx)
     cons = script!(node.cons, ctx)
-    delete!(ctx.names, getname(getresult(prod)))
+    delete!(ctx.names, getname(getresult(node)))
     return "where($prod, $cons)"
 end
 
@@ -169,7 +200,7 @@ lower_axis_merge(::AsymptoticContext, a, b) = a === nothing ? b : a
 
 function lower_taco(prgm)
     ctx = TacoLowerContext()
-    cin = script!(prgm, ctx)
+    cin = script_transpose!(prgm, ctx)
 
     script = """
     #include "taco/tensor.h"
@@ -181,6 +212,30 @@ function lower_taco(prgm)
     #include <getopt.h>
     #include <sys/stat.h>
     #include <string>
+    #include <chrono>
+
+    template <typename Setup, typename Test>
+    double benchmark(double time_max, int trial_max, Setup setup, Test test){
+        auto time_total = std::chrono::high_resolution_clock::duration(0);
+        auto time_min = std::chrono::high_resolution_clock::duration(0);
+        int trial = 0;
+        while(trial < trial_max){
+        setup();
+            auto tic = std::chrono::high_resolution_clock::now();
+            test();
+            auto toc = std::chrono::high_resolution_clock::now();
+            auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(toc-tic);
+            trial++;
+            if(trial == 1 || time < time_min){
+                time_min = time;
+            }
+            time_total += time;
+            if(time.count() * 1e-9 > time_max){
+                break;
+            }
+        }
+        return time_min.count() * 1e-9;
+    }
 
     using namespace taco;
 
@@ -273,7 +328,8 @@ function lower_taco(prgm)
         // Create tensors
         $(ctx.tensor_file_readers)
 
-        // Pack inserted data as described by the formats
+        $(ctx.input_transposes)
+
         $(ctx.tensor_output_constructors)
 
         // Form a tensor-vector multiplication expression
@@ -291,6 +347,8 @@ function lower_taco(prgm)
 
         std::cout << time << std::endl;
 
+        $(ctx.output_transposes)
+
         $(ctx.tensor_writers)
 
         return 0;
@@ -299,4 +357,53 @@ function lower_taco(prgm)
 
     script = read(open(`clang-format`, "r", IOBuffer(script)), String)
     return script
+end
+
+function writetns(fname, vals, coords...)
+    open(fname, "w") do io
+        for (coord, val) in zip(zip(coords...), vals)
+            write(io, join(coord, " "))
+            write(io, " ")
+            write(io, val)
+            write(io, "\n")
+        end
+    end
+end
+
+function readtns(fname)
+    coords = []
+    vals = []
+    for line in readlines(fname)
+        if length(line) > 1
+            line = split(line, "#")[1]
+            coords_val = split(line)
+            if length(coords_val) >= 1
+                while length(coords) < length(coords_val) - 1 push!(coords, []) end
+                map(push!, coords, coords_val[1:end-1])
+                push!(vals, coords_val[end])
+            end
+        end
+    end
+    return (vals, coords...)
+end
+
+function build_taco(prgm, name = "kernel_$(hash(prgm))")
+    TACO_LIB = "/Users/Peter/Projects/taco/build/lib"
+    TACO_INC = "/Users/Peter/Projects/taco/include"
+    TACO_SRC = "/Users/Peter/Projects/taco/src"
+    CC = gcc
+    CFLAGS = "-I$(IDIR) --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0"
+    LDFLAGS = "-I$(IDIR) --std=c++11 -L$(TACO_LIB) -g -ggdb -O0"
+    LIBS = "-lm -ltaco -lstdc++"
+
+    exe = joinpath(@get_scratch!("kernels"), name)
+    if !isfile(exe)
+        src = joinpath(@get_scratch!("kernels"), "$name.cpp")
+        obj = joinpath(@get_scratch!("kernels"), "$name.o")
+        open(src, "w") do io
+            write(io, script!("$name"))
+        end
+        run(`gcc -c -o $obj $src $CFLAGS`)
+        run(`gcc -c -o $exe $obj $LDFLAGS $LIBS`)
+    end
 end

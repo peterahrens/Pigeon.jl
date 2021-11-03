@@ -1,10 +1,10 @@
 using Pigeon
 
 a = Dense(:a, [:I])
-B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
-C = Fiber(:C, [ArrayFormat(), ListFormat()], [:J, :K])
+B = Direct(Fiber(:B, [ArrayFormat(), ListFormat()], [:J, :I]), [LocateProtocol(), StepProtocol()], [1, 2])
+C = Direct(Fiber(:C, [ArrayFormat(), ListFormat()], [:J, :K]), [LocateProtocol(), StepProtocol()])
 d = Dense(:d, [:K])
 
-prgm = @i @loop k j i a[i] += B[i, j] * C[j, k] * d[k]
+prgm = @i @loop k j i a[i] += B[j, i] * C[j, k] * d[k]
 
-println(Pigeon.lower_taco(prgm))
+println(Pigeon.lower_taco(Pigeon.transform_reformat(Pigeon.concordize(prgm))))

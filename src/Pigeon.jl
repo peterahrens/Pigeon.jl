@@ -6,6 +6,7 @@ using TermInterface: arguments, operation, istree, similarterm
 using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
 using SymbolicUtils: @rule, @capture
 using Random
+using Scratch
 
 using Base.Iterators: product
 using Combinatorics
@@ -80,4 +81,5 @@ end
 if Base.VERSION >= v"1.4.2"
     #snoop()
 end
+
 end

@@ -68,7 +68,7 @@ function script_transpose!(node, ctx::TacoLowerContext)
         push!(ctx.names, getname(a))
         ctx.input_transposes = """
         $(ctx.input_transposes)
-        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
+        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b) .- 1), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
         """
         ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
         script!((@i b[$idxs2]), ctx)
@@ -149,7 +149,7 @@ function script!(node::Access, ctx::TacoLowerContext)
         if getname(node.tns) in ctx.names
             ctx.tensor_output_constructors = """
             $(ctx.tensor_output_constructors)
-            Tensor<double> tensor_$(getname(tns))(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+            Tensor<double> tensor_$(getname(tns))({$(join(map(idx->ctx.dims[getname(idx)], node.idxs), ", "))}, Format({$(join(map(taco_format, getformat(tns)), ", "))}));
             """
         else
             ctx.tensor_file_headers = """
@@ -159,7 +159,7 @@ function script!(node::Access, ctx::TacoLowerContext)
 
             ctx.tensor_file_options = """
             $(ctx.tensor_file_options)
-            {"tensor_$(getname(tns))", required_argument, 0, 0},
+            {"tensor_$(getname(tns))", required_argument, NULL, $(ctx.tensor_option_number)},
             """
 
             ctx.usage = """ $(ctx.usage)
@@ -169,6 +169,7 @@ function script!(node::Access, ctx::TacoLowerContext)
             ctx.tensor_file_handlers = """
             $(ctx.tensor_file_handlers)
             case $(ctx.tensor_option_number):
+
             if (stat(optarg, &statthing) < 0 || !S_ISREG(statthing.st_mode))
             {
                 printf("argument to --tensor_$(getname(tns)) must be a file\\n");
@@ -207,7 +208,7 @@ end
 
 lower_axes(tns::Union{SymbolicHollowTensor, SymbolicSolidTensor}, ctx::TacoLowerContext) = map(1:length(tns.dims)) do i
     if getname(tns) in ctx.inputs
-        "tensor_$(getname(tns)).getDimensions()[$i]"
+        "tensor_$(getname(tns)).getDimensions()[$(i - 1)]"
     else
         nothing
     end
@@ -274,6 +275,7 @@ function lower_taco(prgm)
     {
         int help = 0;
 
+
         int n_trials = 10000;
         double t_trials = 5.0;
 
@@ -287,8 +289,8 @@ function lower_taco(prgm)
         {
             const char *options = "n:t:h";
             const struct option long_options[] = {
-                {"ntrials", required_argument, 0, 'n'},
-                {"ttrials", required_argument, 0, 't'},
+                {"ntrials", required_argument, NULL, 1},
+                {"ttrials", required_argument, NULL, 2},
                 {"help", no_argument, &help, 1},
                 $(ctx.tensor_file_options)
                 {0, 0, 0, 0}};
@@ -303,7 +305,7 @@ function lower_taco(prgm)
                 break;
 
             switch (option_index) {
-                case 0:
+                case 1:
                     errno = 0;
                     longarg = strtol(optarg, 0, 10);
                     if (errno != 0 || longarg < 1)
@@ -315,7 +317,7 @@ function lower_taco(prgm)
                     n_trials = longarg;
                     break;
 
-                case 1:
+                case 2:
                     errno = 0;
                     doublearg = strtod(optarg, 0);
                     if (errno != 0 || doublearg < 0.0)
@@ -325,10 +327,6 @@ function lower_taco(prgm)
                         return 1;
                     }
                     t_trials = doublearg;
-                    break;
-
-                case 2:
-                    help = 1;
                     break;
 
                 $(ctx.tensor_file_handlers)
@@ -378,6 +376,7 @@ function lower_taco(prgm)
     """
 
     script = read(open(`clang-format`, "r", IOBuffer(script)), String)
+    println(script)
     return script
 end
 
@@ -415,7 +414,7 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
     TACO_SRC = "/Users/Peter/Projects/taco/src"
 
     exe = joinpath(@get_scratch!("kernels"), name)
-    if !isfile(exe)
+    if !isfile(exe) || true
         src = joinpath(@get_scratch!("kernels"), "$name.cpp")
         obj = joinpath(@get_scratch!("kernels"), "$name.o")
         open(src, "w") do io
@@ -424,4 +423,18 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
         run(`gcc -c -o $obj $src --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0`)
         run(`gcc -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
     end
+
+    exe
+end
+
+function run_taco(prgm, inputs)
+    exe = build_taco(prgm)
+    args = []
+    for (name, val) in pairs(inputs)
+        f = joinpath(@get_scratch!("tensors"), "tensor_$(name).tns")
+        writetns(f, val...)
+        push!(args, "--tensor_$(name)")
+        push!(args, f)
+    end
+    run(`$exe $args`)
 end

@@ -58,21 +58,31 @@ function script_transpose!(node, ctx::TacoLowerContext)
         all(p -> p isa ConvertProtocol, a.protocol) && 
         b isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, b.protocol)
+        push!(ctx.names, getname(a))
         ctx.input_transposes = """
         $(ctx.input_transposes)
-        tensor_$(getname(a)) = transpose({$(join(map(string, getsites(b)), ", "))}, Format(({$(join(map(taco_format, getformat(a)), ", "))})));
+        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
         """
-        return script_transpose!(cons, ctx)
+        ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
+        script!((@i b[idxs2]), ctx)
+        res = script_transpose!(cons, ctx)
+        delete!(ctx.names, getname(a))
+        return res
     elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
         a isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, a.protocol) && 
         b isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, b.protocol)
+        push!(ctx.names, getname(getresult(prod)))
+        script!((@i b[idxs2]), ctx)
         ctx.output_transposes = """
         $(ctx.output_transposes)
-        tensor_$(getname(a)) = transpose({$(join(map(string, getsites(b)), ", "))}, Format(({$(join(map(taco_format, getformat(a)), ", "))})));
+        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
         """
-        return script_transpose!(prod, ctx)
+        ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
+        res = script_transpose!(prod, ctx)
+        delete!(ctx.names, getname(getresult(prod)))
+        return res
     end
     return script!(node, ctx)
 end
@@ -102,7 +112,7 @@ function script!(node::Assign, ctx::TacoLowerContext)
 end
 
 function script!(node::Call, ctx::TacoLowerContext)
-    "$(node.op)($(join(map(arg->script!(arg, ctx), node.args), ", ")))"
+    "($(join(map(arg->script!(arg, ctx), node.args), " $(node.op) ")))" #TODO very brittle, only works for infix ops
 end
 
 function script_index!(n::Name, ctx::TacoLowerContext)
@@ -120,8 +130,8 @@ end
 #TODO does this belong in this hacky file or should it join the main repo
 getformat(tns::SymbolicSolidTensor) = [ArrayFormat() for _ in tns.dims]
 
-taco_format(::ArrayFormat) = "Dense()"
-taco_format(::ListFormat) = "Sparse()"
+taco_format(::ArrayFormat) = "Dense"
+taco_format(::ListFormat) = "Sparse"
 
 function script!(node::Access, ctx::TacoLowerContext)
     idxs = map(idx->script_index!(idx, ctx), node.idxs)
@@ -130,12 +140,11 @@ function script!(node::Access, ctx::TacoLowerContext)
         ctx.tensor_variable_names[getname(node.tns)] = "tensor_$(getname(node.tns))"
 
         if getname(node.tns) in ctx.names
-            ctx.tensor_file_readers = """
-            $(ctx.tensor_file_readers)
-            Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+            ctx.tensor_output_constructors = """
+            $(ctx.tensor_output_constructors)
+            Tensor<double> tensor_$(getname(tns))(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
             """
-        elseif !(getname(node.tns) in ctx.inputs)
-
+        else
             ctx.tensor_file_headers = """
             $(ctx.tensor_file_headers)
             std::string file_$(getname(tns)) = "";
@@ -163,14 +172,14 @@ function script!(node::Access, ctx::TacoLowerContext)
             if node.mode === Read()
                 ctx.tensor_file_readers = """
                 $(ctx.tensor_file_readers)
-                Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}), pack=true);
+                Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}), true);
                 """
             else
                 ctx.output = "tensor_$(getname(tns))"
             
                 ctx.tensor_output_constructors = """
                 $(ctx.tensor_output_constructors)
-                tensor_$(getname(tns)) Tensor<double>(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+                Tensor<double> tensor_$(getname(tns))(Format({$(join(map(taco_format, getformat(tns)), ", "))}));
                 """
 
                 ctx.tensor_writers = """
@@ -182,7 +191,7 @@ function script!(node::Access, ctx::TacoLowerContext)
             end
         end
     end
-    return "tensor_$(getname(tns))[$(join(idxs, ", "))]"
+    return "tensor_$(getname(tns))($(join(idxs, ", ")))"
 end
 
 #=
@@ -207,7 +216,6 @@ function lower_taco(prgm)
     //#include "taco/format.h"
     //#include "taco/lower/lower.h"
     //#include "taco/ir/ir.h"
-    #include "sparrow.hpp"
     #include <iostream>
     #include <getopt.h>
     #include <sys/stat.h>
@@ -387,23 +395,20 @@ function readtns(fname)
     return (vals, coords...)
 end
 
-function build_taco(prgm, name = "kernel_$(hash(prgm))")
+function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
     TACO_LIB = "/Users/Peter/Projects/taco/build/lib"
     TACO_INC = "/Users/Peter/Projects/taco/include"
     TACO_SRC = "/Users/Peter/Projects/taco/src"
-    CC = gcc
-    CFLAGS = "-I$(IDIR) --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0"
-    LDFLAGS = "-I$(IDIR) --std=c++11 -L$(TACO_LIB) -g -ggdb -O0"
-    LIBS = "-lm -ltaco -lstdc++"
 
     exe = joinpath(@get_scratch!("kernels"), name)
     if !isfile(exe)
         src = joinpath(@get_scratch!("kernels"), "$name.cpp")
         obj = joinpath(@get_scratch!("kernels"), "$name.o")
         open(src, "w") do io
-            write(io, script!("$name"))
+            write(io, lower_taco(prgm))
         end
-        run(`gcc -c -o $obj $src $CFLAGS`)
-        run(`gcc -c -o $exe $obj $LDFLAGS $LIBS`)
+        run(`gcc -c -o $obj $src --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0`)
+        run(`gcc -c -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
     end
+    println(exe)
 end

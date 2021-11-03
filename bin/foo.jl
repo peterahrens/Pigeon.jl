@@ -8,3 +8,4 @@ d = Dense(:d, [:K])
 prgm = @i @loop k j i a[i] += B[j, i] * C[j, k] * d[k]
 
 println(Pigeon.lower_taco(Pigeon.transform_reformat(Pigeon.concordize(prgm))))
+println(Pigeon.build_taco(Pigeon.transform_reformat(Pigeon.concordize(prgm))))

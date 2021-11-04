@@ -376,7 +376,6 @@ function lower_taco(prgm)
     """
 
     script = read(open(`clang-format`, "r", IOBuffer(script)), String)
-    println(script)
     return script
 end
 
@@ -436,5 +435,7 @@ function run_taco(prgm, inputs)
         push!(args, "--tensor_$(name)")
         push!(args, f)
     end
-    run(`$exe $args`)
+    io = IOBuffer()
+    run(pipeline(`$exe $args`, stdout=io))
+    return parse(Float64, String(take!(io)))
 end

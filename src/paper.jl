@@ -1,6 +1,6 @@
 using Statistics
 using BenchmarkTools
-function paper(prgm)
+function paper(prgm, name)
 	#; sunk_costs = [], assumptions = [], protocolize = bigprotocolize)
     universe = []
 	universe_build_time = @btime begin

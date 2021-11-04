@@ -293,6 +293,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::Repermute
 end
 
 
+#assume concordized
 struct MarkInsertContext <: AbstractReformatContext
     qnt
     nest

@@ -345,6 +345,8 @@ function lower_taco(prgm)
             return 0;
         }
 
+        taco::setEvaluateAtAssign(false);
+
         // Create tensors
         $(ctx.tensor_file_readers)
 
@@ -361,7 +363,9 @@ function lower_taco(prgm)
         // Assemble output indices and numerically compute the result
         auto time = benchmark(
             10, 10000, [&$(ctx.output)]()
-            { $(ctx.output).assemble(); },
+            { $(ctx.output).assemble(); 
+            //$(ctx.output).setNeedsCompute(true);
+            },
             [&$(ctx.output)]()
             { $(ctx.output).compute(); });
 
@@ -379,28 +383,25 @@ function lower_taco(prgm)
     return script
 end
 
-function writetns(fname, vals, coords...)
+function writetns(fname, data::Dict)
     open(fname, "w") do io
-        for (coord, val) in zip(zip(coords...), vals)
+        for (coord, val) in pairs(data)
             write(io, join(coord, " "))
             write(io, " ")
-            write(io, val)
+            write(io, string(val))
             write(io, "\n")
         end
     end
 end
 
 function readtns(fname)
-    coords = []
-    vals = []
+    data = Dict()
     for line in readlines(fname)
         if length(line) > 1
             line = split(line, "#")[1]
-            coords_val = split(line)
-            if length(coords_val) >= 1
-                while length(coords) < length(coords_val) - 1 push!(coords, []) end
-                map(push!, coords, coords_val[1:end-1])
-                push!(vals, coords_val[end])
+            entries = split(line)
+            if length(entries) >= 1
+                data[map(s->parse(Int, s), entries[1:end-1])] = parse(Float64, entries[1])
             end
         end
     end
@@ -430,12 +431,44 @@ function run_taco(prgm, inputs)
     exe = build_taco(prgm)
     args = []
     for (name, val) in pairs(inputs)
-        f = joinpath(@get_scratch!("tensors"), "tensor_$(name).tns")
-        writetns(f, val...)
-        push!(args, "--tensor_$(name)")
-        push!(args, f)
+        if val isa String
+            push!(args, "--tensor_$(name)")
+            push!(args, val)
+        else
+            f = joinpath(@get_scratch!("tensors"), "tensor_$(name).tns")
+            writetns(f, val...)
+            push!(args, "--tensor_$(name)")
+            push!(args, f)
+        end
     end
     io = IOBuffer()
     run(pipeline(`$exe $args`, stdout=io))
     return parse(Float64, String(take!(io)))
+end
+
+function generate_uniform_taco_inputs(tnss, n, ρ)
+    NamedTuple(map(tns->Symbol(getname(tns)) => generate_uniform_taco_input(tns, n, ρ), tnss))
+end
+
+function generate_uniform_taco_input(tns, n, ρ)
+    println(:begin)
+    f = joinpath(@get_scratch!("tensors"), "tensor_$(getname(tns))_$(rand(UInt128)).tns")
+    r = length(getsites(tns))
+    N = ρ * n^r
+    data = Dict()
+    for _ = 1:ρ * n^r
+        while true
+            coord = rand(1:n, r)
+            if !haskey(data, coord)
+                data[coord] = rand()
+                break
+            end
+        end
+    end
+
+    data[[n for _ in 1:r]] = rand() #TODO tns is a bad file format
+
+    writetns(f, data)
+    println(:end)
+    return f
 end

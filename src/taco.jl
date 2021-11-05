@@ -95,11 +95,11 @@ function script_transpose!(node, ctx::TacoLowerContext)
 end
 
 function script!(node::With, ctx::TacoLowerContext)
-    push!(ctx.names, getname(getresult(node)))
+    push!(ctx.names, getname(getresult(node.prod)))
     prod = script!(node.prod, ctx)
     cons = script!(node.cons, ctx)
-    delete!(ctx.names, getname(getresult(node)))
-    return "where($prod, $cons)"
+    delete!(ctx.names, getname(getresult(node.prod)))
+    return "where($cons, $prod)"
 end
 
 function script!(node::Loop, ctx::TacoLowerContext)
@@ -138,6 +138,7 @@ end
 getformat(tns::SymbolicSolidTensor) = [ArrayFormat() for _ in tns.dims]
 
 taco_format(::ArrayFormat) = "Dense"
+taco_format(::HashFormat) = "Dense" #TODO need a taco compat check
 taco_format(::ListFormat) = "Sparse"
 
 function script!(node::Access, ctx::TacoLowerContext)
@@ -159,7 +160,7 @@ function script!(node::Access, ctx::TacoLowerContext)
 
             ctx.tensor_file_options = """
             $(ctx.tensor_file_options)
-            {"tensor_$(getname(tns))", required_argument, NULL, $(ctx.tensor_option_number)},
+            {"tensor_$(getname(tns))", required_argument, NULL, 1},
             """
 
             ctx.usage = """ $(ctx.usage)
@@ -184,6 +185,10 @@ function script!(node::Access, ctx::TacoLowerContext)
             if node.mode === Read()
                 ctx.tensor_file_readers = """
                 $(ctx.tensor_file_readers)
+                if(file_$(getname(tns)) == ""){
+                    std::cout << "oh no! There's no tensor file for $(getname(tns))" << std::endl;
+                    return -1;
+                }
                 Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}), true);
                 """
             else
@@ -241,7 +246,7 @@ function lower_taco(prgm)
         auto time_min = std::chrono::high_resolution_clock::duration(0);
         int trial = 0;
         while(trial < trial_max){
-        setup();
+            setup();
             auto tic = std::chrono::high_resolution_clock::now();
             test();
             auto toc = std::chrono::high_resolution_clock::now();
@@ -264,9 +269,9 @@ function lower_taco(prgm)
     {
         fprintf(stderr,
             "usage: foo [options]\\n"
-            "  -n, --ntrials <arg>        Maximum number of trials to run\\n"
-            "  -t, --ttrials <arg>        Maximum time to run trials\\n"
-            "  -h, --help                 Display help message\\n"
+            "  --ntrials <arg>        Maximum number of trials to run\\n"
+            "  --ttrials <arg>        Maximum time to run trials\\n"
+            "  --help                 Display help message\\n"
             $(ctx.usage)
         );
     }
@@ -287,10 +292,10 @@ function lower_taco(prgm)
         struct stat statthing;
         while (1)
         {
-            const char *options = "n:t:h";
+            const char *options = "";
             const struct option long_options[] = {
                 {"ntrials", required_argument, NULL, 1},
-                {"ttrials", required_argument, NULL, 2},
+                {"ttrials", required_argument, NULL, 1},
                 {"help", no_argument, &help, 1},
                 $(ctx.tensor_file_options)
                 {0, 0, 0, 0}};
@@ -300,12 +305,16 @@ function lower_taco(prgm)
 
             int c = getopt_long(argc, argv, options, long_options, &option_index);
 
+            if (c == 0){
+                continue;
+            }
+
             /* Detect the end of the options. */
             if (c == -1)
                 break;
 
             switch (option_index) {
-                case 1:
+                case 0:
                     errno = 0;
                     longarg = strtol(optarg, 0, 10);
                     if (errno != 0 || longarg < 1)
@@ -317,7 +326,7 @@ function lower_taco(prgm)
                     n_trials = longarg;
                     break;
 
-                case 2:
+                case 1:
                     errno = 0;
                     doublearg = strtod(optarg, 0);
                     if (errno != 0 || doublearg < 0.0)
@@ -327,6 +336,10 @@ function lower_taco(prgm)
                         return 1;
                     }
                     t_trials = doublearg;
+                    break;
+
+                case 2:
+                    help = 1;
                     break;
 
                 $(ctx.tensor_file_handlers)
@@ -360,14 +373,19 @@ function lower_taco(prgm)
         // Compile the expression
         $(ctx.output).compile($cin);
 
+        std::cout << "foo" << std::endl;
+
         // Assemble output indices and numerically compute the result
         auto time = benchmark(
             10, 10000, [&$(ctx.output)]()
             { $(ctx.output).assemble(); 
+            std::cout << "bar" << std::endl;
             //$(ctx.output).setNeedsCompute(true);
             },
             [&$(ctx.output)]()
-            { $(ctx.output).compute(); });
+            { $(ctx.output).compute();
+            std::cout << "qux" << std::endl;
+             });
 
         std::cout << time << std::endl;
 
@@ -380,6 +398,7 @@ function lower_taco(prgm)
     """
 
     script = read(open(`clang-format`, "r", IOBuffer(script)), String)
+    println(script)
     return script
 end
 
@@ -451,7 +470,6 @@ function generate_uniform_taco_inputs(tnss, n, ρ)
 end
 
 function generate_uniform_taco_input(tns, n, ρ)
-    println(:begin)
     f = joinpath(@get_scratch!("tensors"), "tensor_$(getname(tns))_$(rand(UInt128)).tns")
     r = length(getsites(tns))
     N = ρ * n^r
@@ -469,6 +487,5 @@ function generate_uniform_taco_input(tns, n, ρ)
     data[[n for _ in 1:r]] = rand() #TODO tns is a bad file format
 
     writetns(f, data)
-    println(:end)
     return f
 end

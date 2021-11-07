@@ -16,6 +16,8 @@ mutable struct TacoLowerContext
     inputs
     output
     dims
+    maybevar
+    operands
 end
 
 function TacoLowerContext()
@@ -36,6 +38,8 @@ function TacoLowerContext()
     inputs = Set()
     output = ""
     dims = Dimensions()
+    maybevar = true
+    operands = []
 
     TacoLowerContext(
         tensor_variable_names,
@@ -54,7 +58,9 @@ function TacoLowerContext()
         names,
         inputs,
         output,
-        dims
+        dims,
+        maybevar,
+        operands,
     )
 end
 getdims(ctx::TacoLowerContext) = ctx.dims
@@ -69,6 +75,7 @@ function script_transpose!(node, ctx::TacoLowerContext)
         ctx.input_transposes = """
         $(ctx.input_transposes)
         Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b) .- 1), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
+        TensorVar tensorvar_$(getname(a)) = tensor_$(getname(a)).getTensorVar();
         """
         ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
         script!((@i b[$idxs2]), ctx)
@@ -84,7 +91,8 @@ function script_transpose!(node, ctx::TacoLowerContext)
         script!((@i b[$idxs2]), ctx)
         ctx.output_transposes = """
         $(ctx.output_transposes)
-        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose({$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
+        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose("$(getname(a))", {$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
+        TensorVar tensorvar_$(getname(a)) = tensor_$(getname(a)).getTensorVar();
         """
         ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
         res = script_transpose!(prod, ctx)
@@ -151,6 +159,7 @@ function script!(node::Access, ctx::TacoLowerContext)
             ctx.tensor_output_constructors = """
             $(ctx.tensor_output_constructors)
             Tensor<double> tensor_$(getname(tns))({$(join(map(idx->ctx.dims[getname(idx)], node.idxs), ", "))}, Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+            TensorVar tensorvar_$(getname(tns)) = tensor_$(getname(tns)).getTensorVar();
             """
         else
             ctx.tensor_file_headers = """
@@ -183,6 +192,8 @@ function script!(node::Access, ctx::TacoLowerContext)
             ctx.tensor_option_number += 1
 
             if node.mode === Read()
+                push!(ctx.operands, node)
+
                 ctx.tensor_file_readers = """
                 $(ctx.tensor_file_readers)
                 if(file_$(getname(tns)) == ""){
@@ -190,6 +201,7 @@ function script!(node::Access, ctx::TacoLowerContext)
                     return -1;
                 }
                 Tensor<double> tensor_$(getname(tns)) = read(file_$(getname(tns)), Format({$(join(map(taco_format, getformat(tns)), ", "))}), true);
+                TensorVar tensorvar_$(getname(tns)) = tensor_$(getname(tns)).getTensorVar();
                 """
             else
                 ctx.output = "tensor_$(getname(tns))"
@@ -197,6 +209,7 @@ function script!(node::Access, ctx::TacoLowerContext)
                 ctx.tensor_output_constructors = """
                 $(ctx.tensor_output_constructors)
                 Tensor<double> tensor_$(getname(tns))({$(join(map(idx->ctx.dims[getname(idx)], node.idxs), ", "))}, Format({$(join(map(taco_format, getformat(tns)), ", "))}));
+                TensorVar tensorvar_$(getname(tns)) = tensor_$(getname(tns)).getTensorVar();
                 """
 
                 ctx.tensor_writers = """
@@ -208,7 +221,11 @@ function script!(node::Access, ctx::TacoLowerContext)
             end
         end
     end
-    return "tensor_$(getname(tns))($(join(idxs, ", ")))"
+    if ctx.maybevar
+        return "tensorvar_$(getname(tns))($(join(idxs, ", ")))"
+    else
+        return "tensor_$(getname(tns))($(join(idxs, ", ")))"
+    end
 end
 
 lower_axes(tns::Union{SymbolicHollowTensor, SymbolicSolidTensor}, ctx::TacoLowerContext) = map(1:length(tns.dims)) do i
@@ -221,13 +238,17 @@ end
 
 lower_axis_merge(::TacoLowerContext, a, b) = a === nothing ? b : a
 
-function lower_taco(prgm)
+function lower_taco(point, prgm)
     prgm = transform_ssa(prgm)
     ctx = TacoLowerContext()
     ctx.inputs = setdiff(getglobals(prgm), [getname(getresult(prgm))])
     ctx.output = getresult(prgm)
     Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
     cin = script_transpose!(prgm, ctx)
+    ctx.maybevar = false
+
+    point = assign(point.lhs, point.op, foldl((a, b) -> call(*, a, b), ctx.operands))
+    point = script!(point, ctx)
 
     script = """
     #include "taco/tensor.h"
@@ -370,21 +391,19 @@ function lower_taco(prgm)
         // Form a tensor-vector multiplication expression
         $(ctx.index_headers)
 
+        $(point);
+
         // Compile the expression
         $(ctx.output).compile($cin);
-
-        std::cout << "foo" << std::endl;
 
         // Assemble output indices and numerically compute the result
         auto time = benchmark(
             10, 10000, [&$(ctx.output)]()
             { $(ctx.output).assemble(); 
-            std::cout << "bar" << std::endl;
             //$(ctx.output).setNeedsCompute(true);
             },
             [&$(ctx.output)]()
             { $(ctx.output).compute();
-            std::cout << "qux" << std::endl;
              });
 
         std::cout << time << std::endl;
@@ -427,7 +446,7 @@ function readtns(fname)
     return (vals, coords...)
 end
 
-function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
+function build_taco(point, prgm, name = "kernel_$(hash(prgm, UInt(0)))")
     TACO_LIB = "/Users/Peter/Projects/taco/build/lib"
     TACO_INC = "/Users/Peter/Projects/taco/include"
     TACO_SRC = "/Users/Peter/Projects/taco/src"
@@ -437,7 +456,7 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
         src = joinpath(@get_scratch!("kernels"), "$name.cpp")
         obj = joinpath(@get_scratch!("kernels"), "$name.o")
         open(src, "w") do io
-            write(io, lower_taco(prgm))
+            write(io, lower_taco(point, prgm))
         end
         run(`gcc -c -o $obj $src --std=c++11 -I$(TACO_INC) -I$(TACO_SRC) -g -ggdb -O0`)
         run(`gcc -o $exe $obj --std=c++11 -L$(TACO_LIB) -g -ggdb -O0 -lm -ltaco -lstdc++`)
@@ -446,8 +465,8 @@ function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
     exe
 end
 
-function run_taco(prgm, inputs)
-    exe = build_taco(prgm)
+function run_taco(point, prgm, inputs)
+    exe = build_taco(point, prgm)
     args = []
     for (name, val) in pairs(inputs)
         if val isa String

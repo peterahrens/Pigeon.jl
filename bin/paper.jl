@@ -2,17 +2,25 @@ using Statistics
 using BenchmarkTools
 using BSON
 using Random
+using JSON
 
-using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert
+using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty
+using Pigeon: Such, Cup, Wedge, isdominated
 using SymbolicUtils: Postwalk
+
+macro hotbelapsed(ex, args...)
+    return esc(Expr(:block,
+        Expr(:macrocall, Symbol("@belapsed"), __module__, ex, :(seconds=eps()), args...),
+        Expr(:macrocall, Symbol("@belapsed"), __module__, ex, args...)
+    ))
+end
 
 function paper(prgm, args, fname)
     data = Dict()
 
     _universe = Ref([])
-	universe_build_time = @btime begin
-		universe = saturate_index(prgm)
-		universe = filter_pareto(universe, by = kernel -> maxdepth(kernel)) #Filter Step
+	universe_build_time = @hotbelapsed begin
+		universe = saturate_index($prgm)
 		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
 		universe = mapreduce(PostwalkSaturate(bigprotocolize), vcat, universe)
 	    universe = map(prgm -> transform_reformat(prgm, MarkInsertContext()), universe)
@@ -24,57 +32,70 @@ function paper(prgm, args, fname)
     data["universe_build_time"] = universe_build_time
     data["universe_length"] = length(universe)
 
+    Pigeon.taco_mode[] = true
     _tacoverse = Ref([])
-	tacoverse_build_time = @btime begin
-		tacoverse = saturate_index(prgm)
-		tacoverse = filter_pareto(tacoverse, by = kernel -> maxdepth(kernel)) #Filter Step
+	tacoverse_build_time = @hotbelapsed begin
+		tacoverse = saturate_index($prgm)
 		tacoverse = filter(kernel -> maxworkspace(kernel) <= 1, tacoverse) #TACO restriction
-		tacoverse = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), tacoverse)
+		tacoverse = map(prgm->format_workspaces(prgm, AsymptoticContext, taco_workspacer), tacoverse)
 		tacoverse = map(Postwalk(noprotocolize), tacoverse)
 	    tacoverse = map(Pigeon.concordize, tacoverse)
 		tacoverse = mapreduce(PostwalkSaturate(tacoprotocolize), vcat, tacoverse)
 	    tacoverse = map(prgm -> transform_reformat(prgm, MarkInsertContext()), tacoverse)
 		tacoverse = filter(kernel -> maxinsert(kernel) <= 1, tacoverse) #TACO restriction
+		tacoverse = filter(kernel -> istacoformattable(transform_reformat(kernel)), tacoverse)
         $_tacoverse[] = tacoverse
 	end
     tacoverse = _tacoverse[]
+    Pigeon.taco_mode[] = false
 
     data["tacoverse_build_time"] = tacoverse_build_time
     data["tacoverse_length"] = length(tacoverse)
 
-    sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
+    Pigeon.taco_mode[] = true
+    #sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
+    sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 5)]]) do kernel
         kernel = transform_reformat(kernel)
-        inputs = Pigeon.generate_uniform_taco_inputs(args, 1000, 0.1)
+        inputs = Pigeon.generate_uniform_taco_inputs(args, 10000, 0.01)
         run_taco(kernel, inputs)
     end)
+    Pigeon.taco_mode[] = false
 
     data["sample_mean_tacoverse_bench"] = sample_mean_tacoverse_bench
 
-    frontier_filter_time = @btime begin
-        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, args))
-        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, args))
+    _frontier = Ref([])
+    frontier_filter_time = @hotbelapsed begin
+		frontier = filter_pareto($universe, by = kernel -> maxdepth(kernel)) #Filter Step
+        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
+        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
 
-        frontier = filter_pareto(universe, 
+        $_frontier[] = filter_pareto(frontier, 
             by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...))),
             lt = (a, b) -> isdominated(a, b, normal = true)
         )
     end
+    frontier = _frontier[]
 
     data["frontier_filter_time"] = frontier_filter_time
     data["frontier_length"] = length(frontier)
 
-    tacotier_filter_time = @btime begin
-        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, args))
-        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, args))
+    _tacotier = Ref([])
+    tacotier_filter_time = @hotbelapsed begin
+		tacotier = filter_pareto($tacoverse, by = kernel -> maxdepth(kernel)) #Filter Step
+        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
+        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
 
-        tacotier = filter_pareto(tacoverse, 
+        $_tacotier[] = filter_pareto(tacotier, 
             by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...))),
             lt = (a, b) -> isdominated(a, b, normal = true)
         )
     end
+    tacotier = _tacotier[]
 
     data["tacotier_filter_time"] = tacotier_filter_time
     data["tacotier_length"] = length(tacotier)
+
+    open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
 
     println(data)
 

@@ -201,6 +201,7 @@ lower_axes(::Workspace, ::DimensionalizeWorkspaceContext) = Base.Iterators.repea
 getsites(::Workspace) = Base.Iterators.countfrom()
 
 fiber_workspacer(name, mode, dims) = Fiber(name, Any[NoFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
+taco_workspacer(name, mode, dims) = Fiber(name, Any[HashFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
 
 bigprotocolize(ex) = Any[ex]
 function bigprotocolize(ex::Access{SymbolicHollowTensor, Read})

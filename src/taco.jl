@@ -276,7 +276,7 @@ function lower_taco(prgm)
                 time_min = time;
             }
             time_total += time;
-            if(time.count() * 1e-9 > time_max){
+            if(time_total.count() * 1e-9 > time_max){
                 break;
             }
         }
@@ -416,7 +416,7 @@ function lower_taco(prgm)
     """
 
     script = read(open(`clang-format`, "r", IOBuffer(script)), String)
-    println(script)
+    #println(script)
     return script
 end
 
@@ -506,4 +506,35 @@ function generate_uniform_taco_input(tns, n, ρ)
 
     writetns(f, data)
     return f
+end
+
+mutable struct IsTacoFormattableContext
+    res
+end
+function istacoformattable(prgm)
+    #println()
+    #println()
+    ctx = IsTacoFormattableContext(true)
+    istacoformattable!(prgm, ctx)
+    #println(ctx.res)
+    #display(prgm)
+    #println()
+    return ctx.res
+end
+function istacoformattable!(node, ctx::IsTacoFormattableContext)
+    if istree(node)
+        map(arg->istacoformattable!(arg, ctx::IsTacoFormattableContext), arguments(node))
+    end
+end
+function istacoformattable!(node::Access{SymbolicHollowDirector, <:Union{Write, Update}}, ctx::IsTacoFormattableContext)
+    if length(getformat(node.tns)) > 1
+        ctx.res &= !any(isequal(HashFormat()), getformat(node.tns))
+    end
+end
+function istacoformattable!(node::Access{SymbolicHollowDirector, Read}, ctx::IsTacoFormattableContext)
+    if length(getformat(node.tns)) > 1
+        ctx.res &= !any(isequal(HashFormat()), getformat(node.tns))
+    elseif length(getformat(node.tns)) == 1
+        ctx.res &= getprotocol(node.tns) == [StepProtocol(),]
+    end
 end

@@ -293,9 +293,9 @@ function maxinsert!(node, ctx::MaxInsertContext)
         map(arg->maxinsert!(arg, ctx::MaxInsertContext), arguments(node))
     end
 end
-function maxinsert!(node::Access{SymbolicHollowDirector, <:Union{Write, Update}}, ctx::MaxWorkspaceContext)
-    i = findfirst(isequal(InsertProtocol()), getprotocol(node))
+function maxinsert!(node::Access{SymbolicHollowDirector, <:Union{Write, Update}}, ctx::MaxInsertContext)
+    i = findfirst(isequal(InsertProtocol()), getprotocol(node.tns))
     i = i === nothing ? 0 : i
-    i = length(getprotocol(node)) - i
+    i = length(getprotocol(node.tns)) - i
     ctx.d_max = max(ctx.d_max, i)
 end

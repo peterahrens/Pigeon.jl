@@ -1,0 +1,11 @@
+{
+  "tacoverse_build_time": 0.272817831,
+  "sample_mean_tacoverse_bench": 0.006162208000000001,
+  "tacoverse_length": 24,
+  "frontier_filter_time": 4.781358882,
+  "tacotier_length": 10,
+  "universe_length": 144,
+  "frontier_length": 11,
+  "tacotier_filter_time": 1.044424462,
+  "universe_build_time": 0.131552488
+}

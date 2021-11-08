@@ -2,6 +2,8 @@
 
 abstract type AbstractReformatContext end
 
+taco_mode = false
+
 function transform_reformat(root)
     root = transform_ssa(root)
     root = transform_reformat(root, RepermuteWorkspaceContext())
@@ -159,6 +161,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatR
                 hasprotocol(format[i], protocol[i]) &&
                 protocol[i] == req.protocol[i])
         end
+        keep = (!taco_mode || keep == length(protocol) - 1 ? keep : 1) #TODO I long for the day when I can delete this line
         req.keep = min(req.keep, keep)
         req.protocol = protocol[1:keep-1]
         req.format .= map(widenformat, req.format, protocol)
@@ -246,6 +249,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::Repermute
                 protocol[i] == req.protocol[i] &&
                 perm[i] == i)
         end
+        keep = (!taco_mode || keep == length(protocol) - 1 ? keep : 1) #TODO I long for the day when I can delete this line
         req.keep = min(req.keep, keep)
         req.protocol = protocol[1:keep-1]
     end

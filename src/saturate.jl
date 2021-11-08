@@ -202,12 +202,31 @@ getsites(::Workspace) = Base.Iterators.countfrom()
 
 fiber_workspacer(name, mode, dims) = Fiber(name, Any[NoFormat() for _ in dims], dims, 0, collect(1:length(dims))) #TODO assumes default is 0, that might be a problem
 
-bigprotocolize(ex) = [ex]
+bigprotocolize(ex) = Any[ex]
 function bigprotocolize(ex::Access{SymbolicHollowTensor, Read})
     tns = ex.tns
     return Any[Access(Direct(tns, collect(protocol)), ex.mode, ex.idxs) for protocol in product([[LocateProtocol(), StepProtocol()] for _ in getformat(tns)]...)]
 end
 
 function bigprotocolize(ex::Access{SymbolicHollowTensor})
-    [Access(Direct(ex.tns, [AppendProtocol() for _ in getformat(ex.tns)]), ex.mode, ex.idxs)] #TODO This is probably wrong, might want to merge with MarkInsertContext
+    Any[Access(Direct(ex.tns, [AppendProtocol() for _ in getformat(ex.tns)]), ex.mode, ex.idxs)] #TODO This is probably wrong, might want to merge with MarkInsertContext
+end
+
+#TODO more TACO hacks
+
+noprotocolize(ex) = ex
+function noprotocolize(ex::Access{SymbolicHollowTensor, Read})
+    tns = ex.tns
+    return Access(Direct(tns, [StepProtocol() for _ in getformat(tns)]), ex.mode, ex.idxs) #Should be ignored later
+end
+
+function noprotocolize(ex::Access{SymbolicHollowTensor})
+    Access(Direct(ex.tns, [AppendProtocol() for _ in getformat(ex.tns)]), ex.mode, ex.idxs)
+end
+
+tacoprotocolize(ex) = Any[ex]
+function tacoprotocolize(ex::Access{SymbolicHollowDirector, Read})
+    tns = ex.tns
+    return Any[Access(Direct(tns.tns, [StepProtocol(); [StepProtocol() for _ in getformat(tns)[2:end]]], tns.perm), ex.mode, ex.idxs),
+        Access(Direct(tns.tns, [LocateProtocol(); [StepProtocol() for _ in getformat(tns)[2:end]]], tns.perm), ex.mode, ex.idxs)]
 end

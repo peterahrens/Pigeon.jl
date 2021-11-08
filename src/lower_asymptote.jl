@@ -279,3 +279,23 @@ end
 function maxworkspace!(node::Access{Workspace}, ctx::MaxWorkspaceContext)
     ctx.d_max = max(ctx.d_max, length(node.idxs))
 end
+
+mutable struct MaxInsertContext
+    d_max
+end
+function maxinsert(prgm)
+    ctx = MaxInsertContext(0)
+    maxinsert!(prgm, ctx)
+    return ctx.d_max
+end
+function maxinsert!(node, ctx::MaxInsertContext)
+    if istree(node)
+        map(arg->maxinsert!(arg, ctx::MaxInsertContext), arguments(node))
+    end
+end
+function maxinsert!(node::Access{SymbolicHollowDirector, <:Union{Write, Update}}, ctx::MaxWorkspaceContext)
+    i = findfirst(isequal(InsertProtocol()), getprotocol(node))
+    i = i === nothing ? 0 : i
+    i = length(getprotocol(node)) - i
+    ctx.d_max = max(ctx.d_max, i)
+end

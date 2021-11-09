@@ -98,8 +98,8 @@ function paper(prgm, args, fname)
     end
     tacotier = _tacotier[]
 
-    println(:tacotier)
-    foreach(display, tacotier)
+    #println(:tacotier)
+    #foreach(display, tacotier)
 
     data["tacotier_filter_time"] = tacotier_filter_time
     data["tacotier_length"] = length(tacotier)

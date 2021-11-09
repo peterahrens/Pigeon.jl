@@ -39,11 +39,11 @@ function getdata(tns::AbstractSymbolicHollowTensor, ctx::AsymptoticContext)
 end
 
 function getdatadefault(tns::SymbolicHollowTensor, ctx::AsymptoticContext)
-    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in getsites(tns)]...))
+    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in 1:length(getsites(tns))]...))
 end
 
 function getdatadefault(tns::SymbolicHollowDirector, ctx::AsymptoticContext)
-    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in getsites(tns)]...))
+    PointQuery(Predicate(getname(tns), [CanonVariable(n) for n in 1:length(getsites(tns))]...))
 end
 
 lower_axes(tns::SymbolicHollowDirector, ctx) = lower_axes(tns.tns, ctx)[getsites(tns)]
@@ -205,7 +205,7 @@ function coiterate_asymptote!(root, ctx, stmt::Access{<:AbstractSymbolicHollowTe
     i = findfirst(isequal(root.idxs[1]), stmt.idxs)
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return Empty()
     getprotocol(stmt.tns)[i] === coiter || return Empty() #TODO this line isn't extensible
-    pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
+    pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs[getsites(stmt.tns)]...])
     return iterate!(ctx, pred)
 end
 
@@ -225,14 +225,14 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{<:AbstractSy
     (i !== nothing && stmt.idxs[1:i] ⊆ ctx.qnts) || return single
     getprotocol(stmt.tns)[i] === coiter || return single
     stmt′ = stmt.mode === Read() ? getdefault(stmt.tns) : Access(ImplicitSymbolicHollowTensor(stmt.tns), stmt.mode, stmt.idxs)
-    pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs...])
+    pred = Exists(getname.(setdiff(stmt.idxs, ctx.qnts))..., getdata(stmt.tns, ctx)[stmt.idxs[getsites(stmt.tns)]...])
     return [(pred, stmt), (true, stmt′),]
 end
 
 function lower!(root::Assign{<:Access{<:AbstractSymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
     pred = Exists(getname.(setdiff(ctx.qnts, root.lhs.idxs))..., guard(ctx))
-    getdata(root.lhs.tns, ctx)[root.lhs.idxs...] = pred
+    getdata(root.lhs.tns, ctx)[root.lhs.idxs[getsites(root.lhs.tns)]...] = pred
 end
 
 function initialize!(tns::SymbolicHollowDirector, ctx::AsymptoticContext)

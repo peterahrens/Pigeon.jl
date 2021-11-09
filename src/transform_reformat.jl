@@ -156,7 +156,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatR
     if !all(i -> hasprotocol(format[i], protocol[i]), 1:length(format))
         req = get!(ctx.reqs, (name, node.mode), ReformatReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol), Any[NoFormat() for _ in format]))
         keep = findfirst(1:length(format)) do i
-            !(i <= req.keep &&
+            !(i < req.keep &&
                 ctx.qnt[top + i] == node.idxs[i] &&
                 hasprotocol(format[i], protocol[i]) &&
                 protocol[i] == req.protocol[i])
@@ -244,7 +244,7 @@ function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::Repermute
     if !all(i -> (i == perm[i]), 1:length(perm))
         req = get!(ctx.reqs, (name, node.mode, perm), RepermuteReadRequest(node.tns.tns, length(protocol), node.idxs, deepcopy(protocol)))
         keep = findfirst(1:length(perm)) do i
-            !(i <= req.keep &&
+            !(i < req.keep &&
                 ctx.qnt[top + i] == node.idxs[i] &&
                 protocol[i] == req.protocol[i] &&
                 perm[i] == i)

@@ -1,11 +1,24 @@
 {
-  "tacoverse_build_time": 0.272817831,
-  "sample_mean_tacoverse_bench": 0.006162208000000001,
-  "tacoverse_length": 24,
-  "frontier_filter_time": 4.781358882,
-  "tacotier_length": 10,
-  "universe_length": 144,
+  "default_kernel_bench": 0.0395368,
   "frontier_length": 11,
-  "tacotier_filter_time": 1.044424462,
-  "universe_build_time": 0.131552488
+  "tacoverse_build_time": 4.931208899,
+  "tacotier_length": 10,
+  "tacotier_bench": [
+    0.000204164,
+    0.000203221,
+    0.000193729,
+    0.000187752,
+    0.000199279,
+    0.000198799,
+    0.000195917,
+    0.000195927,
+    0.000196353,
+    0.00019449
+  ],
+  "tacotier_filter_time": 0.773659605,
+  "sample_mean_tacoverse_bench": 0.16560607079999998,
+  "frontier_filter_time": 5.77044934,
+  "universe_length": 20400,
+  "universe_build_time": 4.045858585,
+  "tacoverse_length": 560
 }

@@ -4,7 +4,7 @@ using BSON
 using Random
 using JSON
 
-using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty
+using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty, defaultprotocolize
 using Pigeon: Such, Cup, Wedge, isdominated
 using SymbolicUtils: Postwalk
 
@@ -56,7 +56,7 @@ function paper(prgm, args, fname)
     #sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
     sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 5)]]) do kernel
         kernel = transform_reformat(kernel)
-        inputs = Pigeon.generate_uniform_taco_inputs(args, 10000, 0.01)
+        inputs = Pigeon.generate_uniform_taco_inputs(args, 1_000, 0.01)
         run_taco(kernel, inputs)
     end)
     Pigeon.taco_mode[] = false
@@ -95,24 +95,30 @@ function paper(prgm, args, fname)
     data["tacotier_filter_time"] = tacotier_filter_time
     data["tacotier_length"] = length(tacotier)
 
-    open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
+    tacotier_inputs = Pigeon.generate_uniform_taco_inputs(args, 1_000, 0.01)
+    tacotier_bench = map(tacotier) do kernel
+        kernel = transform_reformat(kernel)
+        run_taco(kernel, tacotier_inputs)
+    end
+    data["tacotier_bench"] = tacotier_bench
 
     println(data)
 
-    #=
-    final_frontier_inputs = test_inputs(kernel, n=1_000_000, ρ=0.01)
-    frontier_bench = map(frontier) do kernel
-        kernel = transform_reformat(kernel)
-        run_taco(kernel, final_frontier_inputs...)
-    end
+    auto_kernel = frontier[findmin(tacotier_bench)[2]]
 
-    auto_kernel = frontier[findmin(frontier_bench)]
-
-    default_kernel = Postwalk(defaultprotocolize)(prgm)
+    default_kernel = Postwalk(noprotocolize)(prgm)
+    default_kernel = Postwalk(defaultprotocolize)(default_kernel)
     default_kernel = transform_reformat(default_kernel, MarkInsertContext())
     default_kernel = concordize(default_kernel)
+    Pigeon.taco_mode[] = true
     default_kernel = transform_reformat(default_kernel)
+    Pigeon.taco_mode[] = false 
 
-    default_kernel_bench = run_taco(default_kernel, test_inputs(default_kernel, n=1_000_000, ρ=0.01)...)
-    =#
+    default_kernel_bench = run_taco(default_kernel, Pigeon.generate_uniform_taco_inputs(args, 1_000, 0.01))
+
+    data["default_kernel_bench"] = default_kernel_bench
+
+    println(data)
+
+    open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
 end

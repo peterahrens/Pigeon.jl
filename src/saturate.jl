@@ -231,3 +231,9 @@ function tacoprotocolize(ex::Access{SymbolicHollowDirector, Read})
     return Any[Access(Direct(tns.tns, [StepProtocol(); [StepProtocol() for _ in getformat(tns)[2:end]]], tns.perm), ex.mode, ex.idxs),
         Access(Direct(tns.tns, [LocateProtocol(); [StepProtocol() for _ in getformat(tns)[2:end]]], tns.perm), ex.mode, ex.idxs)]
 end
+
+defaultprotocolize(ex) = ex
+function defaultprotocolize(ex::Access{SymbolicHollowDirector, Read})
+    tns = ex.tns
+    return Access(Direct(tns.tns, [LocateProtocol(); [StepProtocol() for _ in getformat(tns)[2:end]]], tns.perm), ex.mode, ex.idxs)
+end

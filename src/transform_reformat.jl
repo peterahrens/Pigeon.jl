@@ -8,6 +8,7 @@ function transform_reformat(root)
     root = transform_ssa(root)
     root = transform_reformat(root, RepermuteWorkspaceContext())
     root = transform_reformat(root, RepermuteReadContext())
+    if taco_mode[] root = transform_reformat(root, ReformatReadTacoContext()) end
     root = transform_reformat(root, ReformatWorkspaceContext())
     root = transform_reformat(root, ReformatReadContext())
     normalize_index(root)

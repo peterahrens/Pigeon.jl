@@ -87,11 +87,10 @@ function script_transpose!(node, ctx::TacoLowerContext)
         all(p -> p isa ConvertProtocol, b.protocol)
         ctx.output_transposes = """
         $(ctx.output_transposes)
-        Tensor<double> tensor_$(getname(a)) = tensor_$(getname(b)).transpose("$(getname(a))", {$(join(map(string, getsites(b)), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
-        TensorVar tensorvar_$(getname(a)) = tensor_$(getname(a)).getTensorVar();
+        tensor_$(getname(a)) = tensor_$(getname(b)).transpose("$(getname(a))", {$(join(map(string, getsites(b) .- 1), ", "))}, Format({$(join(map(taco_format, getformat(a)), ", "))}));
         """
-        ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
-        script!((@i b[$idxs2]), ctx, true)
+        #ctx.tensor_variable_names[getname(a)] = "tensor_$(getname(a))"
+        script!(access(a, Write(), idxs1), ctx, true)
         res = script_transpose!(prod, ctx)
         return res
     end
@@ -144,6 +143,7 @@ getformat(tns::SymbolicSolidTensor) = [ArrayFormat() for _ in tns.dims]
 taco_format(::ArrayFormat) = "Dense"
 taco_format(::HashFormat) = "Dense" #TODO need a taco compat check
 taco_format(::ListFormat) = "Sparse"
+taco_format(::NoFormat) = "Sparse"
 
 function script!(node::Access, ctx::TacoLowerContext, ignoreoperand=false)
     idxs = map(idx->script_index!(idx, ctx), node.idxs)
@@ -203,7 +203,7 @@ function script!(node::Access, ctx::TacoLowerContext, ignoreoperand=false)
                 TensorVar tensorvar_$(getname(tns)) = tensor_$(getname(tns)).getTensorVar();
                 """
             else
-                ctx.output = "tensor_$(getname(tns))"
+                ctx.output = tns
             
                 ctx.tensor_output_constructors = """
                 $(ctx.tensor_output_constructors)
@@ -241,12 +241,11 @@ function lower_taco(prgm)
     prgm = transform_ssa(prgm)
     ctx = TacoLowerContext()
     ctx.inputs = setdiff(getglobals(prgm), [getname(getresult(prgm))])
-    ctx.output = getresult(prgm)
     Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
     cin = script_transpose!(prgm, ctx)
     ctx.maybevar = false
 
-    point = assign(access(getresult(prgm), Update(), [Name(freshen(:foo)) for _ in getformat(getresult(prgm))]), +, foldl((a, b) -> call(*, a, b), ctx.operands))
+    point = assign(access(ctx.output, Update(), [Name(freshen(:foo)) for _ in getformat(ctx.output)]), +, foldl((a, b) -> call(*, a, b), ctx.operands))
     point = script!(point, ctx)
 
     script = """
@@ -393,16 +392,16 @@ function lower_taco(prgm)
         $(point);
 
         // Compile the expression
-        $(ctx.output).compile($cin);
+        tensor_$(getname(ctx.output)).compile($cin);
 
         // Assemble output indices and numerically compute the result
         auto time = benchmark(
-            10, 10000, [&$(ctx.output)]()
-            { $(ctx.output).assemble(); 
-            //$(ctx.output).setNeedsCompute(true);
+            10, 10000, [&tensor_$(getname(ctx.output))]()
+            { tensor_$(getname(ctx.output)).assemble(); 
+            //tensor_$(getname(ctx.output)).setNeedsCompute(true);
             },
-            [&$(ctx.output)]()
-            { $(ctx.output).compute();
+            [&tensor_$(getname(ctx.output))]()
+            { tensor_$(getname(ctx.output)).compute();
              });
 
         std::cout << time << std::endl;
@@ -535,6 +534,80 @@ function istacoformattable!(node::Access{SymbolicHollowDirector, Read}, ctx::IsT
     if length(getformat(node.tns)) > 1
         ctx.res &= !any(isequal(HashFormat()), getformat(node.tns))
     elseif length(getformat(node.tns)) == 1
-        ctx.res &= getprotocol(node.tns) == [StepProtocol(),]
+        ctx.res &= getprotocol(node.tns)[1] in [StepProtocol(), ConvertProtocol()]
     end
+end
+
+struct ReformatReadTacoContext <: AbstractReformatContext
+    qnt
+    nest
+end
+ReformatReadTacoContext() = ReformatReadTacoContext([], Dict())
+mutable struct ReformatReadTacoTensorContext <: AbstractReformatContext
+    qnt
+    nest
+    tnss
+end
+mutable struct ReformatReadTacoCollectContext <: AbstractReformatContext
+    qnt
+    nest
+    reqs
+end
+mutable struct ReformatReadTacoSubstituteContext <: AbstractReformatContext
+    qnt
+    nest
+    tns
+    keep
+    tns′
+    mode
+end
+function transform_reformat(root, ctx::ReformatReadTacoContext, style::ReformatSymbolicStyle)
+    reqs = Dict()
+    transform_reformat(root, ReformatReadTacoCollectContext(ctx.qnt, ctx.nest, reqs))
+    prods = []
+    conss = []
+    for ((name, mode), req) in pairs(reqs)
+        if issubset(req.idxs[1:req.keep - 1], ctx.qnt) && (mode == Read() || getname(getresult(root)) == getname(req.tns))# && haskey(ctx.nest, name) || req.global
+            format′ = req.format[req.keep : end]
+            name′ = freshen(getname(req.tns))
+            dims′ = req.tns.dims[req.keep : end]
+            tns′ = SymbolicHollowTensor(name′, format′, dims′, req.tns.default)
+            idxs′ = map(i->Name(freshen(getname(i))), req.idxs[req.keep:end])
+            #for now, assume that a different pass will add "default" read/write protocols
+            root = transform_reformat(root, ReformatReadTacoSubstituteContext(ctx.qnt, ctx.nest, req.tns, req.keep, tns′, mode))
+            conv_protocol = Any[ConvertProtocol() for _ = 1:length(tns′.perm)]
+            dir′ = SymbolicHollowDirector(tns′, conv_protocol)
+            dir = SymbolicHollowDirector(req.tns, vcat(req.protocol, conv_protocol))
+            if mode == Read()
+                push!(prods, @i (@loop $idxs′ $dir′[$idxs′] = $(dir)[$(req.idxs[1:req.keep-1]), $idxs′]))
+            else
+                push!(conss, @i (@loop $idxs′ $(dir)[$(req.idxs[1:req.keep-1]), $idxs′] = $dir′[$idxs′]))
+            end
+        end
+    end
+    return foldr(with, conss, init = foldl(with, prods, init = transform_reformat(root, ctx, style.style)))
+end
+make_style(node, ::ReformatReadTacoContext, ::Access{SymbolicHollowDirector}) = ReformatSymbolicStyle(DefaultStyle())
+mutable struct ReformatReadTacoRequest
+    tns
+    keep
+    idxs
+    protocol
+    format
+end
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadTacoCollectContext, ::DefaultStyle)
+    name = getname(node.tns)
+    protocol = getprotocol(node.tns)
+    format = getformat(node.tns)
+    top = get(ctx.nest, name, 0)
+    if length(protocol) > 1 && protocol[end] == InsertProtocol() && format[end] in [ListFormat(), NoFormat()]
+        req = ctx.reqs[(name, node.mode)] = ReformatReadTacoRequest(node.tns.tns, length(protocol), node.idxs, protocol[1:end-1], Any[HashFormat() for _ in format])
+    end
+    return node
+end
+function transform_reformat(node::Access{SymbolicHollowDirector}, ctx::ReformatReadTacoSubstituteContext, ::DefaultStyle)
+    if getname(node.tns.tns) == getname(ctx.tns) && node.mode == ctx.mode
+        return Access(SymbolicHollowDirector(ctx.tns′, getprotocol(node.tns)[ctx.keep:end]), node.mode, node.idxs[ctx.keep:end])
+    end
+    return node
 end

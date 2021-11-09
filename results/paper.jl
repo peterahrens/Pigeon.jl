@@ -21,6 +21,7 @@ function paper(prgm, args, fname)
     _universe = Ref([])
 	universe_build_time = @hotbelapsed begin
 		universe = saturate_index($prgm)
+		universe = filter_pareto(universe, by = kernel -> maxdepth(kernel)) #Filter Step
 		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
 		universe = mapreduce(PostwalkSaturate(bigprotocolize), vcat, universe)
 	    universe = map(prgm -> transform_reformat(prgm, MarkInsertContext()), universe)
@@ -39,6 +40,7 @@ function paper(prgm, args, fname)
     _tacoverse = Ref([])
 	tacoverse_build_time = @hotbelapsed begin
 		tacoverse = saturate_index($prgm)
+		tacoverse = filter_pareto(tacoverse, by = kernel -> maxdepth(kernel)) #Filter Step
 		tacoverse = filter(kernel -> maxworkspace(kernel) <= 1, tacoverse) #TACO restriction
 		tacoverse = map(prgm->format_workspaces(prgm, AsymptoticContext, taco_workspacer), tacoverse)
 		tacoverse = map(Postwalk(noprotocolize), tacoverse)
@@ -71,11 +73,10 @@ function paper(prgm, args, fname)
 
     _frontier = Ref([])
     frontier_filter_time = @hotbelapsed begin
-		frontier = filter_pareto($universe, by = kernel -> maxdepth(kernel)) #Filter Step
         sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
         assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
 
-        $_frontier[] = filter_pareto(frontier, 
+        $_frontier[] = filter_pareto($universe, 
             by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...))),
             lt = (a, b) -> isdominated(a, b, normal = true)
         )
@@ -87,11 +88,10 @@ function paper(prgm, args, fname)
 
     _tacotier = Ref([])
     tacotier_filter_time = @hotbelapsed begin
-		tacotier = filter_pareto($tacoverse, by = kernel -> maxdepth(kernel)) #Filter Step
         sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
         assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
 
-        $_tacotier[] = filter_pareto(tacotier, 
+        $_tacotier[] = filter_pareto($tacoverse, 
             by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs...), Wedge(assumptions...))),
             lt = (a, b) -> isdominated(a, b, normal = true)
         )

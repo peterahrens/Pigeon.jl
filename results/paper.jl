@@ -29,8 +29,8 @@ function paper(prgm, args, fname)
 	end
     universe = _universe[]
 
-    println(:universe)
-    foreach(display, universe)
+    #println(:universe)
+    #foreach(display, universe)
 
     data["universe_build_time"] = universe_build_time
     data["universe_length"] = length(universe)
@@ -52,8 +52,8 @@ function paper(prgm, args, fname)
     tacoverse = _tacoverse[]
     Pigeon.taco_mode[] = false
 
-    println(:tacoverse)
-    foreach(display, tacoverse)
+    #println(:tacoverse)
+    #foreach(display, tacoverse)
 
     data["tacoverse_build_time"] = tacoverse_build_time
     data["tacoverse_length"] = length(tacoverse)

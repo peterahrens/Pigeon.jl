@@ -95,6 +95,7 @@ function paper(prgm, args, fname)
     data["tacotier_filter_time"] = tacotier_filter_time
     data["tacotier_length"] = length(tacotier)
 
+    Pigeon.taco_mode[] = true
     tacotier_inputs = Pigeon.generate_uniform_taco_inputs(args, 1_000, 0.01)
     tacotier_bench = map(tacotier) do kernel
         kernel = transform_reformat(kernel)
@@ -102,9 +103,8 @@ function paper(prgm, args, fname)
     end
     data["tacotier_bench"] = tacotier_bench
 
-    println(data)
-
-    auto_kernel = frontier[findmin(tacotier_bench)[2]]
+    auto_kernel = transform_reformat(frontier[findmin(tacotier_bench)[2]])
+    Pigeon.taco_mode[] = false
 
     default_kernel = Postwalk(noprotocolize)(prgm)
     default_kernel = Postwalk(defaultprotocolize)(default_kernel)
@@ -118,7 +118,31 @@ function paper(prgm, args, fname)
 
     data["default_kernel_bench"] = default_kernel_bench
 
-    println(data)
+    n_series = 10 .^ (1:6)
+    default_n_series = []
+    auto_n_series = []
+    for n = n_series
+        input = Pigeon.generate_uniform_taco_inputs(args, n, 0.01)
+        push!(default_n_series, run_taco(default_kernel, input))
+        push!(auto_n_series, run_taco(auto_kernel, input))
+    end
+
+    data["n_series"] = n_series
+    data["default_n_series"] = default_n_series
+    data["auto_n_series"] = auto_n_series
+
+    p_series = 0.1 .^ 0:10
+    default_p_series = []
+    auto_p_series = []
+    for p = p_series
+        input = Pigeon.generate_uniform_taco_inputs(args, 10_000, p)
+        push!(default_p_series, run_taco(default_kernel, input))
+        push!(auto_p_series, run_taco(auto_kernel, input))
+    end
+
+    data["p_series"] = p_series
+    data["default_p_series"] = default_p_series
+    data["auto_p_series"] = auto_p_series
 
     open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
 end

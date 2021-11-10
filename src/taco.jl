@@ -445,9 +445,9 @@ function readtns(fname)
 end
 
 function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
-    TACO_LIB = "/Users/Peter/Projects/taco/build/lib"
-    TACO_INC = "/Users/Peter/Projects/taco/include"
-    TACO_SRC = "/Users/Peter/Projects/taco/src"
+    TACO_LIB = "\$SCRATCH/taco/build/lib"
+    TACO_INC = "\$SCRATCH/taco/include"
+    TACO_SRC = "\$SCRATCH/taco/src"
 
     exe = joinpath(@get_scratch!("kernels"), name)
     if !isfile(exe) || true

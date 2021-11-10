@@ -164,7 +164,7 @@ function paper(prgm, args, dims, fname)
     ))
     open("$(fname)_tacotier_display.txt", "w") do f
         foreach(tacotier) do kernel
-            display(f, MIME"text/plain", kernel)
+            display(f, MIME("text/plain"), kernel)
             println(f, "")
         end
     end

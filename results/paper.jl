@@ -127,11 +127,7 @@ function paper(prgm, args, fname)
 
     data["default_kernel_bench"] = default_kernel_bench
 
-    println(JSON.json(data, 2))
-
-    open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
-
-    n_series = 10 .^ (1:4)
+    n_series = 10 .^ (1:5)
     default_n_series = []
     auto_n_series = []
     for n = n_series
@@ -145,11 +141,10 @@ function paper(prgm, args, fname)
     data["default_n_series"] = default_n_series
     data["auto_n_series"] = auto_n_series
 
-    p_series = 0.1 .^ (0:4)
+    p_series = 0.1 .^ (1:5)
     default_p_series = []
     auto_p_series = []
     for p = p_series
-        println(p)
         input = Pigeon.generate_uniform_taco_inputs(args, 1_000, p)
         push!(default_p_series, run_taco(default_kernel, input))
         push!(auto_p_series, run_taco(auto_kernel, input))
@@ -159,5 +154,15 @@ function paper(prgm, args, fname)
     data["default_p_series"] = default_p_series
     data["auto_p_series"] = auto_p_series
 
-    open("$fname.json", "w") do f print(f, JSON.json(data, 2)) end
+    open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
+    BSON.bson("$(fname)_frontier.bson", Dict(
+        "tacotier" => tacotier,
+        "frontier" => frontier
+    ))
+    open("$(fname)_tacotier_display.txt", "w") do f
+        foreach(tacotier) do kernel
+            display(f, kernel)
+            println(f, "")
+        end
+    end
 end

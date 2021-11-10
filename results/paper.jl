@@ -145,7 +145,7 @@ function paper(prgm, args, fname)
     data["default_n_series"] = default_n_series
     data["auto_n_series"] = auto_n_series
 
-    p_series = 0.1 .^ 0:4
+    p_series = 0.1 .^ (0:4)
     default_p_series = []
     auto_p_series = []
     for p = p_series

@@ -7,10 +7,11 @@
 #SBATCH --exclude lanka[25,35-48]
 # want lanka[26,27,28,29,31,32,33,34]
 
-#export SCRATCH=/data/scratch/pahrens
-#export PATH="$SCRATCH/julia:$PATH"
-#export JULIA_DEPOT_PATH=/data/scratch/pahrens/.julia
-#export MATRIXDEPOT_DATA=/data/scratch/pahrens/MatrixData
+export SCRATCH=/data/scratch/pahrens
+export PATH="$SCRATCH/julia:$PATH"
+export JULIA_DEPOT_PATH=/data/scratch/pahrens/.julia
+export MATRIXDEPOT_DATA=/data/scratch/pahrens/MatrixData
+export LD_LIBRARY_PATH=/data/scratch/pahrens/taco/build/lib:$LD_LIBRARY_PATH
 
 cd $SCRATCH/Pigeon.jl/results
 cat /sys/devices/system/cpu/intel_pstate/no_turbo

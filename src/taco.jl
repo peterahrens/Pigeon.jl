@@ -414,7 +414,7 @@ function lower_taco(prgm)
     }
     """
 
-    script = read(open(`clang-format`, "r", IOBuffer(script)), String)
+    #script = read(open(`clang-format`, "r", IOBuffer(script)), String)
     #println(script)
     return script
 end
@@ -445,9 +445,9 @@ function readtns(fname)
 end
 
 function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
-    TACO_LIB = "\$SCRATCH/taco/build/lib"
-    TACO_INC = "\$SCRATCH/taco/include"
-    TACO_SRC = "\$SCRATCH/taco/src"
+    TACO_LIB = "/data/scratch/pahrens/taco/build/lib"
+    TACO_INC = "/data/scratch/pahrens/taco/include"
+    TACO_SRC = "/data/scratch/pahrens/taco/src"
 
     exe = joinpath(@get_scratch!("kernels"), name)
     if !isfile(exe) || true

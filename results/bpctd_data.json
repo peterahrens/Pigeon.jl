@@ -1,54 +1,52 @@
 {
-  "default_kernel_bench": 2.2777e-5,
-  "frontier_length": 32,
+  "default_kernel_bench": 2.2635e-5,
+  "frontier_length": 6,
   "n_series": [
     10,
     100,
     1000,
     10000
   ],
-  "tacoverse_build_time": 0.178338426,
+  "tacoverse_build_time": 0.184216065,
   "default_p_series": [
-    2.2472e-5,
-    2.2302e-5,
-    2.2643e-5,
-    2.3212e-5
+    2.26e-5,
+    2.3323e-5,
+    2.2094e-5,
+    2.3182e-5
   ],
   "auto_p_series": [
-    1.2374e-5,
-    9.643e-6,
-    1.0245e-5,
-    1.0272e-5
+    1.1859e-5,
+    9.675e-6,
+    9.517e-6,
+    9.277e-6
   ],
-  "tacotier_length": 4,
+  "tacotier_length": 2,
   "tacotier_bench": [
-    2.6914e-5,
-    1.2189e-5,
-    1.1835e-5,
-    1.207e-5
+    1.1522e-5,
+    2.5699e-5
   ],
-  "tacotier_filter_time": 0.310165394,
+  "tacotier_filter_time": 0.32090606,
   "p_series": [
     0.010000000000000002,
     0.0010000000000000002,
     0.00010000000000000005,
     1.0000000000000003e-5
   ],
-  "sample_mean_tacoverse_bench": 1.5737000000000002e-5,
-  "frontier_filter_time": 1.985487839,
+  "sample_mean_tacoverse_bench": 1.543e-5,
+  "frontier_filter_time": 1.607025024,
   "default_n_series": [
-    9.624e-6,
-    9.877e-6,
-    1.1616e-5,
-    2.3065e-5
+    9.065e-6,
+    9.424e-6,
+    1.0566e-5,
+    2.1916e-5
   ],
   "universe_length": 32,
   "auto_n_series": [
-    9.626e-6,
-    9.448e-6,
-    1.0198e-5,
-    1.2569e-5
+    9.43e-6,
+    9.229e-6,
+    9.723e-6,
+    1.3235e-5
   ],
-  "universe_build_time": 0.014836087,
+  "universe_build_time": 0.015617041,
   "tacoverse_length": 4
 }

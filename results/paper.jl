@@ -63,8 +63,7 @@ function paper(prgm, args, dims, fname)
     data["tacoverse_length"] = length(tacoverse)
 
     Pigeon.taco_mode[] = true
-    #sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
-    sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 5)]]) do kernel
+    sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
         kernel = transform_reformat(kernel)
         inputs = Pigeon.generate_uniform_taco_inputs(args, 10_000, 0.01)
         run_taco(kernel, inputs)
@@ -162,10 +161,10 @@ function paper(prgm, args, dims, fname)
         "tacotier" => tacotier,
         "frontier" => frontier
     ))
-    open("$(fname)_tacotier_display.txt", "w") do f
-        foreach(tacotier) do kernel
-            display(f, MIME("text/plain"), kernel)
-            println(f, "")
-        end
-    end
+    #open("$(fname)_tacotier_display.txt", "w") do f
+    #    foreach(tacotier) do kernel
+    #        display(f, MIME("text/plain"), kernel)
+    #        println(f, "")
+    #    end
+    #end
 end

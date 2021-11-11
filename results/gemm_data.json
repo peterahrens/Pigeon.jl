@@ -1,0 +1,54 @@
+{
+  "default_kernel_bench": 132.452,
+  "frontier_length": 12,
+  "n_series": [
+    10,
+    100,
+    1000,
+    10000
+  ],
+  "tacoverse_build_time": 0.123127478,
+  "default_p_series": [
+    131.187,
+    14.9008,
+    1.64313,
+    0.0713633
+  ],
+  "auto_p_series": [
+    5.23445,
+    0.0541529,
+    0.000483333,
+    5.7578e-5
+  ],
+  "tacotier_length": 4,
+  "tacotier_bench": [
+    5.22639,
+    5.24068,
+    5.23262,
+    5.23974
+  ],
+  "tacotier_filter_time": 1.241373553,
+  "p_series": [
+    0.010000000000000002,
+    0.0010000000000000002,
+    0.00010000000000000005,
+    1.0000000000000003e-5
+  ],
+  "sample_mean_tacoverse_bench": 51.370491875,
+  "frontier_filter_time": 7.581900616,
+  "default_n_series": [
+    1.146e-5,
+    2.711e-5,
+    0.0311515,
+    131.798
+  ],
+  "universe_length": 96,
+  "auto_n_series": [
+    1.1184e-5,
+    1.379e-5,
+    0.00458385,
+    5.22509
+  ],
+  "universe_build_time": 0.013214299,
+  "tacoverse_length": 16
+}

@@ -3,7 +3,7 @@
 #SBATCH --exclusive
 #SBATCH -t 240:00:00
 #SBATCH --partition=lanka-v3
-#SBATCH --array 8-11%8
+#SBATCH --array 6-11%8
 #SBATCH --exclude lanka[25,35-48]
 # want lanka[26,27,28,29,31,32,33,34]
 
@@ -17,8 +17,8 @@ cd $SCRATCH/Pigeon.jl/results
 cat /sys/devices/system/cpu/intel_pstate/no_turbo
 
 if [[ $SLURM_ARRAY_TASK_ID -eq 1 ]]
-  srun --cpu-bind=sockets julia --project=. spgemm.jl
 then
+  srun --cpu-bind=sockets julia --project=. spgemm.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 2 ]]
 then
   srun --cpu-bind=sockets julia --project=. spgemm2.jl

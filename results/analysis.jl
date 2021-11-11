@@ -24,8 +24,6 @@ function main()
 
     for name in names
         if isfile("$(name)_data.json")
-            for 
-            end
         end
     end
 end

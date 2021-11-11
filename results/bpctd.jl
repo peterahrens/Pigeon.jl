@@ -9,4 +9,4 @@ D = Fiber(:D, [ListFormat()], [:I])
 
 prgm = @i @loop i A[i] += B[i] + C[i] * D[i]
 
-paper(prgm, [B, C, D], [:I], "bpctd")
+paper(prgm, [B, C, D], [], "bpctd")

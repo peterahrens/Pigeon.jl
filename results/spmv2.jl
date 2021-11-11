@@ -9,4 +9,4 @@ d = Dense(:d, [:K])
 
 prgm = @i @loop i j k a[i] += B[i, j] * C[j, k] * d[k]
 
-paper(prgm, [B, C], [:I, :J, :K], "spmv2")
+paper(prgm, [B, C, d], [:I, :J, :K], "spmv2")

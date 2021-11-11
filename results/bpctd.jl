@@ -2,11 +2,11 @@ using Pigeon
 
 include("paper.jl")
 
-A = Fiber(:A, [ListFormat()], [:I])
-B = Fiber(:B, [ListFormat()], [:I])
-C = Fiber(:C, [ListFormat()], [:I])
-D = Fiber(:D, [ListFormat()], [:I])
+A = Fiber(:A, [ArrayFormat(), ListFormat()], [:I, :J])
+B = Fiber(:B, [ArrayFormat(), ListFormat()], [:I, :J])
+C = Fiber(:C, [ArrayFormat(), ListFormat()], [:I, :J])
+D = Fiber(:D, [ArrayFormat(), ListFormat()], [:I, :J])
 
-prgm = @i @loop i A[i] += B[i] + C[i] * D[i]
+prgm = @i @loop i j A[i, j] += B[i, j] + C[i, j] * D[i, j]
 
-paper(prgm, [B, C, D], [], "bpctd")
+paper(prgm, [B, C, D], [:I, :J], "bpctd")

@@ -159,7 +159,9 @@ function paper(prgm, args, dims, fname)
     open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
     BSON.bson("$(fname)_frontier.bson", Dict(
         "tacotier" => tacotier,
-        "frontier" => frontier
+        "frontier" => frontier,
+        "auto_kernel" => auto_kernel,
+        "default_kernel" => default_kernel
     ))
     #open("$(fname)_tacotier_display.txt", "w") do f
     #    foreach(tacotier) do kernel

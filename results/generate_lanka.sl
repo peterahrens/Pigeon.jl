@@ -3,7 +3,11 @@
 #SBATCH --exclusive
 #SBATCH -t 240:00:00
 #SBATCH --partition=lanka-v3
+<<<<<<< Updated upstream
 #SBATCH --array 1-8%8
+=======
+#SBATCH --array 9-11%8
+>>>>>>> Stashed changes
 #SBATCH --exclude lanka[25,35-48]
 # want lanka[26,27,28,29,31,32,33,34]
 
@@ -40,4 +44,13 @@ then
 elif [[ $SLURM_ARRAY_TASK_ID -eq 8 ]]
 then
   srun --cpu-bind=sockets julia --project=. spgemmh.jl
+elif [[ $SLURM_ARRAY_TASK_ID -eq 9 ]]
+then
+  srun --cpu-bind=sockets julia --project=. mttkrp.jl
+elif [[ $SLURM_ARRAY_TASK_ID -eq 10 ]]
+then
+  srun --cpu-bind=sockets julia --project=. spmv.jl
+elif [[ $SLURM_ARRAY_TASK_ID -eq 11 ]]
+then
+  srun --cpu-bind=sockets julia --project=. spmv3.jl
 fi

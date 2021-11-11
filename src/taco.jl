@@ -478,7 +478,18 @@ function run_taco(prgm, inputs)
         end
     end
     io = IOBuffer()
-    run(pipeline(`$exe $args`, stdout=io))
+    attempts = 0
+    while true
+        try
+            run(pipeline(`$exe $args`, stdout=io))
+            break
+        catch
+            attempts += 1
+            if attempts > 10
+                rethrow()
+            end
+        end
+    end
     return parse(Float64, String(take!(io)))
 end
 

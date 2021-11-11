@@ -3,7 +3,7 @@
 #SBATCH --exclusive
 #SBATCH -t 240:00:00
 #SBATCH --partition=lanka-v3
-#SBATCH --array 9-11%8
+#SBATCH --array 8-11%8
 #SBATCH --exclude lanka[25,35-48]
 # want lanka[26,27,28,29,31,32,33,34]
 
@@ -17,20 +17,20 @@ cd $SCRATCH/Pigeon.jl/results
 cat /sys/devices/system/cpu/intel_pstate/no_turbo
 
 if [[ $SLURM_ARRAY_TASK_ID -eq 1 ]]
+  srun --cpu-bind=sockets julia --project=. spgemm.jl
 then
-  srun --cpu-bind=sockets julia --project=. spmv2.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 2 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemm.jl
+  srun --cpu-bind=sockets julia --project=. spgemm2.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 3 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemm2.jl
+  srun --cpu-bind=sockets julia --project=. sspgemm.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 4 ]]
 then
-  srun --cpu-bind=sockets julia --project=. sspgemm.jl
+  srun --cpu-bind=sockets julia --project=. spgemma.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 5 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemma.jl
+  srun --cpu-bind=sockets julia --project=. spgemmh.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 6 ]]
 then
   srun --cpu-bind=sockets julia --project=. bpcdd.jl
@@ -39,13 +39,13 @@ then
   srun --cpu-bind=sockets julia --project=. bpctd.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 8 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemmh.jl
+  srun --cpu-bind=sockets julia --project=. mttkrp.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 9 ]]
 then
-  srun --cpu-bind=sockets julia --project=. mttkrp.jl
+  srun --cpu-bind=sockets julia --project=. spmv.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 10 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spmv.jl
+  srun --cpu-bind=sockets julia --project=. spmv2.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 11 ]]
 then
   srun --cpu-bind=sockets julia --project=. spmv3.jl

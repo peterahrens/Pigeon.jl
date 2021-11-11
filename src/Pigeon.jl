@@ -33,8 +33,6 @@ export filter_pareto
 export simplify_asymptote
 export supersimplify_asymptote
 
-TermInterface.exprhead(::Any) = :call 
-
 include("utils.jl")
 include("index.jl")
 include("parse_index.jl")

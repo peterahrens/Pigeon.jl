@@ -27,10 +27,11 @@ then
   srun --cpu-bind=sockets julia --project=. sspgemm.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 4 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemma.jl
+  #srun --cpu-bind=sockets julia --project=. spgemma.jl
+  echo skip
 elif [[ $SLURM_ARRAY_TASK_ID -eq 5 ]]
 then
-  #srun --cpu-bind=sockets julia --project=. spgemmh.jl
+  srun --cpu-bind=sockets julia --project=. spgemmh.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 6 ]]
 then
   srun --cpu-bind=sockets julia --project=. bpcdd.jl

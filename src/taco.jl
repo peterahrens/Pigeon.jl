@@ -518,6 +518,35 @@ function generate_uniform_taco_input(tns, n, ρ)
     return f
 end
 
+
+mutable struct WorkspaceCountContext
+    c
+end
+function workspacecount(prgm)
+    ctx = WorkspaceCountContext(0)
+    workspacecount_outer!(prgm, ctx)
+    return ctx.c
+end
+function workspacecount!(node, ctx::WorkspaceCountContext)
+    if istree(node)
+        map(arg->workspacecount!(arg, ctx), arguments(node))
+    end
+end
+function workspacecount!(node::With, ctx::WorkspaceCountContext)
+    ctx.c += 1
+    workspacecount!(node.prod, ctx)
+    workspacecount!(node.cons, ctx)
+end
+function workspacecount_outer!(node, ctx::WorkspaceCountContext)
+    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
+        workspacecount_outer!(cons, ctx)
+    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
+        workspacecount_outer!(prod, ctx)
+    else
+        workspacecount!(node, ctx)
+    end
+end
+
 mutable struct IsTacoFormattableContext
     res
 end
@@ -529,7 +558,7 @@ function istacoformattable(prgm)
     #println(ctx.res)
     #display(prgm)
     #println()
-    return ctx.res
+    return ctx.res && workspacecount(prgm) <= 1
 end
 function istacoformattable!(node, ctx::IsTacoFormattableContext)
     if istree(node)

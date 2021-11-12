@@ -56,9 +56,9 @@ function main()
             p = plot!(p, data["n_series"], data["auto_n_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_n_series.png"))
 
-            p = plot(title="Runtime vs. Density (Dimension n=10^4)", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft)
-            p = plot!(p, reverse(data["p_series"]), reverse(data["default_p_series"]), label="Default Schedule")
-            p = plot!(p, reverse(data["p_series"]), reverse(data["auto_p_series"]), label="Tuned Schedule")
+            p = plot(title="Runtime vs. Density (Dimension n=10^4)", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topright, xflip=true)
+            p = plot!(p, data["p_series"], data["default_p_series"], label="Default Schedule")
+            p = plot!(p, data["p_series"], data["auto_p_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_p_series.png"))
         end
     end

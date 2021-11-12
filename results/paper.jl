@@ -30,8 +30,11 @@ function paper(prgm, args, dims, fname)
     N = 8
     n_series = []
     t = 0
-    while t < 0.1
-	N *= 2
+    while t < 1
+        N *= 2
+        if N > 10_000
+            break
+        end
         input = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
         push!(n_series, N)
         t = run_taco(default_kernel, input)

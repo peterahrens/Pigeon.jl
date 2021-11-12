@@ -19,6 +19,29 @@ end
 function paper(prgm, args, dims, fname)
     data = Dict()
 
+    default_kernel = Postwalk(noprotocolize)(prgm)
+    default_kernel = Postwalk(defaultprotocolize)(default_kernel)
+    default_kernel = transform_reformat(default_kernel, MarkInsertContext())
+    default_kernel = concordize(default_kernel)
+    Pigeon.taco_mode[] = true
+    default_kernel = transform_reformat(default_kernel)
+    Pigeon.taco_mode[] = false 
+
+    default_kernel_bench = run_taco(default_kernel, tacotier_inputs)
+
+    data["default_kernel_bench"] = default_kernel_bench
+
+    N = 16
+    n_series = [16]
+    t = 0
+    while t < 1
+        input = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
+        push!(n_series, N)
+        t = run_taco(default_kernel, input)
+        @info "hi :3" n t
+    end
+
+    data["N"] = N
 
     _universe = Ref([])
 	universe_build_time = @hotbelapsed begin
@@ -65,7 +88,7 @@ function paper(prgm, args, dims, fname)
     Pigeon.taco_mode[] = true
     sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
         kernel = transform_reformat(kernel)
-        inputs = Pigeon.generate_uniform_taco_inputs(args, 10_000, 0.01)
+        inputs = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
         run_taco(kernel, inputs)
     end)
     Pigeon.taco_mode[] = false
@@ -108,7 +131,7 @@ function paper(prgm, args, dims, fname)
     data["tacotier_length"] = length(tacotier)
 
     Pigeon.taco_mode[] = true
-    tacotier_inputs = Pigeon.generate_uniform_taco_inputs(args, 10_000, 0.01)
+    tacotier_inputs = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
     tacotier_bench = map(tacotier) do kernel
         kernel = transform_reformat(kernel)
         run_taco(kernel, tacotier_inputs)
@@ -118,19 +141,10 @@ function paper(prgm, args, dims, fname)
     auto_kernel = transform_reformat(tacotier[findmin(tacotier_bench)[2]])
     Pigeon.taco_mode[] = false
 
-    default_kernel = Postwalk(noprotocolize)(prgm)
-    default_kernel = Postwalk(defaultprotocolize)(default_kernel)
-    default_kernel = transform_reformat(default_kernel, MarkInsertContext())
-    default_kernel = concordize(default_kernel)
-    Pigeon.taco_mode[] = true
-    default_kernel = transform_reformat(default_kernel)
-    Pigeon.taco_mode[] = false 
-
     default_kernel_bench = run_taco(default_kernel, tacotier_inputs)
 
     data["default_kernel_bench"] = default_kernel_bench
 
-    n_series = 10 .^ (1:4)
     default_n_series = []
     auto_n_series = []
     @showprogress "n_series" for n = n_series
@@ -143,19 +157,6 @@ function paper(prgm, args, dims, fname)
     data["default_n_series"] = default_n_series
     data["auto_n_series"] = auto_n_series
 
-    p_series = 0.1 .^ (2:5)
-    default_p_series = []
-    auto_p_series = []
-    @showprogress "p_series" for p = p_series
-        input = Pigeon.generate_uniform_taco_inputs(args, 10_000, p)
-        push!(default_p_series, run_taco(default_kernel, input))
-        push!(auto_p_series, run_taco(auto_kernel, input))
-    end
-
-    data["p_series"] = p_series
-    data["default_p_series"] = default_p_series
-    data["auto_p_series"] = auto_p_series
-
     open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
     BSON.bson("$(fname)_frontier.bson", Dict(
         "tacotier" => tacotier,
@@ -163,6 +164,11 @@ function paper(prgm, args, dims, fname)
         "auto_kernel" => auto_kernel,
         "default_kernel" => default_kernel
     ))
+
+    data["p_series"] = p_series
+    data["default_p_series"] = default_p_series
+    data["auto_p_series"] = auto_p_series
+
     #open("$(fname)_tacotier_display.txt", "w") do f
     #    foreach(tacotier) do kernel
     #        display(f, MIME("text/plain"), kernel)

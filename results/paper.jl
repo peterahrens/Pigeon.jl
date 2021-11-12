@@ -27,18 +27,15 @@ function paper(prgm, args, dims, fname)
     default_kernel = transform_reformat(default_kernel)
     Pigeon.taco_mode[] = false 
 
-    default_kernel_bench = run_taco(default_kernel, tacotier_inputs)
-
-    data["default_kernel_bench"] = default_kernel_bench
-
-    N = 16
-    n_series = [16]
+    N = 8
+    n_series = []
     t = 0
-    while t < 1
+    while t < 0.1
+	N *= 2
         input = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
         push!(n_series, N)
         t = run_taco(default_kernel, input)
-        @info "hi :3" n t
+        @info "hi :3" N t
     end
 
     data["N"] = N

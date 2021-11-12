@@ -44,7 +44,7 @@ function paper(prgm, args, dims, fname)
     data["N"] = N
 
     _universe = Ref([])
-	universe_build_time = @hotbelapsed begin
+	universe_build_time = @belapsed begin
 		universe = saturate_index($prgm)
 		universe = filter_pareto(universe, by = kernel -> maxdepth(kernel)) #Filter Step
 		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
@@ -63,7 +63,7 @@ function paper(prgm, args, dims, fname)
 
     Pigeon.taco_mode[] = true
     _tacoverse = Ref([])
-	tacoverse_build_time = @hotbelapsed begin
+	tacoverse_build_time = @belapsed begin
 		tacoverse = saturate_index($prgm)
 		tacoverse = filter_pareto(tacoverse, by = kernel -> maxdepth(kernel)) #Filter Step
 		tacoverse = filter(kernel -> maxworkspace(kernel) <= 1, tacoverse) #TACO restriction
@@ -86,7 +86,7 @@ function paper(prgm, args, dims, fname)
     data["tacoverse_length"] = length(tacoverse)
 
     Pigeon.taco_mode[] = true
-    sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
+    sample_mean_tacoverse_bench = mean(@showprogress "bench tacoverse" map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
         kernel = transform_reformat(kernel)
         inputs = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
         run_taco(kernel, inputs)
@@ -96,7 +96,7 @@ function paper(prgm, args, dims, fname)
     data["sample_mean_tacoverse_bench"] = sample_mean_tacoverse_bench
 
     _frontier = Ref([])
-    frontier_filter_time = @hotbelapsed begin
+    frontier_filter_time = @belapsed begin
         dim_costs = map(dim-> Domain(gensym(), dim), $dims)
         sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
         assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
@@ -112,7 +112,7 @@ function paper(prgm, args, dims, fname)
     data["frontier_length"] = length(frontier)
 
     _tacotier = Ref([])
-    tacotier_filter_time = @hotbelapsed begin
+    tacotier_filter_time = @belapsed begin
         dim_costs = map(dim-> Domain(gensym(), dim), $dims)
         sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
         assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
@@ -132,7 +132,7 @@ function paper(prgm, args, dims, fname)
 
     Pigeon.taco_mode[] = true
     tacotier_inputs = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
-    tacotier_bench = map(tacotier) do kernel
+    tacotier_bench = @showprogress "bench tacotier" map(tacotier) do kernel
         kernel = transform_reformat(kernel)
         run_taco(kernel, tacotier_inputs)
     end
@@ -157,6 +157,19 @@ function paper(prgm, args, dims, fname)
     data["default_n_series"] = default_n_series
     data["auto_n_series"] = auto_n_series
 
+    p_series = 0.1 .^ (2:5)
+    default_p_series = []
+    auto_p_series = []
+    @showprogress "p_series" for p = p_series
+        input = Pigeon.generate_uniform_taco_inputs(args, N, p)
+        push!(default_p_series, run_taco(default_kernel, input))
+        push!(auto_p_series, run_taco(auto_kernel, input))
+    end
+
+    data["p_series"] = p_series
+    data["default_p_series"] = default_p_series
+    data["auto_p_series"] = auto_p_series
+
     open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
     BSON.bson("$(fname)_frontier.bson", Dict(
         "tacotier" => tacotier,
@@ -164,10 +177,6 @@ function paper(prgm, args, dims, fname)
         "auto_kernel" => auto_kernel,
         "default_kernel" => default_kernel
     ))
-
-    data["p_series"] = p_series
-    data["default_p_series"] = default_p_series
-    data["auto_p_series"] = auto_p_series
 
     #open("$(fname)_tacotier_display.txt", "w") do f
     #    foreach(tacotier) do kernel

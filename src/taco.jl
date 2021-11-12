@@ -538,9 +538,9 @@ function workspacecount!(node::With, ctx::WorkspaceCountContext)
     workspacecount!(node.cons, ctx)
 end
 function workspacecount_outer!(node, ctx::WorkspaceCountContext)
-    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
+    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]))
         workspacecount_outer!(cons, ctx)
-    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
+    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod)
         workspacecount_outer!(prod, ctx)
     else
         workspacecount!(node, ctx)

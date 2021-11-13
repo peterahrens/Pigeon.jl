@@ -2,8 +2,6 @@
 #SBATCH -N 1
 #SBATCH --exclusive
 #SBATCH -t 4-0
-#SBATCH -e slurm-%A_%a.err
-#SBATCH -o slurm-%A_%a.out
 #SBATCH --partition=lanka-v3
 #SBATCH --array 1-11%8
 #SBATCH --exclude lanka[25,35-48]
@@ -16,7 +14,7 @@ export MATRIXDEPOT_DATA=/data/scratch/pahrens/MatrixData
 export LD_LIBRARY_PATH=/data/scratch/pahrens/taco/build/lib:$LD_LIBRARY_PATH
 
 cd $SCRATCH/Pigeon.jl/results
-echo "Starting Job: $SLURM_JOB_ID, $SLURM_ARRAY_TASK_ID"
+echo "Starting Job: $SLURM_ARRAY_JOB_ID, $SLURM_ARRAY_TASK_ID"
 echo turboboostcheck
 cat /sys/devices/system/cpu/intel_pstate/no_turbo
 

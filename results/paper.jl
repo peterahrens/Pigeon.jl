@@ -13,6 +13,8 @@ function paper(prgm, args, dims, fname)
     data = Dict()
     bin = Dict()
 
+    @info "kernel" fname
+
     default_kernel = Postwalk(noprotocolize)(prgm)
     default_kernel = Postwalk(defaultprotocolize)(default_kernel)
     default_kernel = transform_reformat(default_kernel, MarkInsertContext())

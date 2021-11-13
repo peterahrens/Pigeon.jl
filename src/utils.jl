@@ -229,11 +229,11 @@ end
 function filter_pareto(args; by = identity, lt = isless)
     keys = args
     if by != identity
-        keys = @showprogress 1 "analysis..." map(by, keys)
+        keys = map(by, keys)
     end
 
     pareto = []
-    @showprogress 1 "filtering..." for (a, key_a) in collect(zip(args, keys))[randperm(end)]
+    for (a, key_a) in collect(zip(args, keys))[randperm(end)]
         pareto′ = Any[(a, key_a)]
         keep = true
         for (b, key_b) in pareto

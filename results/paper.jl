@@ -8,16 +8,11 @@ using JSON
 using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty, defaultprotocolize
 using Pigeon: Such, Cup, Wedge, isdominated, Domain
 using SymbolicUtils: Postwalk
-
-macro hotbelapsed(ex, args...)
-    return esc(Expr(:block,
-        Expr(:macrocall, Symbol("@belapsed"), __module__, ex, :(seconds=eps()), args...),
-        Expr(:macrocall, Symbol("@belapsed"), __module__, ex, args...)
-    ))
-end
+#BenchmarkTools.DEFAULT_PARAMETERS.seconds = 10
 
 function paper(prgm, args, dims, fname)
     data = Dict()
+    bin = Dict()
 
     default_kernel = Postwalk(noprotocolize)(prgm)
     default_kernel = Postwalk(defaultprotocolize)(default_kernel)
@@ -27,39 +22,23 @@ function paper(prgm, args, dims, fname)
     default_kernel = transform_reformat(default_kernel)
     Pigeon.taco_mode[] = false 
 
-    N = 8
+    bin["default_kernel"] = default_kernel
+
+    N = 16
     n_series = []
-    t = 0
-    while t < 1
-        N *= 2
-        if N > 10_000
-            break
-        end
+    while true
         input = Pigeon.generate_uniform_taco_inputs(args, N, 0.01)
-        push!(n_series, N)
         t = run_taco(default_kernel, input)
         @info "hi :3" N t
+        if t < 1 && N < 10_000
+            push!(n_series, N)
+            N *= 2
+        else
+            break
+        end
     end
 
     data["N"] = N
-
-    _universe = Ref([])
-	universe_build_time = @belapsed begin
-		universe = saturate_index($prgm)
-		universe = filter_pareto(universe, by = kernel -> maxdepth(kernel)) #Filter Step
-		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
-		universe = mapreduce(PostwalkSaturate(bigprotocolize), vcat, universe)
-	    universe = map(prgm -> transform_reformat(prgm, MarkInsertContext()), universe)
-	    universe = map(Pigeon.concordize, universe)
-        $_universe[] = universe
-	end
-    universe = _universe[]
-
-    #println(:universe)
-    #foreach(display, universe)
-
-    data["universe_build_time"] = universe_build_time
-    data["universe_length"] = length(universe)
 
     Pigeon.taco_mode[] = true
     _tacoverse = Ref([])
@@ -95,22 +74,6 @@ function paper(prgm, args, dims, fname)
 
     data["sample_mean_tacoverse_bench"] = sample_mean_tacoverse_bench
 
-    _frontier = Ref([])
-    frontier_filter_time = @belapsed begin
-        dim_costs = map(dim-> Domain(gensym(), dim), $dims)
-        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
-        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
-
-        $_frontier[] = filter_pareto($universe, 
-            by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs..., dim_costs...), Wedge(assumptions...))),
-            lt = (a, b) -> isdominated(a, b, normal = true)
-        )
-    end
-    frontier = _frontier[]
-
-    data["frontier_filter_time"] = frontier_filter_time
-    data["frontier_length"] = length(frontier)
-
     _tacotier = Ref([])
     tacotier_filter_time = @belapsed begin
         dim_costs = map(dim-> Domain(gensym(), dim), $dims)
@@ -123,6 +86,8 @@ function paper(prgm, args, dims, fname)
         )
     end
     tacotier = _tacotier[]
+
+    bin["tacotier"] = tacotier
 
     #println(:tacotier)
     #foreach(display, tacotier)
@@ -140,6 +105,7 @@ function paper(prgm, args, dims, fname)
 
     auto_kernel = transform_reformat(tacotier[findmin(tacotier_bench)[2]])
     Pigeon.taco_mode[] = false
+    bin["auto_kernel"] = auto_kernel
 
     default_kernel_bench = run_taco(default_kernel, tacotier_inputs)
 
@@ -171,17 +137,43 @@ function paper(prgm, args, dims, fname)
     data["auto_p_series"] = auto_p_series
 
     open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
-    BSON.bson("$(fname)_frontier.bson", Dict(
-        "tacotier" => tacotier,
-        "frontier" => frontier,
-        "auto_kernel" => auto_kernel,
-        "default_kernel" => default_kernel
-    ))
+    BSON.bson("$(fname)_bin.bson", bin)
 
-    #open("$(fname)_tacotier_display.txt", "w") do f
-    #    foreach(tacotier) do kernel
-    #        display(f, MIME("text/plain"), kernel)
-    #        println(f, "")
-    #    end
-    #end
+    _universe = Ref([])
+	universe_build_time = @belapsed begin
+		universe = saturate_index($prgm)
+		universe = filter_pareto(universe, by = kernel -> maxdepth(kernel)) #Filter Step
+		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
+		universe = mapreduce(PostwalkSaturate(bigprotocolize), vcat, universe)
+	    universe = map(prgm -> transform_reformat(prgm, MarkInsertContext()), universe)
+	    universe = map(Pigeon.concordize, universe)
+        $_universe[] = universe
+	end
+    universe = _universe[]
+
+    #println(:universe)
+    #foreach(display, universe)
+
+    data["universe_build_time"] = universe_build_time
+    data["universe_length"] = length(universe)
+
+    _frontier = Ref([])
+    frontier_filter_time = @belapsed begin
+        dim_costs = map(dim-> Domain(gensym(), dim), $dims)
+        sunk_costs = map(read_cost, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
+        assumptions = map(assume_nonempty, filter(arg->arg isa AbstractSymbolicHollowTensor, $args))
+
+        $_frontier[] = filter_pareto($universe, 
+            by = kernel -> supersimplify_asymptote(Such(Cup(asymptote(kernel), sunk_costs..., dim_costs...), Wedge(assumptions...))),
+            lt = (a, b) -> isdominated(a, b, normal = true)
+        )
+    end
+    frontier = _frontier[]
+
+    data["frontier_filter_time"] = frontier_filter_time
+    data["frontier_length"] = length(frontier)
+    bin["frontier"] = frontier
+
+    open("$(fname)_data.json", "w") do f print(f, JSON.json(data, 2)) end
+    BSON.bson("$(fname)_bin.bson", bin)
 end

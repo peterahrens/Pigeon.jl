@@ -16,12 +16,13 @@ export MATRIXDEPOT_DATA=/data/scratch/pahrens/MatrixData
 export LD_LIBRARY_PATH=/data/scratch/pahrens/taco/build/lib:$LD_LIBRARY_PATH
 
 cd $SCRATCH/Pigeon.jl/results
+echo "Starting Job: $SLURM_JOB_ID, $SLURM_ARRAY_TASK_ID"
+echo turboboostcheck
 cat /sys/devices/system/cpu/intel_pstate/no_turbo
 
 if [[ $SLURM_ARRAY_TASK_ID -eq 1 ]]
 then
-  #srun --cpu-bind=sockets julia --project=. spgemm.jl
-  echo skip
+  srun --cpu-bind=sockets julia --project=. spgemm.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 2 ]]
 then
   srun --cpu-bind=sockets julia --project=. spgemm2.jl
@@ -40,8 +41,7 @@ then
   srun --cpu-bind=sockets julia --project=. mttkrp.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 7 ]]
 then
-  #srun --cpu-bind=sockets julia --project=. spmv.jl
-  echo skip
+  srun --cpu-bind=sockets julia --project=. spmv.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 8 ]]
 then
   srun --cpu-bind=sockets julia --project=. spmv2.jl

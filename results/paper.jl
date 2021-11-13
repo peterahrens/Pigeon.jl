@@ -123,7 +123,7 @@ function paper(prgm, args, dims, fname)
     data["default_n_series"] = default_n_series
     data["auto_n_series"] = auto_n_series
 
-    p_series = 0.1 .^ (2:5)
+    p_series = 0.5 .^ (6:16)
     default_p_series = []
     auto_p_series = []
     @showprogress "p_series" for p = p_series

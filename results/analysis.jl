@@ -15,8 +15,8 @@ function main()
         "spgemmh",
         "spmv",
         "spmv2",
-        "spmv3",
         "mttkrp",
+        "smttkrp",
     ]
     rpath = "/Users/Peter/Projects/pldi2022/results"
     if !isdir(rpath)
@@ -30,11 +30,18 @@ function main()
             open("$(name)_data.json", "r") do f
                 data = JSON.parse(f)
             end
-            open(joinpath(rpath, "$(name)_frontier_length.json"), "w") do f
-                @printf f "%.3g" data["frontier_length"]
+            open(joinpath(rpath, "$(name)_N.json"), "w") do f
+                @printf f "%.3g" data["N"]
             end
-            open(joinpath(rpath, "$(name)_universe_length.json"), "w") do f
-                @printf f "%.3g" data["universe_length"]
+            if haskey(data, "frontier_length")
+                open(joinpath(rpath, "$(name)_frontier_length.json"), "w") do f
+                    @printf f "%.3g" data["frontier_length"]
+                end
+            end
+            if haskey(data, "universe_length")
+                open(joinpath(rpath, "$(name)_universe_length.json"), "w") do f
+                    @printf f "%.3g" data["universe_length"]
+                end
             end
             open(joinpath(rpath, "$(name)_tacotier_length.json"), "w") do f
                 @printf f "%.3g" data["tacotier_length"]
@@ -56,7 +63,7 @@ function main()
             p = plot!(p, data["n_series"], data["auto_n_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_n_series.png"))
 
-            p = plot(title="Runtime vs. Density (Dimension n=10^4)", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topright, xflip=true)
+            p = plot(title="Runtime vs. Density (Dimension n=$(data["N"]))", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topright, xflip=true)
             p = plot!(p, data["p_series"], data["default_p_series"], label="Default Schedule")
             p = plot!(p, data["p_series"], data["auto_p_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_p_series.png"))

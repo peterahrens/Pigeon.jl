@@ -1,5 +1,6 @@
 {
   "default_kernel_bench": 1.71507,
+  "frontier_length": 204,
   "n_series": [
     8,
     16,
@@ -60,6 +61,7 @@
     1.52587890625e-5
   ],
   "sample_mean_tacoverse_bench": 1.72829977268,
+  "frontier_filter_time": 17753.490252756,
   "default_n_series": [
     1.3491e-5,
     1.3776e-5,
@@ -70,6 +72,7 @@
     0.00688788,
     0.0660127
   ],
+  "universe_length": 102272,
   "auto_n_series": [
     1.347e-5,
     1.3826e-5,
@@ -80,5 +83,6 @@
     5.2127e-5,
     0.00015604
   ],
+  "universe_build_time": 27.229685746,
   "tacoverse_length": 336
 }

@@ -58,6 +58,10 @@ function main()
                 @printf f "%.3g" data["sample_mean_tacoverse_bench"] * 100 * data["tacoverse_length"]
             end
 
+            open(joinpath(rpath, "$(name)_tacoverse_mean_filter_time.json"), "w") do f
+                @printf f "%.3g" data["tacotier_filter_time"] / data["tacoverse_length"]
+            end
+
             p = plot(title="Runtime vs. Dimension (Density p=0.01)", xlabel="Dimension n", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft)
             p = plot!(p, data["n_series"], data["default_n_series"], label="Default Schedule")
             p = plot!(p, data["n_series"], data["auto_n_series"], label="Tuned Schedule")

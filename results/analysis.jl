@@ -31,43 +31,43 @@ function main()
                 data = JSON.parse(f)
             end
             open(joinpath(rpath, "$(name)_N.json"), "w") do f
-                @printf f "%.3g" data["N"]
+                @printf f "%.6g" data["N"]
             end
             if haskey(data, "frontier_length")
                 open(joinpath(rpath, "$(name)_frontier_length.json"), "w") do f
-                    @printf f "%.3g" data["frontier_length"]
+                    @printf f "%.6g" data["frontier_length"]
                 end
             end
             if haskey(data, "universe_length")
                 open(joinpath(rpath, "$(name)_universe_length.json"), "w") do f
-                    @printf f "%.3g" data["universe_length"]
+                    @printf f "%.6g" data["universe_length"]
                 end
             end
             open(joinpath(rpath, "$(name)_tacotier_length.json"), "w") do f
-                @printf f "%.3g" data["tacotier_length"]
+                @printf f "%.6g" data["tacotier_length"]
             end
             open(joinpath(rpath, "$(name)_tacoverse_length.json"), "w") do f
-                @printf f "%.3g" data["tacoverse_length"]
+                @printf f "%.6g" data["tacoverse_length"]
             end
 
             open(joinpath(rpath, "$(name)_tacoverse_filter_time.json"), "w") do f
-                @printf f "%.3g" data["tacotier_filter_time"]
+                @printf f "%.6g" data["tacotier_filter_time"]
             end
 
             open(joinpath(rpath, "$(name)_tacoverse_bench_time.json"), "w") do f
-                @printf f "%.3g" data["sample_mean_tacoverse_bench"] * 100 * data["tacoverse_length"]
+                @printf f "%.6g" data["sample_mean_tacoverse_bench"] * 100 * data["tacoverse_length"]
             end
 
             open(joinpath(rpath, "$(name)_tacoverse_mean_filter_time.json"), "w") do f
                 @printf f "%.3g" data["tacotier_filter_time"] / data["tacoverse_length"]
             end
 
-            p = plot(title="Runtime vs. Dimension (Density p=0.01)", xlabel="Dimension n", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft)
+            p = plot(title="Runtime vs. Dimension (Density p=0.01)", xlabel="Dimension n", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft, markershape=:circle)
             p = plot!(p, data["n_series"], data["default_n_series"], label="Default Schedule")
             p = plot!(p, data["n_series"], data["auto_n_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_n_series.png"))
 
-            p = plot(title="Runtime vs. Density (Dimension n=$(data["N"]))", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topright, xflip=true)
+            p = plot(title="Runtime vs. Density (Dimension n=$(data["N"]))", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topright, markershape=:circle, xflip=false)
             p = plot!(p, data["p_series"], data["default_p_series"], label="Default Schedule")
             p = plot!(p, data["p_series"], data["auto_p_series"], label="Tuned Schedule")
             savefig(p, joinpath(rpath, "$(name)_p_series.png"))

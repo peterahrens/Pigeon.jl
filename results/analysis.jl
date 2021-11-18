@@ -62,12 +62,12 @@ function main()
                 @printf f "%.3g" data["tacotier_filter_time"] / data["tacoverse_length"]
             end
 
-            p = plot(title="Runtime vs. Dimension (p=0.01)", xlabel="Dimension n", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft, thickness_scaling=1.5)
+            p = plot(title="Runtime vs. Dimension (p=0.01)", xlabel="Dimension n", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft, titlefontsize=12, thickness_scaling=1.5)
             p = plot!(p, data["n_series"], data["default_n_series"], label="Default Schedule", markershape=:circle)
             p = plot!(p, data["n_series"], data["auto_n_series"], label="Tuned Schedule", markershape=:circle)
             savefig(p, joinpath(rpath, "$(name)_n_series.png"))
 
-            p = plot(title="Runtime vs. Density (n=$(data["N"]))", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft, thickness_scaling=1.5, xflip=false)
+            p = plot(title="Runtime vs. Density (n=$(data["N"]))", xlabel="Density p", ylabel="Runtime (Seconds)", xscale=:log10, yscale=:log10, legend=:topleft, titlefontsize=12, thickness_scaling=1.5, xflip=false)
             p = plot!(p, data["p_series"], data["default_p_series"], label="Default Schedule", markershape=:circle)
             p = plot!(p, data["p_series"], data["auto_p_series"], label="Tuned Schedule", markershape=:circle)
             savefig(p, joinpath(rpath, "$(name)_p_series.png"))

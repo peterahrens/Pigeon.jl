@@ -1,16 +1,23 @@
 using Pigeon
+using Pigeon: InsertProtocol
 
-A = Fiber(:A, [[locate], [locate]], [:I, :J])
-B = Fiber(:B, [[locate, coiter], [locate, coiter]], [:I, :K])
-C = Fiber(:C, [[locate, coiter], [locate, coiter]], [:K, :J])
+A = Direct(Fiber(:A, [HashFormat(), HashFormat()], [:I, :J]), [InsertProtocol(), InsertProtocol()])
+B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:I, :K]), [StepProtocol(), StepProtocol()])
+C = Direct(Fiber(:C, [ListFormat(), ListFormat()], [:J, :K]), [StepProtocol(), StepProtocol()])
 
-ex = @i @loop k j i A[i,j] += B[i, k] * C[k, j]
+ex = @i @loop i j k A[i,j] += B[i, k] * C[j, k]
+display(Pigeon.supersimplify_asymptote(Pigeon.asymptote(ex)))
 
-schedules = saturate_index(ex, Pigeon.AsymptoticContext)
+A = Direct(Fiber(:A, [HashFormat(), HashFormat()], [:I, :J]), [InsertProtocol(), InsertProtocol()])
+B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:I, :K]), [StepProtocol(), StepProtocol()])
+C = Direct(Fiber(:C, [ListFormat(), ListFormat()], [:K, :J]), [StepProtocol(), StepProtocol()])
 
-schedules = map(Pigeon.concordize, schedules)
-schedules = mapreduce(Pigeon.PrewalkSaturate(Pigeon.saturate_formats), vcat, schedules)
+ex = @i @loop i k j A[i,j] += B[i, k] * C[k, j]
+display(Pigeon.supersimplify_asymptote(Pigeon.asymptote(ex)))
 
-frontier = filter_pareto(schedules, sunk_costs = map(Pigeon.read_cost, [B, C]), assumptions=map(Pigeon.assume_nonempty, [B, C]))
+A = Direct(Fiber(:A, [HashFormat(), HashFormat()], [:I, :J]), [InsertProtocol(), InsertProtocol()])
+B = Direct(Fiber(:B, [ListFormat(), ListFormat()], [:K, :I]), [StepProtocol(), StepProtocol()])
+C = Direct(Fiber(:C, [ListFormat(), ListFormat()], [:K, :J]), [StepProtocol(), StepProtocol()])
 
-foreach(display, frontier)
+ex = @i @loop k i j A[i,j] += B[k, i] * C[k, j]
+display(Pigeon.supersimplify_asymptote(Pigeon.asymptote(ex)))

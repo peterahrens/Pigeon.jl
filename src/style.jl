@@ -1,7 +1,7 @@
 struct DefaultStyle end
 struct UnknownStyle end
 
-lower!(node, ctx) = lower!(node, ctx, make_style(node, ctx))
+visit!(node, ctx) = visit!(node, ctx, make_style(node, ctx))
 
 make_style(root, ctx) = make_style(root, ctx, root)
 function make_style(root, ctx, node)

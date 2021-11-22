@@ -61,7 +61,7 @@ getdims(ctx::AsymptoticContext) = ctx.dims
 function asymptote(prgm, ctx = AsymptoticContext())
     #TODO messy
     prgm = transform_ssa(prgm)
-    lower!(prgm, ctx)
+    visit!(prgm, ctx)
     return ctx.itrs
 end
 
@@ -91,25 +91,25 @@ quantify(f, ctx, var) = (push!(ctx.qnts, var); f(); pop!(ctx.qnts))
 enguard(f, ctx, cond) = (push!(ctx.guards, cond); f(); pop!(ctx.guards))
 guard(ctx) = reduce(Wedge, ctx.guards)
 
-lower!(::Pass, ::AsymptoticContext, ::DefaultStyle) = nothing
+visit!(::Pass, ::AsymptoticContext, ::DefaultStyle) = nothing
 
 #assumes unique foralls
-function lower!(root::Assign, ctx::AsymptoticContext, ::DefaultStyle)
+function visit!(root::Assign, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
 end
 
-function lower!(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
-    isempty(stmt.idxs) && return lower!(stmt.body, ctx)
+function visit!(stmt::Loop, ctx::AsymptoticContext, ::DefaultStyle)
+    isempty(stmt.idxs) && return visit!(stmt.body, ctx)
     quantify(ctx, stmt.idxs[1]) do
         iterate!(ctx)
-        lower!(Loop(stmt.idxs[2:end], stmt.body), ctx)
+        visit!(Loop(stmt.idxs[2:end], stmt.body), ctx)
     end
 end
 
-function lower!(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
+function visit!(stmt::With, ctx::AsymptoticContext, ::DefaultStyle)
     initialize!(getresult(stmt.prod), ctx)
-    lower!(stmt.prod, ctx)
-    lower!(stmt.cons, ctx)
+    visit!(stmt.prod, ctx)
+    visit!(stmt.cons, ctx)
 end
 
 struct CoiterateStyle
@@ -179,14 +179,14 @@ annihilate_index = Fixpoint(Prewalk(Chain([
     #(@ex@rule @i(~x where @pass(~~a)) => ~x), #can't do this bc produced tensors won't get initialized
 ])))
 
-function lower!(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)
+function visit!(stmt::Loop, ctx::AsymptoticContext, ::CoiterateStyle)
     isempty(stmt.idxs) && return ctx(stmt.body)
     quantify(ctx, stmt.idxs[1]) do
         stmt′ = Loop(stmt.idxs[2:end], stmt.body)
         cases = coiterate_cases(stmt, ctx, stmt′)
         for (guard, body) in cases
             enguard(ctx, guard) do
-                lower!(annihilate_index(body), ctx)
+                visit!(annihilate_index(body), ctx)
             end
         end
         coiterate_asymptote!(stmt, ctx, stmt′)
@@ -229,7 +229,7 @@ function coiterate_cases(root, ctx::AsymptoticContext, stmt::Access{<:AbstractSy
     return [(pred, stmt), (true, stmt′),]
 end
 
-function lower!(root::Assign{<:Access{<:AbstractSymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
+function visit!(root::Assign{<:Access{<:AbstractSymbolicHollowTensor}}, ctx::AsymptoticContext, ::DefaultStyle)
     iterate!(ctx)
     pred = Exists(getname.(setdiff(ctx.qnts, root.lhs.idxs))..., guard(ctx))
     getdata(root.lhs.tns, ctx)[root.lhs.idxs[getsites(root.lhs.tns)]...] = pred

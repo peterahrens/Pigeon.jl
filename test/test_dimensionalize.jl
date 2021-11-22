@@ -6,7 +6,7 @@
     struct TestDimensionalizeContext
         dims
     end
-    Pigeon.lower!(root, ::TestDimensionalizeContext, ::Pigeon.DefaultStyle) = nothing
+    Pigeon.visit!(root, ::TestDimensionalizeContext, ::Pigeon.DefaultStyle) = nothing
     Pigeon.getdims(ctx::TestDimensionalizeContext) = ctx.dims
     Pigeon.getname(tns::TestDimensionalizeTensor) = tns.name
     Pigeon.getsites(tns::TestDimensionalizeTensor) = 1:length(tns.dims)
@@ -16,7 +16,7 @@
     A = TestDimensionalizeTensor(:A, [1, 10, 12])
     B = TestDimensionalizeTensor(:B, [3, 1, 10])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    Pigeon.lower!(Pigeon.transform_ssa(@i(
+    Pigeon.visit!(Pigeon.transform_ssa(@i(
         @loop i j k l A[i, j, k] += B[l, i, j]
     )), ctx, Pigeon.DimensionalizeStyle())
     @test ctx.dims[:i] == 1
@@ -27,7 +27,7 @@
     A = TestDimensionalizeTensor(:A, [1,])
     B = TestDimensionalizeTensor(:B, [3])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    @test_throws AssertionError Pigeon.lower!(Pigeon.transform_ssa(@i(
+    @test_throws AssertionError Pigeon.visit!(Pigeon.transform_ssa(@i(
         @loop i A[i,] += B[i,]
     )), ctx, Pigeon.DimensionalizeStyle())
 
@@ -37,7 +37,7 @@
     w = TestDimensionalizeTensor(:w, [2])
     w′ = TestDimensionalizeTensor(:w, [2])
     ctx = TestDimensionalizeContext(Pigeon.Dimensions())
-    Pigeon.lower!(@i(
+    Pigeon.visit!(@i(
         (@loop i A[i] += B[i] * w[i]) where (@loop j w′[j] += C[j])
     ), ctx, Pigeon.DimensionalizeStyle())
     @test ctx.dims[:i] == 2

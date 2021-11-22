@@ -241,7 +241,7 @@ function lower_taco(prgm)
     prgm = transform_ssa(prgm)
     ctx = TacoLowerContext()
     ctx.inputs = setdiff(getglobals(prgm), [getname(getresult(prgm))])
-    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
+    dimensionalize!(prgm, ctx)
     cin = script_transpose!(prgm, ctx)
     ctx.maybevar = false
 

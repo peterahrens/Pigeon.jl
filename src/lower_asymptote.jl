@@ -61,6 +61,7 @@ getdims(ctx::AsymptoticContext) = ctx.dims
 function asymptote(prgm, ctx = AsymptoticContext())
     #TODO messy
     prgm = transform_ssa(prgm)
+    dimensionalize!(prgm, ctx)
     visit!(prgm, ctx)
     return ctx.itrs
 end
@@ -116,18 +117,11 @@ struct CoiterateStyle
 end
 
 #TODO handle children of access?
-function make_style(root, ctx::AsymptoticContext, node::Access{<:AbstractSymbolicHollowTensor})
-    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
-    return DefaultStyle()
-end
+#make_style(root, ctx::AsymptoticContext, node::Access{<:AbstractSymbolicHollowTensor}) = DefaultStyle()
 
-function make_style(root, ctx::AsymptoticContext, node::Access{SymbolicSolidTensor})
-    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
-    return DefaultStyle()
-end
+#make_style(root, ctx::AsymptoticContext, node::Access{SymbolicSolidTensor}) = return DefaultStyle()
 
 function make_style(root::Loop, ctx::AsymptoticContext, node::Access{<:AbstractSymbolicHollowTensor})
-    isdimensionalized(getdims(ctx), node) || return DimensionalizeStyle()
     isempty(root.idxs) && return DefaultStyle()
     i = findfirst(isequal(root.idxs[1]), node.idxs)
     (i !== nothing && node.idxs[1:i-1] ⊆ ctx.qnts) || return DefaultStyle()
@@ -140,9 +134,6 @@ make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::AppendProtocol) 
 make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::InsertProtocol) = DefaultStyle()
 
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
-combine_style(a::CoiterateStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
-combine_style(a::DefaultStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
-combine_style(a::DimensionalizeStyle, b::DimensionalizeStyle) = DimensionalizeStyle()
 
 #TODO generalize the interface to annihilation analysis
 annihilate_index = Fixpoint(Prewalk(Chain([

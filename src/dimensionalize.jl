@@ -2,17 +2,13 @@
 dimensionalization assumes foralls have unique indices.
 """
 
-struct DimensionalizeStyle end
-
-function visit!(root, ctx, ::DimensionalizeStyle) #TODO This is sorta messy haha just make a function that we can call to get the dims?
-    Postwalk(node -> (dimensionalize!(node, ctx); node))(root)
-    @assert !(make_style(root, ctx) isa DimensionalizeStyle)
-    visit!(root, ctx)
+function dimensionalize!(root, ctx)
+    Postwalk(node -> (collect_dimensions!(node, ctx); node))(root)
 end
 
-dimensionalize!(node, ctx) = nothing
+collect_dimensions!(node, ctx) = nothing
 
-function dimensionalize!(node::Access, ctx)
+function collect_dimensions!(node::Access, ctx)
     dims = getdims(ctx)
     if !istree(node.tns)
         for (idx, lowered_axis, n) in zip(getname.(node.idxs), lower_axes(node.tns, ctx), getsites(node.tns))

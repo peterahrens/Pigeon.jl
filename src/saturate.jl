@@ -187,7 +187,7 @@ end
 function format_workspaces(prgm, Ctx, workspacer)
     ctx = DimensionalizeWorkspaceContext{Ctx}(Dimensions())
     prgm = transform_ssa(prgm)
-    Postwalk(node -> (dimensionalize!(node, ctx); node))(prgm)
+    dimensionalize!(node, ctx)
     dims = ctx.dims
 	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
         name = getname(node.tns)

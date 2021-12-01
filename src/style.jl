@@ -26,3 +26,69 @@ combine_style(a, b) = UnknownStyle()
 
 combine_style(a::DefaultStyle, b) = b
 resolve_style(root, ctx, node, style) = style
+
+abstract type AbstractTraverseContext end
+
+function visit!(node, ctx::AbstractTraverseContext, style::DefaultStyle)
+    node = previsit!(node, ctx)
+    if istree(node)
+        postvisit!(node, ctx, map(arg->visit!(arg, ctx), arguments(node)))
+    else
+        postvisit!(node, ctx)
+    end
+end
+
+abstract type AbstractTransformContext <: AbstractTraverseContext end
+
+previsit!(node, ctx::AbstractTransformContext) = node
+postvisit!(node, ctx::AbstractTransformContext, args) = similarterm(node, operation(node), args)
+postvisit!(node, ctx::AbstractTransformContext) = node
+
+abstract type AbstractCollectContext <: AbstractTraverseContext end
+
+previsit!(node, ctx::AbstractCollectContext) = node
+postvisit!(node, ctx::AbstractCollectContext, args) = collector(ctx)(args)
+postvisit!(node, ctx::AbstractCollectContext) = node
+
+abstract type AbstractWalkContext <: AbstractTraverseContext end
+
+previsit!(node, ctx::AbstractWalkContext) = node
+postvisit!(node, ctx::AbstractWalkContext, args) = nothing
+postvisit!(node, ctx::AbstractWalkContext) = nothing
+
+
+
+abstract type AbstractWrapperContext <: AbstractTraverseContext end
+
+previsit!(node, ctx::AbstractWrapperContext) = previsit!(node, getparent(ctx))
+postvisit!(node, ctx::AbstractWrapperContext, args) = transform(node, getparent(ctx), args)
+postvisit!(node, ctx::AbstractWrapperContext) = postvisit!(node, getparent(ctx))
+
+getdata(ctx) = ctx
+getdata(ctx::AbstractWrapperContext) = getdata(getparent(ctx))
+
+
+
+Base.@kwdef struct QuantifiedContext{Ctx} <: AbstractTraverseContext
+    parent::Ctx
+    qnt = []
+    diff = []
+end
+
+getparent(ctx::QuantifiedContext) = ctx.ctx
+getqnt(ctx::QuantifiedContext) = ctx.qnt
+getqnt(ctx) = getqnt(getparent(ctx))
+
+function previsit!(node, ctx::QuantifiedContext)
+    push!(diff, 0)
+end
+function previsit!(node::Loop, ctx::QuantifiedContext)
+    append!(ctx.qnt, node.idxs)
+    push!(diff, length(node.idxs))
+    previsit!(node, ctx.ctx)
+end
+function postvisit!(node, ctx::QuantifiedContext)
+    for i in 1:pop!(node.diff)
+        pop!(ctx.qnt)
+    end
+end

@@ -7,15 +7,11 @@ using Printf
 
 function main()
     names = [
-        "bpcdd",
-        "bpctd",
         "spgemm",
         "spgemm2",
-        "sspgemm",
         "spgemmh",
         "spmv",
         "spmv2",
-        "mttkrp",
         "smttkrp",
     ]
     rpath = "/Users/Peter/Projects/pldi2022/results"

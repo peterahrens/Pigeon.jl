@@ -260,6 +260,8 @@ Base.:(==)(a::Access, b::Access) = a.tns == b.tns && a.idxs == b.idxs
 access(args...) = access!(vcat(Any[], args...))
 access!(args) = Access(popfirst!(args), popfirst!(args), args)
 
+getname(acc::Access) = getname(acc.tns) #TODO does this make sense
+
 TermInterface.istree(::Type{<:Access}) = true
 TermInterface.operation(ex::Access) = access
 TermInterface.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]

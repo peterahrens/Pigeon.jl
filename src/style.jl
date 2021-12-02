@@ -45,10 +45,11 @@ postvisit!(node, ctx::AbstractTransformContext, args) = similarterm(node, operat
 postvisit!(node, ctx::AbstractTransformContext) = node
 
 abstract type AbstractCollectContext <: AbstractTraverseContext end
+function collector end
 
 previsit!(node, ctx::AbstractCollectContext) = node
 postvisit!(node, ctx::AbstractCollectContext, args) = collector(ctx)(args)
-postvisit!(node, ctx::AbstractCollectContext) = node
+postvisit!(node, ctx::AbstractCollectContext) = node #TODO an arguably bad default.
 
 abstract type AbstractWalkContext <: AbstractTraverseContext end
 

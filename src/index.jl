@@ -126,6 +126,7 @@ Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, mime, ex::Name) = print(io, ex.name)
 
+getname(ex) = false
 getname(ex::Name) = ex.name
 rename(ex::Name, name) = Name(name)
 isrenamable(::Name) = true

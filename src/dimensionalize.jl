@@ -45,6 +45,7 @@ Dimensions() = Dimensions(DisjointSets{Any}(), Dict())
 #return the right index into dims.labels.revmap, but reinterprets the access as the wrong type.
 #not sure which commit actually fixed this, but I need to move on with my life.
 Base.getindex(dims::Dimensions, idx) = dims.lowered_axes[find_root!(dims.labels, idx)]
+Base.setindex!(dims::Dimensions, ext, idx) = dims.lowered_axes[find_root!(dims.labels, idx)] = ext
 Base.haskey(dims::Dimensions, idx) = idx in dims.labels
 function isdimensionalized(dims::Dimensions, node::Access)
     if !istree(node.tns)

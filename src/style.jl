@@ -68,7 +68,39 @@ postvisit!(node, ctx::AbstractWrapperContext) = postvisit!(node, getparent(ctx))
 getdata(ctx) = ctx
 getdata(ctx::AbstractWrapperContext) = getdata(getparent(ctx))
 
+struct PostMapContext{F} <: AbstractTransformContext
+    f::F
+end
 
+function visit!(node, ctx::PostMapReduceContext, ::DefaultStyle)
+    node′ = ctx.f(node)
+    if node′ === nothing
+        invoke(visit!, Tuple{typeof(node), AbstractCollectContext}, DefaultStyle}, node, ctx, DefaultStyle())
+    else
+        something(node′)
+    end
+end
+
+postmap(f, root) = visit!(root, PostMapContext(f))
+
+struct PostMapReduceContext{F, G} <: AbstractCollectContext
+    f::F
+    g::G
+    init
+end
+
+postvisit!(node, ctx::PostMapReduceContext) = ctx.init
+postvisit!(node, ctx::PostMapReduceContext, args) = ctx.g(args)
+function visit!(node, ctx::PostMapReduceContext, ::DefaultStyle)
+    node′ = ctx.f(node)
+    if node′ === nothing
+        invoke(visit!, Tuple{typeof(node), AbstractCollectContext}, DefaultStyle}, node, ctx, DefaultStyle())
+    else
+        something(node′)
+    end
+end
+
+postmapreduce(f, g, root, init) = visit!(root, PostMapReduceContext(f, g, init))
 
 Base.@kwdef struct QuantifiedContext{Ctx} <: AbstractTraverseContext
     parent::Ctx

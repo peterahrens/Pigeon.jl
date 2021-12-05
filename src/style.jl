@@ -75,7 +75,7 @@ end
 function visit!(node, ctx::PostMapContext, ::DefaultStyle)
     node′ = ctx.f(node)
     if node′ === nothing
-        invoke(visit!, Tuple{typeof(node), AbstractCollectContext, DefaultStyle}, node, ctx, DefaultStyle())
+        invoke(visit!, Tuple{typeof(node), <:AbstractTransformContext, DefaultStyle}, node, ctx, DefaultStyle())
     else
         something(node′)
     end
@@ -90,7 +90,7 @@ struct PostMapReduceContext{F, G} <: AbstractCollectContext
 end
 
 postvisit!(node, ctx::PostMapReduceContext) = ctx.init
-postvisit!(node, ctx::PostMapReduceContext, args) = ctx.g(args)
+postvisit!(node, ctx::PostMapReduceContext, args) = ctx.g(args...)
 function visit!(node, ctx::PostMapReduceContext, ::DefaultStyle)
     node′ = ctx.f(node)
     if node′ === nothing

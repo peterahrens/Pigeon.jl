@@ -21,6 +21,7 @@ export Loop, Assign, With, Access, Call
 export loop, assign, with, access, call
 export Pass, Literal, Workspace, Name
 export postorder, value, name
+export postmap, postmapreduce
 
 export Dense, Fiber, Direct
 export ListFormat, ArrayFormat, HashFormat, NoFormat

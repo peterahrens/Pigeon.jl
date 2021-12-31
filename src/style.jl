@@ -29,7 +29,8 @@ resolve_style(root, ctx, node, style) = style
 
 abstract type AbstractTraverseContext end
 
-function visit!(node, ctx::AbstractTraverseContext, style::DefaultStyle)
+visit!(node, ctx::AbstractTraverseContext, style::DefaultStyle) = visit_default!(node, ctx)
+function visit_default!(node, ctx)
     node = previsit!(node, ctx)
     if istree(node)
         postvisit!(node, ctx, map(arg->visit!(arg, ctx), arguments(node)))
@@ -75,7 +76,7 @@ end
 function visit!(node, ctx::PostMapContext, ::DefaultStyle)
     node′ = ctx.f(node)
     if node′ === nothing
-        invoke(visit!, Tuple{typeof(node), <:AbstractTransformContext, DefaultStyle}, node, ctx, DefaultStyle())
+        visit_default!(node, ctx)
     else
         something(node′)
     end
@@ -94,7 +95,7 @@ postvisit!(node, ctx::PostMapReduceContext, args) = ctx.g(args...)
 function visit!(node, ctx::PostMapReduceContext, ::DefaultStyle)
     node′ = ctx.f(node)
     if node′ === nothing
-        invoke(visit!, Tuple{typeof(node), AbstractCollectContext, DefaultStyle}, node, ctx, DefaultStyle())
+        visit_default!(node, ctx)
     else
         something(node′)
     end

@@ -27,7 +27,11 @@ combine_style(a, b) = UnknownStyle()
 combine_style(a::DefaultStyle, b) = b
 resolve_style(root, ctx, node, style) = style
 
-abstract type AbstractTraverseContext end
+abstract type AbstractContext end
+
+(ctx::AbstractContext)(root) = visit!(root, ctx)
+
+abstract type AbstractTraverseContext <: AbstractContext end
 
 visit!(node, ctx::AbstractTraverseContext, style::DefaultStyle) = visit_default!(node, ctx)
 function visit_default!(node, ctx)

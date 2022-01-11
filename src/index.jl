@@ -77,7 +77,7 @@ isliteral(ex::Literal) = true
 isliteral(ex) = true
 isliteral(ex::IndexNode) = false
 
-TermInterface.istree(::Type{<:Literal}) = false
+SyntaxInterface.istree(::Literal) = false
 Base.hash(ex::Literal, h::UInt) = hash((Literal, ex.val), h)
 
 show_expression(io, mime, ex::Literal) = print(io, ex.val)
@@ -90,10 +90,10 @@ Base.:(==)(a::Pass, b::Pass) = a.tns == b.tns
 pass(args...) = pass!(vcat(args...))
 pass!(args) = Pass(args[1])
 
-TermInterface.istree(::Type{<:Pass}) = true
-TermInterface.operation(stmt::Pass) = pass
-TermInterface.arguments(stmt::Pass) = Any[stmt.tns]
-TermInterface.similarterm(::IndexNode, ::typeof(pass), args, T...) = pass!(args)
+SyntaxInterface.istree(::Pass) = true
+SyntaxInterface.operation(stmt::Pass) = pass
+SyntaxInterface.arguments(stmt::Pass) = Any[stmt.tns]
+SyntaxInterface.similarterm(::IndexNode, ::typeof(pass), args) = pass!(args)
 
 function show_statement(io, mime, stmt::Pass, level)
     print(io, tab^level * "(")
@@ -105,7 +105,7 @@ struct Workspace <: IndexTerminal
     n
 end
 
-TermInterface.istree(::Type{<:Workspace}) = false
+SyntaxInterface.istree(::Workspace) = false
 Base.hash(ex::Workspace, h::UInt) = hash((Workspace, ex.n), h)
 
 rename(tns::Workspace, name) = Workspace(name)
@@ -121,7 +121,7 @@ struct Name <: IndexTerminal
     name
 end
 
-TermInterface.istree(::Type{<:Name}) = false
+SyntaxInterface.istree(::Name) = false
 Base.hash(ex::Name, h::UInt) = hash((Name, ex.name), h)
 
 show_expression(io, mime, ex::Name) = print(io, ex.name)
@@ -140,10 +140,10 @@ Base.:(==)(a::With, b::With) = a.cons == b.cons && a.prod == b.prod
 with(args...) = with!(vcat(args...))
 with!(args) = With(args[1], args[2])
 
-TermInterface.istree(::Type{<:With}) = true
-TermInterface.operation(stmt::With) = with
-TermInterface.arguments(stmt::With) = Any[stmt.cons, stmt.prod]
-TermInterface.similarterm(::IndexNode, ::typeof(with), args, T...) = with!(args)
+SyntaxInterface.istree(::With) = true
+SyntaxInterface.operation(stmt::With) = with
+SyntaxInterface.arguments(stmt::With) = Any[stmt.cons, stmt.prod]
+SyntaxInterface.similarterm(::IndexNode, ::typeof(with), args) = with!(args)
 
 function show_statement(io, mime, stmt::With, level)
     print(io, tab^level * "(\n")
@@ -162,10 +162,10 @@ Base.:(==)(a::Loop, b::Loop) = a.idxs == b.idxs && a.body == b.body
 loop(args...) = loop!(vcat(args...))
 loop!(args) = Loop(args, pop!(args))
 
-TermInterface.istree(::Type{<:Loop}) = true
-TermInterface.operation(stmt::Loop) = loop
-TermInterface.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
-TermInterface.similarterm(::IndexNode, ::typeof(loop), args, T...) = loop!(args)
+SyntaxInterface.istree(::Loop) = true
+SyntaxInterface.operation(stmt::Loop) = loop
+SyntaxInterface.arguments(stmt::Loop) = Any[stmt.idxs; stmt.body]
+SyntaxInterface.similarterm(::IndexNode, ::typeof(loop), args) = loop!(args)
 
 function show_statement(io, mime, stmt::Loop, level)
     print(io, tab^level * "@∀ ")
@@ -199,16 +199,16 @@ function assign!(args)
     end
 end
 
-TermInterface.istree(::Type{<:Assign})= true
-TermInterface.operation(stmt::Assign) = assign
-function TermInterface.arguments(stmt::Assign)
+SyntaxInterface.istree(::Assign)= true
+SyntaxInterface.operation(stmt::Assign) = assign
+function SyntaxInterface.arguments(stmt::Assign)
     if stmt.op === nothing
         Any[stmt.lhs, stmt.rhs]
     else
         Any[stmt.lhs, stmt.op, stmt.rhs]
     end
 end
-TermInterface.similarterm(::IndexNode, ::typeof(assign), args, T...) = assign!(args)
+SyntaxInterface.similarterm(::IndexNode, ::typeof(assign), args) = assign!(args)
 
 function show_statement(io, mime, stmt::Assign, level)
     print(io, tab^level)
@@ -231,10 +231,10 @@ Base.:(==)(a::Call, b::Call) = a.op == b.op && a.args == b.args
 call(args...) = call!(vcat(args...))
 call!(args) = Call(popfirst!(args), args)
 
-TermInterface.istree(::Type{<:Call}) = true
-TermInterface.operation(ex::Call) = call
-TermInterface.arguments(ex::Call) = Any[ex.op; ex.args]
-TermInterface.similarterm(::IndexNode, ::typeof(call), args, T...) = call!(args)
+SyntaxInterface.istree(::Call) = true
+SyntaxInterface.operation(ex::Call) = call
+SyntaxInterface.arguments(ex::Call) = Any[ex.op; ex.args]
+SyntaxInterface.similarterm(::IndexNode, ::typeof(call), args) = call!(args)
 
 function show_expression(io, mime, ex::Call)
     show_expression(io, mime, ex.op)
@@ -263,10 +263,10 @@ access!(args) = Access(popfirst!(args), popfirst!(args), args)
 
 getname(acc::Access) = getname(acc.tns) #TODO does this make sense
 
-TermInterface.istree(::Type{<:Access}) = true
-TermInterface.operation(ex::Access) = access
-TermInterface.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]
-TermInterface.similarterm(::IndexNode, ::typeof(access), args, T...) = access!(args)
+SyntaxInterface.istree(::Access) = true
+SyntaxInterface.operation(ex::Access) = access
+SyntaxInterface.arguments(ex::Access) = Any[ex.tns; ex.mode; ex.idxs]
+SyntaxInterface.similarterm(::IndexNode, ::typeof(access), args) = access!(args)
 
 function show_expression(io, mime, ex::Access)
     show_expression(io, mime, ex.tns)

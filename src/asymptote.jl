@@ -53,9 +53,9 @@ struct Forall <: AsymptotePredicate
     Forall(args...) = new(collect(args[1:end-1]), args[end])
 end
 
-TermInterface.istree(::Type{<:Forall}) = true
-TermInterface.operation(ex::Forall) = Forall
-TermInterface.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
+SyntaxInterface.istree(::Forall) = true
+SyntaxInterface.operation(ex::Forall) = Forall
+SyntaxInterface.arguments(ex::Forall) = [ex.idxs;[ex.arg]]
 
 struct Exists <: AsymptotePredicate
     idxs::Vector{Any}
@@ -63,9 +63,9 @@ struct Exists <: AsymptotePredicate
     Exists(args...) = new(collect(args[1:end-1]), args[end])
 end
 
-TermInterface.istree(::Type{<:Exists}) = true
-TermInterface.operation(ex::Exists) = Exists
-TermInterface.arguments(ex::Exists) = [ex.idxs;[ex.arg]]
+SyntaxInterface.istree(::Exists) = true
+SyntaxInterface.operation(ex::Exists) = Exists
+SyntaxInterface.arguments(ex::Exists) = [ex.idxs;[ex.arg]]
 
 const QuantifierAsymptote = Union{Forall, Exists}
 
@@ -100,9 +100,9 @@ rename(ex::Domain, name) = Domain(name, ex.rng)
 
 bases(ex::Domain) = [ex.var]
 
-TermInterface.istree(::Type{<:Domain}) = true
-TermInterface.operation(ex::Domain) = Domain
-TermInterface.arguments(ex::Domain) = [ex.var, ex.rng]
+SyntaxInterface.istree(::Domain) = true
+SyntaxInterface.operation(ex::Domain) = Domain
+SyntaxInterface.arguments(ex::Domain) = [ex.var, ex.rng]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Domain)
     show_asymptote(io, mime, ex.var)
@@ -117,9 +117,9 @@ end
 
 bases(ex::Times) = mapreduce(bases, vcat, ex.args)
 
-TermInterface.istree(::Type{<:Times}) = true
-TermInterface.operation(ex::Times) = Times
-TermInterface.arguments(ex::Times) = ex.args
+SyntaxInterface.istree(::Times) = true
+SyntaxInterface.operation(ex::Times) = Times
+SyntaxInterface.arguments(ex::Times) = ex.args
 
 struct Cup <: AsymptoteSet
     args::Vector{Any}
@@ -128,9 +128,9 @@ end
 
 bases(ex::Cup) = mapreduce(bases, vcat, ex.args)
 
-TermInterface.istree(::Type{<:Cup}) = true
-TermInterface.operation(ex::Cup) = Cup
-TermInterface.arguments(ex::Cup) = ex.args
+SyntaxInterface.istree(::Cup) = true
+SyntaxInterface.operation(ex::Cup) = Cup
+SyntaxInterface.arguments(ex::Cup) = ex.args
 
 struct Cap <: AsymptoteSet
     args::Vector{Any}
@@ -139,27 +139,27 @@ end
 
 bases(ex::Cap) = mapreduce(bases, vcat, ex.args)
 
-TermInterface.istree(::Type{<:Cap}) = true
-TermInterface.operation(ex::Cap) = Cap
-TermInterface.arguments(ex::Cap) = ex.args
+SyntaxInterface.istree(::Cap) = true
+SyntaxInterface.operation(ex::Cap) = Cap
+SyntaxInterface.arguments(ex::Cap) = ex.args
 
 struct Vee <: AsymptotePredicate
     args::Vector{Any}
     Vee(args...) = new(collect(args))
 end
 
-TermInterface.istree(::Type{<:Vee}) = true
-TermInterface.operation(ex::Vee) = Vee
-TermInterface.arguments(ex::Vee) = ex.args
+SyntaxInterface.istree(::Vee) = true
+SyntaxInterface.operation(ex::Vee) = Vee
+SyntaxInterface.arguments(ex::Vee) = ex.args
 
 struct Wedge <: AsymptotePredicate
     args::Vector{Any}
     Wedge(args...) = new(collect(args))
 end
 
-TermInterface.istree(::Type{<:Wedge}) = true
-TermInterface.operation(ex::Wedge) = Wedge
-TermInterface.arguments(ex::Wedge) = ex.args
+SyntaxInterface.istree(::Wedge) = true
+SyntaxInterface.operation(ex::Wedge) = Wedge
+SyntaxInterface.arguments(ex::Wedge) = ex.args
 
 const BinaryAsymptote = Union{Times, Cup, Cap, Vee, Wedge}
 
@@ -190,7 +190,7 @@ end
 
 struct Empty <: AsymptoteSet end
 
-TermInterface.istree(::Type{<:Empty}) = false
+SyntaxInterface.istree(::Empty) = false
 
 show_asymptote(io::IO, mime::MIME"text/plain", ex::Empty) = println(io, "∅")
 
@@ -202,9 +202,9 @@ struct Predicate <: AsymptotePredicate
     Predicate(op, args...) = new(op, collect(args))
 end
 
-TermInterface.istree(::Type{<:Predicate}) = true
-TermInterface.operation(ex::Predicate) = Predicate
-TermInterface.arguments(ex::Predicate) = [[ex.op]; ex.args]
+SyntaxInterface.istree(::Predicate) = true
+SyntaxInterface.operation(ex::Predicate) = Predicate
+SyntaxInterface.arguments(ex::Predicate) = [[ex.op]; ex.args]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Predicate)
     show_asymptote(io, mime, ex.op)
@@ -226,9 +226,9 @@ end
 
 bases(ex::Predicate) = bases(ex.prd)
 
-TermInterface.istree(::Type{<:Such}) = true
-TermInterface.operation(ex::Such) = Such
-TermInterface.arguments(ex::Such) = [ex.tgt, ex.prd]
+SyntaxInterface.istree(::Such) = true
+SyntaxInterface.operation(ex::Such) = Such
+SyntaxInterface.arguments(ex::Such) = [ex.tgt, ex.prd]
 
 function show_asymptote(io::IO, mime::MIME"text/plain", ex::Such)
     print("{")

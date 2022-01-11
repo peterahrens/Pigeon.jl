@@ -1,8 +1,8 @@
 module Pigeon
 
 using RewriteTools
-using TermInterface
-using TermInterface: arguments, operation, istree, similarterm
+using SyntaxInterface
+using SyntaxInterface: arguments, operation, istree, similarterm
 using RewriteTools: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
 using RewriteTools: @rule, @capture
 using Random

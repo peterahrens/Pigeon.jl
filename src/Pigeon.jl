@@ -1,10 +1,10 @@
 module Pigeon
 
-using SymbolicUtils
+using RewriteTools
 using TermInterface
 using TermInterface: arguments, operation, istree, similarterm
-using SymbolicUtils: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
-using SymbolicUtils: @rule, @capture
+using RewriteTools: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
+using RewriteTools: @rule, @capture
 using Random
 using Scratch
 

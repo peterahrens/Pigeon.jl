@@ -62,7 +62,7 @@ function Base.:(==)(a::T, b::T) with {T <: IndexNode}
 end
 =#
 
-function postorder(f, node::SymbolicUtils.Term)
+function postorder(f, node::RewriteTools.Term)
     f(term(operation(node), map(child->postorder(f, child), arguments(node))...))
 end
 Base.map(f, node::IndexNode) = postorder(f, node)

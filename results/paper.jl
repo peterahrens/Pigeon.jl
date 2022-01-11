@@ -6,7 +6,7 @@ using JSON
 
 using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkSaturate, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty, defaultprotocolize
 using Pigeon: Such, Cup, Wedge, isdominated, Domain
-using SymbolicUtils: Postwalk
+using RewriteTools: Postwalk
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 10
 
 function paper(prgm, args, dims, fname)

@@ -10,13 +10,12 @@ Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+RewriteTools = "5969e224-3634-4c61-9f66-721b69e98b8a"
 Scratch = "6c6a2e73-6563-6170-7368-637461726353"
-SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 
 [compat]
-SymbolicUtils = "0.17.0"
 julia = "1.1"
 
 [extras]

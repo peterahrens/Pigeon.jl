@@ -114,7 +114,7 @@ end
 SymbolicUtils.istree(ex::Initial) = true
 SymbolicUtils.operation(ex::Initial) = initial
 SymbolicUtils.arguments(ex::Initial) = [ex.op, ex.val]
-SymbolicUtils.similarterm(::IndexNode, ::typeof(initial), args, T...) = initial!(args)
+SymbolicUtils.similarterm(::Type{<:IndexNode}, ::typeof(initial), args, T...) = initial!(args)
 
 function show_expression(io, mime, ex::Initial, level)
     show_expression(io, mime, ex.lhs)

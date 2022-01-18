@@ -4,9 +4,9 @@ using BSON
 using Random
 using JSON
 
-using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, PostwalkExpand, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty, defaultprotocolize
+using Pigeon: maxdepth, format_workspaces, transform_reformat, MarkInsertContext, concordize, generate_uniform_taco_inputs, maxworkspace, AsymptoticContext, fiber_workspacer, Postsearch, bigprotocolize, run_taco, noprotocolize, tacoprotocolize, maxinsert, istacoformattable, taco_workspacer, AbstractSymbolicHollowTensor, read_cost, assume_nonempty, defaultprotocolize
 using Pigeon: Such, Cup, Wedge, isdominated, Domain
-using RewriteTools: PostwalkRewrite
+using RewriteTools: Postwalk
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 10
 
 function paper(prgm, args, dims, fname)
@@ -15,8 +15,8 @@ function paper(prgm, args, dims, fname)
 
     @info "kernel" fname
 
-    default_kernel = SomeRewrite(PostwalkRewrite(noprotocolize))(prgm)
-    default_kernel = SomeRewrite(PostwalkRewrite(defaultprotocolize))(default_kernel)
+    default_kernel = Rewrite(Postwalk(noprotocolize))(prgm)
+    default_kernel = Rewrite(Postwalk(defaultprotocolize))(default_kernel)
     default_kernel = transform_reformat(default_kernel, MarkInsertContext())
     default_kernel = concordize(default_kernel)
     Pigeon.taco_mode[] = true
@@ -53,11 +53,11 @@ function paper(prgm, args, dims, fname)
         @info "formating for taco"
 		tacoverse = map(prgm->format_workspaces(prgm, AsymptoticContext, taco_workspacer), tacoverse)
         @info "protocolizing"
-		tacoverse = map(SomeRewrite(PostwalkRewrite(noprotocolize)), tacoverse)
+		tacoverse = map(Rewrite(Postwalk(noprotocolize)), tacoverse)
         @info "concordizing"
 	    tacoverse = map(Pigeon.concordize, tacoverse)
         @info "protocolizing again"
-		tacoverse = mapreduce(SomeExpand(PostwalkExpand(tacoprotocolize)), vcat, tacoverse)
+		tacoverse = mapreduce(Expand(Postsearch(tacoprotocolize)), vcat, tacoverse)
         @info "marking inserts"
 	    tacoverse = map(prgm -> transform_reformat(prgm, MarkInsertContext()), tacoverse)
         @info "filtering overinserts"
@@ -164,7 +164,7 @@ function paper(prgm, args, dims, fname)
         @info "workspace"
 		universe = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), universe)
         @info "protocolize"
-		universe = mapreduce(SomeExpand(PostwalkExpand(bigprotocolize)), vcat, universe)
+		universe = mapreduce(Expand(Postsearch(bigprotocolize)), vcat, universe)
         @info "mark insert"
 	    universe = map(prgm -> transform_reformat(prgm, MarkInsertContext()), universe)
         @info "concordize"

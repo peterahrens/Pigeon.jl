@@ -250,7 +250,7 @@ indices(x::Forall) = setdiff(indices(x.arg), x.idxs)
 indices(x::Exists) = setdiff(indices(x.arg), x.idxs)
 indices(x::Predicate) = x.args
 
-simplify_asymptote = SomeRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
+simplify_asymptote = Rewrite(Fixpoint(Postwalk(Chain([
     (@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
 
     (@rule Such(~s, false) => Empty()),

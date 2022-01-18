@@ -136,7 +136,7 @@ make_style_protocol(root::Loop, ctx::AsymptoticContext, node, ::InsertProtocol) 
 combine_style(a::CoiterateStyle, b::CoiterateStyle) = CoiterateStyle()
 
 #TODO generalize the interface to annihilation analysis
-annihilate_index = SomeRewrite(Fixpoint(PrewalkRewrite(ChainRewrite([
+annihilate_index = Rewrite(Fixpoint(Prewalk(Chain([
     (@rule @i((~f)(~~a)) => if isliteral(~f) && all(isliteral, ~~a) Literal(value(~f)(value.(~~a)...)) end),
     (@rule @i((~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
     (@rule @i(+(~~a)) => if count(isliteral, ~~a) >= 2 @i +($(filter(!isliteral, ~~a)), $(Literal(+(value.(filter(isliteral, ~~a))...)))) end),

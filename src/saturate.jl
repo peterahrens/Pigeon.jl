@@ -19,12 +19,12 @@ assigner(stmt::With) = assigner(stmt.cons)
 
 w₀ = Workspace(0)
 w₁ = Workspace(1)
-w₊ = SomeRewrite(PostwalkRewrite(node -> node isa Workspace ? Workspace(node.n + 1) : node))
-w₋(_w) = SomeRewrite(PostwalkRewrite(node -> (node isa Workspace && node.n isa Integer) ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node))
+w₊ = Rewrite(Postwalk(node -> node isa Workspace ? Workspace(node.n + 1) : node))
+w₋(_w) = Rewrite(Postwalk(node -> (node isa Workspace && node.n isa Integer) ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node))
 
 function name_workspaces(prgm)
 	w_n = 1
-	PostwalkRewrite((node) -> if node isa With
+	Postwalk((node) -> if node isa With
         if reducer(node.prod) === nothing
             idxs = intersect(loopindices(node), accessindices(node.prod))
             w_prod = access(Workspace(Symbol("w_$w_n")), Write(), idxs)
@@ -42,7 +42,7 @@ getname(w::Workspace) = w.n
 
 
 function saturate_index(stmt)
-    normalize = SomeRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
+    normalize = Rewrite(Fixpoint(Postwalk(Chain([
         (@rule @i(@loop (~~i) @loop (~~j) ~s) => @i @loop (~~i) (~~j) ~s),
     ]))))
 
@@ -50,7 +50,7 @@ function saturate_index(stmt)
     (@capture normalize(stmt) @i @loop (~~idxs) ~lhs <~~op>= ~rhs) ||
         throw(ArgumentError("expecting statement in index notation"))
 
-    splay = SomeRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
+    splay = Rewrite(Fixpoint(Postwalk(Chain([
         (@rule @i(+(~a, ~b, ~c, ~~d)) => @i ~a + +(~b, ~c, ~~d)),
         (@rule @i(+(~a)) => ~a),
         (@rule @i(*(~a, ~b, ~c, ~~d)) => @i ~a * *(~b, ~c, ~~d)),
@@ -62,7 +62,7 @@ function saturate_index(stmt)
     ]))))
     rhs = splay(rhs)
 
-    churn = SomeExpand(Saturate(PostwalkExpand(ChainExpand([
+    churn = Expand(Saturate(Postsearch(Branch([
         (@rule @i(~a + (~b + ~c)) => [@i (~a + ~b) + ~c]),
         (@rule @i(~a + ~b) => [@i ~b + ~a]),
         #(@rule @i(- ~a + (- ~b)) => [@i -(~b + ~a)]),
@@ -75,7 +75,7 @@ function saturate_index(stmt)
     ]))))
     rhss = churn(rhs)
 
-    decommute = SomeRewrite(PostwalkRewrite(ChainRewrite([
+    decommute = Rewrite(Postwalk(Chain([
         (@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
         (@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
     ])))
@@ -84,25 +84,25 @@ function saturate_index(stmt)
 
     bodies = map(rhs->@i($lhs <$op>=$rhs), rhss)
 
-    precompute = SomeExpand(PrewalkExpand(ChainExpand([
+    precompute = Expand(Presearch(Branch([
         (x-> if @capture x @i(~Ai <~~f>= ~a)
-            bs = SomeExpand(Saturate(@rule @i((~g)(~~b)) => ~~b))(a)
+            bs = Expand(Saturate(@rule @i((~g)(~~b)) => ~~b))(a)
             ys = []
             for b in bs
                 if b != a &&  @capture b @i((~h)(~~c))
-                    d = SomeExpand(PostwalkExpand(ChainExpand([@rule b => [w₀]])))(a)
+                    d = Expand(Postsearch(Branch([@rule b => [w₀]])))(a)
                     push!(ys, w₊(@i ($Ai <$f>= $d) where ($w₀ = $b)))
                 end
             end
             return ys
         end),
         (x-> if @capture x @i(~Ai <~f>= ~a)
-            bs = SomeExpand(Saturate(@rule @i((~g)(~~b)) =>
+            bs = Expand(Saturate(@rule @i((~g)(~~b)) =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
                 if b != a &&  @capture b @i((~h)(~~c))
-                    d = SomeRewrite(PostwalkRewrite(@rule b => w₀))(a)
+                    d = Rewrite(Postwalk(@rule b => w₀))(a)
                     push!(ys, w₊(@i ($Ai <$f>= $d) where ($w₀ <$f>= $b)))
                 end
             end
@@ -110,7 +110,7 @@ function saturate_index(stmt)
         end),
     ])))
 
-    slurp = SomeRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
+    slurp = Rewrite(Fixpoint(Postwalk(Chain([
         (@rule @i(+(~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
         (@rule @i(+(~a)) => ~a),
         (@rule @i(~a - ~b) => @i ~a + (- ~b)),
@@ -129,7 +129,7 @@ function saturate_index(stmt)
 
     #absorb = PassThrough(@rule @i(∀ ~i ∀ ~~j ~s) => @i ∀ $(sort([~i; ~~j])) ~s)
 
-    internalize = SomeExpand(PrewalkExpand(RewriteExpand(
+    internalize = Expand(Presearch(RewriteExpand(
         (x) -> if  @capture x @i @loop ~~is (~c where ~p)
             #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
             if reducer(p) != nothing

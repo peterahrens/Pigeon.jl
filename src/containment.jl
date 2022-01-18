@@ -20,7 +20,7 @@
 
 
 function _normalize_asymptote(ex)
-    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
+    ex = Rewrite(Postwalk(Chain([
         (@rule $(Empty()) => Cup()),
         (@rule true => Wedge()),
         (@rule false => Vee()),
@@ -47,28 +47,28 @@ function _normalize_asymptote(ex)
     ])))(ex)
 
     ex = transform_ssa(ex)
-    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
-        PrestepRewrite(ChainRewrite([
+    ex = Rewrite(Postwalk(Chain([
+        Prestep(Chain([
             (@rule Such(Cup(), ~p) => Cup()),
             (@rule Such(Cup(~s, ~~t), ~p) => Cup(Such(~s, ~p), Such(Cup(~~t...), ~p))),
         ])),
 
-        PrestepRewrite(ChainRewrite([
+        Prestep(Chain([
             (@rule Times(~~s, Cup(), ~~t) => Cup()),
             (@rule Times(~~s, Cup(~t, ~~u), ~~v) => Cup(Times(~~s..., ~t, ~~v...), Times(~~s..., Cup(~~u...), ~~v...))),
         ])),
 
-        PrestepRewrite(ChainRewrite([
+        Prestep(Chain([
             (@rule Exists(~~i, Vee()) => Vee()),
             (@rule Exists(~~i, Vee(~p, ~~q)) => Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~~q...)))),
         ])),
 
-        PrestepRewrite(ChainRewrite([
+        Prestep(Chain([
             (@rule Wedge(~~p, Vee(), ~~q) => Vee()),
             (@rule Wedge(~~p, Vee(~q, ~~r), ~~s) => Vee(Wedge(~~p..., ~q, ~~s...), Wedge(~~p..., Vee(~~r...), ~~s...))),
         ])),
 
-        PrestepRewrite(ChainRewrite([
+        Prestep(Chain([
             (@rule Such(~s, Vee()) => Cup()),
             (@rule Such(~s, Vee(~p, ~~q)) => Cup(Such(~s, ~p), Such(~s, Vee(~~q...)))),
         ])),
@@ -78,19 +78,19 @@ function _normalize_asymptote(ex)
         Fixpoint(@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
     ])))(ex)
 
-    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
-        PrestepRewrite(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa #not really
+    ex = Rewrite(Postwalk(Chain([
+        Prestep(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa #not really
         Fixpoint(@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
     ])))(ex)
 
-    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
+    ex = Rewrite(Postwalk(Chain([
         Fixpoint(@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
 
-        PrestepRewrite(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => Exists(~~i..., Wedge(~~p..., ~q, ~~r...))), #Requires ssa
+        Prestep(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => Exists(~~i..., Wedge(~~p..., ~q, ~~r...))), #Requires ssa
         Fixpoint(@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
     ])))(ex)
 
-    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
+    ex = Rewrite(Postwalk(Chain([
         Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)), 
         (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
         (@rule Cup(~~p) => Cup(unique(~~p)...)),

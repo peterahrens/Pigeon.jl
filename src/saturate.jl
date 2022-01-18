@@ -19,12 +19,12 @@ assigner(stmt::With) = assigner(stmt.cons)
 
 w₀ = Workspace(0)
 w₁ = Workspace(1)
-w₊ = Postwalk(node -> node isa Workspace ? Workspace(node.n + 1) : node)
-w₋(_w) = Postwalk(node -> (node isa Workspace && node.n isa Integer) ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node)
+w₊ = PassRewrite(PostwalkRewrite(node -> node isa Workspace ? Workspace(node.n + 1) : node))
+w₋(_w) = PassRewrite(PostwalkRewrite(node -> (node isa Workspace && node.n isa Integer) ? (node.n == 1 ? _w : Workspace(node.n - 1)) : node))
 
 function name_workspaces(prgm)
 	w_n = 1
-	Postwalk(PassThrough((node) -> if node isa With
+	PostwalkRewrite((node) -> if node isa With
         if reducer(node.prod) === nothing
             idxs = intersect(loopindices(node), accessindices(node.prod))
             w_prod = access(Workspace(Symbol("w_$w_n")), Write(), idxs)
@@ -35,22 +35,22 @@ function name_workspaces(prgm)
 	    w_cons = access(Workspace(Symbol("w_$w_n")), Read(), idxs)
 	    w_n += 1
 	    return With(w₋(w_cons)(node.cons), w₋(w_prod)(node.prod)) #TODO we make a lot of assumptions here. It would be cleaner to insert read/write properties when the with is created.
-	end))(prgm)
+	end)(prgm)
 end
 
 getname(w::Workspace) = w.n
 
 
 function saturate_index(stmt)
-    normalize = Fixpoint(Postwalk(Chain([
+    normalize = PassRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
         (@ex@rule @i(@loop (~~i) @loop (~~j) ~s) => @i @loop (~~i) (~~j) ~s),
-    ])))
+    ]))))
 
     stmt = loop(stmt)
     (@ex@capture normalize(stmt) @i @loop (~~idxs) ~lhs <~~op>= ~rhs) ||
         throw(ArgumentError("expecting statement in index notation"))
 
-    splay = Fixpoint(Postwalk(Chain([
+    splay = PassRewrite(FixpointRewrite(PostwalkRewrite(ChainRewrite([
         (@ex@rule @i(+(~a, ~b, ~c, ~~d)) => @i ~a + +(~b, ~c, ~~d)),
         (@ex@rule @i(+(~a)) => ~a),
         (@ex@rule @i(*(~a, ~b, ~c, ~~d)) => @i ~a * *(~b, ~c, ~~d)),
@@ -62,7 +62,7 @@ function saturate_index(stmt)
     ])))
     rhs = splay(rhs)
 
-    churn = FixpointSaturate(PostwalkSaturate(ChainSaturate([
+    churn = PassExpand(Saturate(PostwalkExpand(ChainExpand([
         (@ex@rule @i(~a + (~b + ~c)) => [@i (~a + ~b) + ~c]),
         (@ex@rule @i(~a + ~b) => [@i ~b + ~a]),
         #(@ex@rule @i(- ~a + (- ~b)) => [@i -(~b + ~a)]),
@@ -75,42 +75,42 @@ function saturate_index(stmt)
     ])))
     rhss = churn(rhs)
 
-    decommute = Postwalk(Chain([
+    decommute = PassRewrite(PostwalkRewrite(ChainRewrite([
         (@ex@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
         (@ex@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
-    ]))
+    ])))
 
     rhss = unique(map(decommute, rhss))
 
     bodies = map(rhs->@i($lhs <$op>=$rhs), rhss)
 
-    precompute = PrewalkSaturate(ChainSaturate([
+    precompute = PassExpand(PrewalkExpand(ChainExpand([
         (x-> if @ex@capture x @i(~Ai <~~f>= ~a)
-            bs = FixpointSaturate(PassThroughSaturate(@ex@rule @i((~g)(~~b)) => ~~b))(a)
+            bs = PassExpand(Saturate(@ex@rule @i((~g)(~~b)) => ~~b))(a)
             ys = []
             for b in bs
                 if b != a && @ex @capture b @i((~h)(~~c))
-                    d = Postwalk(PassThrough(@ex@rule b => w₀))(a)
+                    d = PassExpand(PostwalkExpand(ChainExpand([@ex@rule b => [w₀]])))(a)
                     push!(ys, w₊(@i ($Ai <$f>= $d) where ($w₀ = $b)))
                 end
             end
             return ys
         end),
         (x-> if @ex@capture x @i(~Ai <~f>= ~a)
-            bs = FixpointSaturate(PassThroughSaturate(@ex@rule @i((~g)(~~b)) =>
+            bs = PassExpand(Saturate(@ex@rule @i((~g)(~~b)) =>
                 if distributes(f, ~g) ~~b end))(a)
             ys = []
             for b in bs
                 if b != a && @ex @capture b @i((~h)(~~c))
-                    d = Postwalk(PassThrough(@ex@rule b => w₀))(a)
+                    d = PassRewrite(PostwalkRewrite(@ex@rule b => w₀))(a)
                     push!(ys, w₊(@i ($Ai <$f>= $d) where ($w₀ <$f>= $b)))
                 end
             end
             return ys
         end),
-    ]))
+    ])))
 
-    slurp = Fixpoint(Postwalk(Chain([
+    slurp = PassRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
         (@ex@rule @i(+(~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
         (@ex@rule @i(+(~a)) => ~a),
         (@ex@rule @i(~a - ~b) => @i ~a + (- ~b)),
@@ -121,7 +121,7 @@ function saturate_index(stmt)
         (@ex@rule @i(*(~~a, - ~b, ~~c)) => @i -(*(~~a, ~b, ~~c))),
         (@ex@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
         (@ex@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
-    ])))
+    ]))))
 
     bodies = unique(mapreduce(body->map(slurp, precompute(body)), vcat, bodies))
 
@@ -129,7 +129,7 @@ function saturate_index(stmt)
 
     #absorb = PassThrough(@ex@rule @i(∀ ~i ∀ ~~j ~s) => @i ∀ $(sort([~i; ~~j])) ~s)
 
-    internalize = PrewalkSaturate(PassThroughSaturate(
+    internalize = PassExpand(PrewalkExpand(ChainExpand([
         (x) -> if @ex @capture x @i @loop ~~is (~c where ~p)
             #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
             if reducer(p) != nothing

@@ -16,7 +16,7 @@
         )
     ))
 
-    @test Pigeon.@ex Pigeon.@capture ex @i(
+    @test Pigeon. Pigeon.@capture ex @i(
         @loop i (
             @loop j (
                 @loop ~j_1 (
@@ -40,7 +40,7 @@
         Times(Domain(:k, :J), Domain(:l, :J), Such(Times(Domain(:i, :I), Domain(:j, :J)), Wedge(Exists(:i, Predicate(:A, :i, :j)), Predicate(:A, :i, :j))))
     )
 
-    @test Pigeon.@ex Pigeon.@capture ex (
+    @test Pigeon. Pigeon.@capture ex (
         Times(Domain(:k, :J), Domain(:l, :J), Such(Times(Domain(:i, :I), Domain(:j, :J)), Wedge(Exists(~i_1, Predicate(:A, ~i_1, :j)), Predicate(:A, :i, :j))))
     )
 

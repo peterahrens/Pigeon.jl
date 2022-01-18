@@ -66,7 +66,7 @@ end
 getdims(ctx::TacoLowerContext) = ctx.dims
 
 function script_transpose!(node, ctx::TacoLowerContext)
-    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
+    if (@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2])) &&
         a isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, a.protocol) && 
         b isa SymbolicHollowDirector &&
@@ -80,7 +80,7 @@ function script_transpose!(node, ctx::TacoLowerContext)
         script!((@i b[$idxs2]), ctx, true)
         res = script_transpose!(cons, ctx)
         return res
-    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
+    elseif (@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod) &&
         a isa SymbolicHollowDirector &&
         all(p -> p isa ConvertProtocol, a.protocol) && 
         b isa SymbolicHollowDirector &&
@@ -542,9 +542,9 @@ function workspacecount!(node::With, ctx::WorkspaceCountContext)
     workspacecount!(node.cons, ctx)
 end
 function workspacecount_outer!(node, ctx::WorkspaceCountContext)
-    if (@ex@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]))
+    if (@capture node @i ~cons where (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]))
         workspacecount_outer!(cons, ctx)
-    elseif (@ex@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod)
+    elseif (@capture node @i (@loop ~~idxs (~a)[~~idxs1] = (~b)[~~idxs2]) where ~prod)
         workspacecount_outer!(prod, ctx)
     else
         workspacecount!(node, ctx)

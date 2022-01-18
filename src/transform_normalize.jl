@@ -1,4 +1,4 @@
-normalize_index = Fixpoint(Postwalk(Chain([
+normalize_index = SomeRewrite(Fixpoint(PostwalkRewrite(ChainRewrite([
 	(@rule @i(+(~~a, +(~~b), ~~c)) => @i +(~~a, ~~b, ~~c)),
 	(@rule @i(+(~a)) => ~a),
 	(@rule @i(~a - ~b) => @i ~a + (- ~b)),
@@ -10,4 +10,4 @@ normalize_index = Fixpoint(Postwalk(Chain([
 	#(@rule @i(+(~~a)) => if !issorted(~~a) @i +($(sort(~~a))) end),
 	#(@rule @i(*(~~a)) => if !issorted(~~a) @i *($(sort(~~a))) end),
 	(@rule @i(@loop ~~i @loop ~~j ~s) => @i @loop ~~i ~~j ~s),
-])))
+]))))

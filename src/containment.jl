@@ -20,7 +20,7 @@
 
 
 function _normalize_asymptote(ex)
-    ex = Postwalk(Chain([
+    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
         (@rule $(Empty()) => Cup()),
         (@rule true => Wedge()),
         (@rule false => Vee()),
@@ -44,31 +44,31 @@ function _normalize_asymptote(ex)
         Fixpoint(@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
         #(@rule Vee(~~p) => Vee(unique(~~p)...)),
         #(@rule Vee(~p) => ~p),
-    ]))(ex)
+    ])))(ex)
 
     ex = transform_ssa(ex)
-    ex = Postwalk(Chain([
-        Prestep(Link([
+    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
+        PrestepRewrite(ChainRewrite([
             (@rule Such(Cup(), ~p) => Cup()),
             (@rule Such(Cup(~s, ~~t), ~p) => Cup(Such(~s, ~p), Such(Cup(~~t...), ~p))),
         ])),
 
-        Prestep(Link([
+        PrestepRewrite(ChainRewrite([
             (@rule Times(~~s, Cup(), ~~t) => Cup()),
             (@rule Times(~~s, Cup(~t, ~~u), ~~v) => Cup(Times(~~s..., ~t, ~~v...), Times(~~s..., Cup(~~u...), ~~v...))),
         ])),
 
-        Prestep(Link([
+        PrestepRewrite(ChainRewrite([
             (@rule Exists(~~i, Vee()) => Vee()),
             (@rule Exists(~~i, Vee(~p, ~~q)) => Vee(Exists(~~i..., ~p), Exists(~~i..., Vee(~~q...)))),
         ])),
 
-        Prestep(Link([
+        PrestepRewrite(ChainRewrite([
             (@rule Wedge(~~p, Vee(), ~~q) => Vee()),
             (@rule Wedge(~~p, Vee(~q, ~~r), ~~s) => Vee(Wedge(~~p..., ~q, ~~s...), Wedge(~~p..., Vee(~~r...), ~~s...))),
         ])),
 
-        Prestep(Link([
+        PrestepRewrite(ChainRewrite([
             (@rule Such(~s, Vee()) => Cup()),
             (@rule Such(~s, Vee(~p, ~~q)) => Cup(Such(~s, ~p), Such(~s, Vee(~~q...)))),
         ])),
@@ -76,25 +76,25 @@ function _normalize_asymptote(ex)
         Fixpoint(@rule Vee(~~p, Vee(~~q), ~~r) => Vee(~~p..., ~~q..., ~~r...)),
 
         Fixpoint(@rule Cup(~~s, Cup(~~t), ~~u) => Cup(~~s..., ~~t..., ~~u...)),
-    ]))(ex)
+    ])))(ex)
 
-    ex = Postwalk(Chain([
-        Prestep(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa #not really
+    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
+        PrestepRewrite(@rule Times(~~s, Such(~t, ~p), ~~u) => Such(Times(~~s..., ~t, ~~u...), ~p)), #Requires ssa #not really
         Fixpoint(@rule Such(Such(~s, ~p), ~q) => Such(~s, Wedge(~p, ~q))),
-    ]))(ex)
+    ])))(ex)
 
-    ex = Postwalk(Chain([
+    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
         Fixpoint(@rule Times(~~s, Times(~~t), ~~u) => Times(~~s..., ~~t..., ~~u...)),
 
-        Prestep(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => Exists(~~i..., Wedge(~~p..., ~q, ~~r...))), #Requires ssa
+        PrestepRewrite(@rule Wedge(~~p, Exists(~~i, ~q), ~~r) => Exists(~~i..., Wedge(~~p..., ~q, ~~r...))), #Requires ssa
         Fixpoint(@rule Exists(~~i, Exists(~~j, ~p)) => Exists(~~i..., ~~j..., ~p)),
-    ]))(ex)
+    ])))(ex)
 
-    ex = Postwalk(Chain([
+    ex = SomeRewrite(PostwalkRewrite(ChainRewrite([
         Fixpoint(@rule Wedge(~~p, Wedge(~~q), ~~r) => Wedge(~~p..., ~~q..., ~~r...)), 
         (@rule Wedge(~~p) => Wedge(unique(~~p)...)),
         (@rule Cup(~~p) => Cup(unique(~~p)...)),
-    ]))(ex)
+    ])))(ex)
 
     return ex
 end
@@ -258,35 +258,6 @@ function isimplied(a, b; assumptions = [], normal=false)
 
     return false
 end
-
-#=
-supersimplify_asymptote = Fixpoint(Chain([simplify_asymptote,#This should be normalize_asymptote 
-    #(@rule ~p => display(~p)),
-Postwalk(Chain([
-    (@rule Such(~t, Wedge(~~p, ~q, ~~r)) => begin
-        if isdominated(Such(~t, Wedge(~~p..., ~~r...)), Such(~t, Wedge(~~p..., ~q, ~~r...)))
-            Such(~t, Wedge(~~p..., ~~r...))
-        end
-    end),
-
-    (@rule Such(~t, Exists(~~i, Wedge(~~p, ~q, ~~r))) => begin
-        #println("does")
-        #display(Such(~t, Exists(~~i..., Wedge(~~p..., ~~r..., true)))) 
-        #println("dominate")
-        #display(Such(~t, Exists(~~i..., ~q)))
-        #println("??")
-        if isdominated(Such(~t, Exists(~~i..., Wedge(~~p..., ~~r...))), Such(~t, Exists(~~i..., Wedge(~~p..., ~q, ~~r...))))
-            Such(~t, Exists(~~i..., Wedge(~~p..., ~~r...)))
-        end
-    end),
-
-    (@rule Cup(~~s, ~t, ~~u) => begin
-        if isdominated(~t, Cup(~~s..., ~~u...))
-            Cup(~~s..., ~~u...)
-        end
-    end),
-]))]))
-=#
 
 function supersimplify_asymptote(a; normal = false)
     if !normal

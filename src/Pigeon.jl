@@ -3,7 +3,8 @@ module Pigeon
 using RewriteTools
 using SyntaxInterface
 using SyntaxInterface: arguments, operation, istree, similarterm
-using RewriteTools: Fixpoint, Chain, Postwalk, Prewalk, PassThrough
+using RewriteTools: Fixpoint, ChainRewrite, PostwalkRewrite, PrewalkRewrite, SomeRewrite
+using RewriteTools: Saturate, ChainExpand, PostwalkExpand, PrewalkExpand, SomeExpand, RewriteExpand
 using RewriteTools: @rule, @capture
 using Random
 using Scratch

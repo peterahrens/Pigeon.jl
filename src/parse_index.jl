@@ -49,5 +49,5 @@ function capture_index(ex; ctx...)
 end
 
 macro i(ex)
-    return capture_index(ex; namify=true, slot = true, mode = Read())
+    return capture_index(ex; namify=false, slot = true, mode = Read())
 end

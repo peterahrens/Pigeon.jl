@@ -26,30 +26,13 @@ then
   srun --cpu-bind=sockets julia --project=. spgemm2.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 3 ]]
 then
-  srun --cpu-bind=sockets julia --project=. sspgemm.jl
+  srun --cpu-bind=sockets julia --project=. spgemmh.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 4 ]]
 then
-  #srun --cpu-bind=sockets julia --project=. spgemma.jl
-  echo skip
+  srun --cpu-bind=sockets julia --project=. spmv.jl
 elif [[ $SLURM_ARRAY_TASK_ID -eq 5 ]]
 then
-  srun --cpu-bind=sockets julia --project=. spgemmh.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 6 ]]
-then
-  srun --cpu-bind=sockets julia --project=. mttkrp.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 7 ]]
-then
-  srun --cpu-bind=sockets julia --project=. spmv.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 8 ]]
-then
   srun --cpu-bind=sockets julia --project=. spmv2.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 9 ]]
-then
-  srun --cpu-bind=sockets julia --project=. bpctd.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 10 ]]
-then
-  srun --cpu-bind=sockets julia --project=. bpcdd.jl
-elif [[ $SLURM_ARRAY_TASK_ID -eq 11 ]]
-then
+elif [[ $SLURM_ARRAY_TASK_ID -eq 6 ]]
   srun --cpu-bind=sockets julia --project=. smttkrp.jl
 fi

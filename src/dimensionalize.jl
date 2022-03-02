@@ -3,7 +3,7 @@ dimensionalization assumes foralls have unique indices.
 """
 
 function dimensionalize!(root, ctx)
-    Postwalk(node -> (collect_dimensions!(node, ctx); node))(root)
+    Rewrite(Postwalk(node -> (collect_dimensions!(node, ctx); node)))(root)
 end
 
 collect_dimensions!(node, ctx) = nothing

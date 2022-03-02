@@ -132,7 +132,7 @@ function saturate_index(stmt)
     internalize = Expand(Presearch(
         (x) -> if  @capture x @i @loop ~~is (~c where ~p)
             #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
-            if reducer(p) != nothing
+            if reducer(p) !== nothing
                 return map(combinations(intersect(is, accessindices(x)))) do js
                     @i @loop $(setdiff(is, js)) (
                         @loop $(intersect(js, accessindices(c))) $c
@@ -155,7 +155,7 @@ function saturate_index(stmt)
     prgms = map(Rewrite(Postwalk(@rule @i(@loop ~s) => ~s)), prgms)
 
     reorder = Expand(Presearch(
-        @rule @i(@loop ~~is ~s) => map(js -> @i(@loop $js ~s), collect(permutations(~~is))[2:end])
+        @rule @i(@loop ~~is ~s) => map(js -> @i(@loop $js ~s), collect(permutations(~~is)))
     ))
 
     prgms = mapreduce(reorder, vcat, prgms)

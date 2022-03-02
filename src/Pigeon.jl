@@ -68,7 +68,7 @@ function autoschedule(prgm; sunk_costs = [], assumptions = [], protocolize = big
     #frontier = filter(kernel->maxworkspace(kernel) <= 1, frontier)#TODO TACO LIMITATION
     frontier = filter_pareto(frontier, by = kernel -> maxdepth(kernel))
     frontier = map(prgm->format_workspaces(prgm, AsymptoticContext, fiber_workspacer), frontier)
-    frontier = mapreduce(PostwalkSaturate(protocolize), vcat, frontier)
+    frontier = mapreduce(Expand(Postsearch(protocolize)), vcat, frontier)
     frontier = map(Pigeon.concordize, frontier)
     frontier = map(prgm -> transform_reformat(prgm, MarkInsertContext()), frontier)
     frontier = filter_pareto(frontier, 

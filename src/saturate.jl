@@ -24,7 +24,7 @@ w₋(_w) = Rewrite(Postwalk(node -> (node isa Workspace && node.n isa Integer) ?
 
 function name_workspaces(prgm)
 	w_n = 1
-	Postwalk((node) -> if node isa With
+	Rewrite(Postwalk((node) -> if node isa With
         if reducer(node.prod) === nothing
             idxs = intersect(loopindices(node), accessindices(node.prod))
             w_prod = access(Workspace(Symbol("w_$w_n")), Write(), idxs)
@@ -35,7 +35,7 @@ function name_workspaces(prgm)
 	    w_cons = access(Workspace(Symbol("w_$w_n")), Read(), idxs)
 	    w_n += 1
 	    return With(w₋(w_cons)(node.cons), w₋(w_prod)(node.prod)) #TODO we make a lot of assumptions here. It would be cleaner to insert read/write properties when the with is created.
-	end)(prgm)
+	end))(prgm)
 end
 
 getname(w::Workspace) = w.n
@@ -90,7 +90,7 @@ function saturate_index(stmt)
             ys = []
             for b in bs
                 if b != a &&  @capture b @i((~h)(~~c))
-                    d = Expand(Postsearch(Branch([@rule b => [w₀]])))(a)
+                    d = Rewrite(Postwalk(@rule b => w₀))(a)
                     push!(ys, w₊(@i ($Ai <$f>= $d) where ($w₀ = $b)))
                 end
             end
@@ -129,7 +129,7 @@ function saturate_index(stmt)
 
     #absorb = PassThrough(@rule @i(∀ ~i ∀ ~~j ~s) => @i ∀ $(sort([~i; ~~j])) ~s)
 
-    internalize = Expand(Presearch(RewriteExpand(
+    internalize = Expand(Presearch(
         (x) -> if  @capture x @i @loop ~~is (~c where ~p)
             #an important assumption of this code is that there are actually no loops in C or P yet that could "absorb" indices.
             if reducer(p) != nothing
@@ -150,11 +150,11 @@ function saturate_index(stmt)
                 end
             end
         end
-    )))
+    ))
     prgms = mapreduce(internalize, vcat, prgms)
-    prgms = map(Postwalk(PassThrough(@rule @i(@loop ~s) => ~s)), prgms)
+    prgms = map(Rewrite(Postwalk(@rule @i(@loop ~s) => ~s)), prgms)
 
-    reorder = PrewalkSaturate(PassThroughSaturate(
+    reorder = Expand(Presearch(
         @rule @i(@loop ~~is ~s) => map(js -> @i(@loop $js ~s), collect(permutations(~~is))[2:end])
     ))
 
@@ -187,13 +187,13 @@ end
 function format_workspaces(prgm, Ctx, workspacer)
     ctx = DimensionalizeWorkspaceContext{Ctx}(Dimensions())
     prgm = transform_ssa(prgm)
-    dimensionalize!(node, ctx)
+    dimensionalize!(prgm, ctx)
     dims = ctx.dims
-	Postwalk(PassThrough((node) -> if node isa Access{Workspace}
+	Postwalk((node) -> if node isa Access{Workspace}
         name = getname(node.tns)
         tns = workspacer(name, node.mode, map(idx->dims[getname(idx)], node.idxs))
 	    return access(tns, node.mode, node.idxs)
-	end))(prgm)
+	end)(prgm)
 end
 
 getdims(ctx::DimensionalizeWorkspaceContext) = ctx.dims

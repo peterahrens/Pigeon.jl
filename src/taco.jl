@@ -1,3 +1,13 @@
+#These are awful defaults, but taco doesn't default to a system build, so I
+#can't reasonably guess where you might have put it
+TACO_LIB = "~/taco/build/lib"
+TACO_INC = "~/taco/include"
+TACO_SRC = "~/taco/src"
+
+set_TACO_LIB(path) = global TACO_LIB = path
+set_TACO_INC(path) = global TACO_INC = path
+set_TACO_SRC(path) = global TACO_SRC = path
+
 mutable struct TacoLowerContext
     tensor_variable_names
     index_variable_names
@@ -445,12 +455,9 @@ function readtns(fname)
 end
 
 function build_taco(prgm, name = "kernel_$(hash(prgm, UInt(0)))")
-    #TACO_LIB = "/data/scratch/pahrens/taco/build/lib"
-    #TACO_INC = "/data/scratch/pahrens/taco/include"
-    #TACO_SRC = "/data/scratch/pahrens/taco/src"
-    TACO_LIB = "/Users/Peter/Projects/taco/build/lib"
-    TACO_INC = "/Users/Peter/Projects/taco/include"
-    TACO_SRC = "/Users/Peter/Projects/taco/src"
+    global TACO_LIB
+    global TACO_INC
+    global TACO_SRC
 
 
     exe = joinpath(@get_scratch!("kernels"), name)

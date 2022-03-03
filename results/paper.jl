@@ -78,8 +78,8 @@ function paper(prgm, args, dims, fname)
     tacoverse = _tacoverse[]
     Pigeon.taco_mode[] = false
 
-    println(:tacoverse)
-    foreach(display, tacoverse)
+    #println(:tacoverse)
+    #foreach(display, tacoverse)
 
     data["tacoverse_build_time"] = tacoverse_build_time
     data["tacoverse_length"] = length(tacoverse)

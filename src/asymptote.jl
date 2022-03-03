@@ -326,7 +326,7 @@ function Base.getindex(q::PointQuery, idxs...)
     d = Dict(enumerate(map(getname, idxs)))
     rename(x::CanonVariable) = haskey(d, x.n) ? d[x.n] : x
     rename(x) = x
-    Postwalk(rename)(q.points)
+    Rewrite(Postwalk(rename))(q.points)
 end
 
 nnodes(x) = istree(x) ? mapreduce(nnodes, +, arguments(x)) : 1
@@ -334,6 +334,6 @@ nnodes(x) = istree(x) ? mapreduce(nnodes, +, arguments(x)) : 1
 function Base.setindex!(q::PointQuery, p, idxs...)
     d = Dict(reverse.(enumerate(map(getname, idxs))))
     rename(x) = haskey(d, x) ? CanonVariable(d[x]) : x
-    q.points = Vee(q.points, Postwalk(rename)(p))
+    q.points = Vee(q.points, Rewrite(Postwalk(rename))(p))
     q[idxs...]
 end

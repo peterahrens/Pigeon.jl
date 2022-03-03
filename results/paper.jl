@@ -77,6 +77,7 @@ function paper(prgm, args, dims, fname)
     data["tacoverse_build_time"] = tacoverse_build_time
     data["tacoverse_length"] = length(tacoverse)
 
+    #=
     Pigeon.taco_mode[] = true
     sample_mean_tacoverse_bench = mean(map(tacoverse[randperm(end)[1:min(end, 100)]]) do kernel
         @info "benchmark tacoverse" min(length(tacoverse), 100)
@@ -87,6 +88,7 @@ function paper(prgm, args, dims, fname)
     Pigeon.taco_mode[] = false
 
     data["sample_mean_tacoverse_bench"] = sample_mean_tacoverse_bench
+    =#
 
     _tacotier = Ref([])
     tacotier_filter_time = @belapsed begin

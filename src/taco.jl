@@ -270,7 +270,7 @@ function lower_taco(prgm)
     #include <chrono>
 
     template <typename Setup, typename Test>
-    double benchmark(double time_max, int trial_max, Setup setup, Test test){
+    long long benchmark(double time_max, int trial_max, Setup setup, Test test){
         auto time_total = std::chrono::high_resolution_clock::duration(0);
         auto time_min = std::chrono::high_resolution_clock::duration(0);
         int trial = 0;
@@ -279,6 +279,9 @@ function lower_taco(prgm)
             auto tic = std::chrono::high_resolution_clock::now();
             test();
             auto toc = std::chrono::high_resolution_clock::now();
+            if(toc < tic){
+                exit(EXIT_FAILURE);
+            }
             auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(toc-tic);
             trial++;
             if(trial == 1 || time < time_min){
@@ -289,7 +292,7 @@ function lower_taco(prgm)
                 break;
             }
         }
-        return time_min.count() * 1e-9;
+        return (long long) time_min.count();
     }
 
     using namespace taco;
@@ -502,7 +505,7 @@ function run_taco(prgm, inputs)
             end
         end
     end
-    return parse(Float64, String(take!(io)))
+    return parse(Int64, String(take!(io))) * 1.0e-9
 end
 
 function generate_uniform_taco_inputs(tnss, n, ρ)

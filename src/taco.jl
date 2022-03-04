@@ -488,10 +488,11 @@ function run_taco(prgm, inputs)
             push!(args, f)
         end
     end
-    io = IOBuffer()
+    io = nothing
     attempts = 0
     while true
         try
+            io = IOBuffer()
             run(pipeline(`$exe $args`, stdout=io))
             break
         catch

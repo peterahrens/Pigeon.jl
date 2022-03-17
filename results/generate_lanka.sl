@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH --exclusive
-#SBATCH -t 4-0
+#SBATCH -t 1-0
 #SBATCH --partition=lanka-v3
-#SBATCH --array 1-6%8
+#SBATCH --array 1-6
 
 export SCRATCH=/data/scratch/pahrens
 export PATH="$SCRATCH/julia:$PATH"

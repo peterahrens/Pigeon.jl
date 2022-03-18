@@ -50,9 +50,9 @@ function main()
                 @printf f "%.6g" data["tacotier_filter_time"]
             end
 
-            open(joinpath(rpath, "$(name)_tacoverse_bench_time.json"), "w") do f
-                @printf f "%.6g" data["sample_mean_tacoverse_bench"] * 100 * data["tacoverse_length"]
-            end
+            #open(joinpath(rpath, "$(name)_tacoverse_bench_time.json"), "w") do f
+            #    @printf f "%.6g" data["sample_mean_tacoverse_bench"] * 100 * data["tacoverse_length"]
+            #end
 
             open(joinpath(rpath, "$(name)_tacoverse_mean_filter_time.json"), "w") do f
                 @printf f "%.3g" data["tacotier_filter_time"] / data["tacoverse_length"]

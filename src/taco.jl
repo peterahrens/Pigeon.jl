@@ -564,18 +564,16 @@ end
 
 mutable struct IsTacoFormattableContext
     res
-    counts
+    count
 end
 function istacoformattable(prgm)
-    #println()
-    #println()
-    counts = Dict()
-    tacocountsteps!(prgm, counts)
-    ctx = IsTacoFormattableContext(true, counts)
+    println()
+    println()
+    ctx = IsTacoFormattableContext(true, 0)
     istacoformattable!(prgm, ctx)
-    #println(ctx.res)
-    #display(prgm)
-    #println()
+    println(ctx.res)
+    display(prgm)
+    println()
     return ctx.res && workspacecount(prgm) <= 1
 end
 function istacoformattable!(node, ctx::IsTacoFormattableContext)
@@ -593,26 +591,27 @@ function istacoformattable!(node::Access{SymbolicHollowDirector, Read}, ctx::IsT
         ctx.res &= !any(isequal(HashFormat()), getformat(node.tns))
     elseif getformat(node.tns) == [HashFormat()]
         proto = getprotocol(node.tns)[1]
-        count = ctx.counts[node.idxs[1]]
         #The following logic works because TACO only supports one workspace, 
         #we have assumed that the HASH format is a sentinel for a TACO workspace format,
-        #and TACO will only step through the workspace if there are no other steppers
-        ctx.res &= proto == ConvertProtocol() ||
-           (count == 1 && proto in [StepProtocol(), LocateProtocol()]) ||
-           (count > 1 && proto == LocateProtocol())
+        #and TACO will only step through the workspace if there are no other reads
+        ctx.res &= (proto == ConvertProtocol()) ||
+           (ctx.count == 1 && proto == StepProtocol()) ||
+           (ctx.count != 1 && proto == LocateProtocol())
     end
 end
-function tacocountsteps!(node, counts)
+function istacoformattable!(node::Assign, ctx::IsTacoFormattableContext)
+    ctx.count = tacocountreads!(node)
+    istacoformattable!(node.lhs, ctx)
+    istacoformattable!(node.rhs, ctx)
+end
+function tacocountreads!(node)
     if istree(node)
-        map(arg->tacocountsteps!(arg, counts), arguments(node))
+        mapreduce(arg->tacocountreads!(arg), +, arguments(node), init=0)
+    else
+        0
     end
 end
-function tacocountsteps!(node::Access{SymbolicHollowDirector, Read}, counts)
-    for (idx, proto) in zip(node.idxs, getprotocol(node.tns))
-        count = get!(counts, idx, 0)
-        counts[idx] = count + (proto == StepProtocol())
-    end
-end
+tacocountreads!(node::Access{<:Any, Read}) = 1
 
 struct ReformatReadTacoContext <: AbstractReformatContext
     qnt

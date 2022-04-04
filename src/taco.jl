@@ -564,11 +564,14 @@ end
 
 mutable struct IsTacoFormattableContext
     res
+    counts
 end
 function istacoformattable(prgm)
     #println()
     #println()
-    ctx = IsTacoFormattableContext(true)
+    counts = Dict()
+    tacocountsteps!(prgm, counts)
+    ctx = IsTacoFormattableContext(true, counts)
     istacoformattable!(prgm, ctx)
     #println(ctx.res)
     #display(prgm)
@@ -588,8 +591,26 @@ end
 function istacoformattable!(node::Access{SymbolicHollowDirector, Read}, ctx::IsTacoFormattableContext)
     if length(getformat(node.tns)) > 1
         ctx.res &= !any(isequal(HashFormat()), getformat(node.tns))
-    elseif length(getformat(node.tns)) == 1
-        ctx.res &= getprotocol(node.tns)[1] in [StepProtocol(), ConvertProtocol()]
+    elseif getformat(node.tns) == [HashFormat()]
+        proto = getprotocol(node.tns)[1]
+        count = ctx.counts[node.idxs[1]]
+        #The following logic works because TACO only supports one workspace, 
+        #we have assumed that the HASH format is a sentinel for a TACO workspace format,
+        #and TACO will only step through the workspace if there are no other steppers
+        ctx.res &= proto == ConvertProtocol() ||
+           (count == 1 && proto in [StepProtocol(), LocateProtocol()]) ||
+           (count > 1 && proto == LocateProtocol())
+    end
+end
+function tacocountsteps!(node, counts)
+    if istree(node)
+        map(arg->tacocountsteps!(arg, counts), arguments(node))
+    end
+end
+function tacocountsteps!(node::Access{SymbolicHollowDirector, Read}, counts)
+    for (idx, proto) in zip(node.idxs, getprotocol(node.tns))
+        count = get!(counts, idx, 0)
+        counts[idx] = count + (proto == StepProtocol())
     end
 end
 

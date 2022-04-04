@@ -11,12 +11,12 @@ using RewriteTools.Rewriters
 @eval RewriteTools using Base.Iterators
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 10
 
-Pigeon.set_TACO_LIB("/data/scratch/pahrens/taco/build/lib")
-Pigeon.set_TACO_INC("/data/scratch/pahrens/taco/include")
-Pigeon.set_TACO_SRC("/data/scratch/pahrens/taco/src")
-#Pigeon.set_TACO_LIB("/Users/Peter/Projects/taco/build/lib")
-#Pigeon.set_TACO_INC("/Users/Peter/Projects/taco/include")
-#Pigeon.set_TACO_SRC("/Users/Peter/Projects/taco/src")
+#Pigeon.set_TACO_LIB("/data/scratch/pahrens/taco/build/lib")
+#Pigeon.set_TACO_INC("/data/scratch/pahrens/taco/include")
+#Pigeon.set_TACO_SRC("/data/scratch/pahrens/taco/src")
+Pigeon.set_TACO_LIB("/Users/Peter/Projects/taco/build/lib")
+Pigeon.set_TACO_INC("/Users/Peter/Projects/taco/include")
+Pigeon.set_TACO_SRC("/Users/Peter/Projects/taco/src")
 
 function paper(prgm, args, dims, fname)
     data = Dict()

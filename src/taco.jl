@@ -567,13 +567,13 @@ mutable struct IsTacoFormattableContext
     count
 end
 function istacoformattable(prgm)
-    println()
-    println()
+    #println()
+    #println()
     ctx = IsTacoFormattableContext(true, 0)
     istacoformattable!(prgm, ctx)
-    println(ctx.res)
-    display(prgm)
-    println()
+    #println(ctx.res)
+    #display(prgm)
+    #println()
     return ctx.res && workspacecount(prgm) <= 1
 end
 function istacoformattable!(node, ctx::IsTacoFormattableContext)
